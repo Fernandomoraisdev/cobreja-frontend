@@ -1,0 +1,6 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "flutter build web --release"
+
+[deploy]
+startCommand = "npx serve -s build/web -l $PORT"
