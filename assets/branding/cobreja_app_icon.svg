@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="110" y1="90" x2="916" y2="934" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F62FE"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="428" y1="214" x2="630" y2="716" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8FFFC"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="82" y="82" width="860" height="860" rx="246" fill="url(#bg)"/>
+  <rect x="82" y="82" width="860" height="860" rx="246" stroke="white" stroke-opacity="0.16" stroke-width="12"/>
+  <path d="M544 278L412 530H516L454 760L672 480H560L626 278H544Z" fill="url(#bolt)"/>
+  <path d="M520 278C379.705 278 266 391.705 266 532C266 672.295 379.705 786 520 786C660.295 786 774 672.295 774 532" stroke="#F5FFFC" stroke-width="62" stroke-linecap="round"/>
+  <path d="M572 278C689.38 290.662 781.338 382.62 794 500" stroke="#E1FFF8" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="744" cy="278" r="42" fill="#E9FFFB" fill-opacity="0.95"/>
+</svg>

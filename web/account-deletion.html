@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Exclusão de conta da COBREJÁ.">
+  <title>Exclusão de Conta | COBREJÁ</title>
+  <style>
+    :root {
+      --primary: #0f62fe;
+      --secondary: #14b8a6;
+      --danger: #dc2626;
+      --text-strong: #111827;
+      --text-body: #344054;
+      --text-muted: #5b6474;
+      --surface: rgba(255,255,255,.94);
+      --border: #dce9ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-body);
+      background: linear-gradient(135deg, #eaf2ff, #f9fbff 55%, #e6fffa);
+    }
+
+    .page {
+      width: min(900px, calc(100% - 32px));
+      margin: 40px auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: 0 22px 48px rgba(15, 23, 42, 0.10);
+    }
+
+    .hero {
+      padding: 36px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.06;
+    }
+
+    .hero p {
+      margin: 12px 0 0;
+      max-width: 700px;
+      line-height: 1.6;
+      color: #e8fffb;
+    }
+
+    .content {
+      padding: 30px 36px 36px;
+    }
+
+    .meta {
+      margin: 0 0 20px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      color: var(--text-strong);
+      font-size: 20px;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.65;
+    }
+
+    section + section { margin-top: 22px; }
+    p + p { margin-top: 10px; }
+
+    .danger-box {
+      margin-top: 28px;
+      padding: 18px;
+      border-radius: 20px;
+      background: #fff5f5;
+      border: 1px solid #f1b7b7;
+    }
+
+    .danger-box strong {
+      color: var(--danger);
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100%, calc(100% - 20px));
+        margin: 16px auto;
+        border-radius: 24px;
+      }
+
+      .hero,
+      .content {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1>Exclusão de Conta da COBREJÁ</h1>
+      <p>
+        A COBREJÁ permite que a exclusão da conta local seja feita diretamente dentro do aplicativo, sem necessidade de contato com suporte.
+      </p>
+    </header>
+
+    <div class="content">
+      <p class="meta">Última atualização: 09 de abril de 2026</p>
+
+      <section>
+        <h2>Como excluir a conta</h2>
+        <p>1. Abra o aplicativo COBREJÁ.</p>
+        <p>2. Faça login na conta que deseja excluir.</p>
+        <p>3. No painel principal, toque no ícone de backup.</p>
+        <p>4. Escolha a opção <strong>Excluir conta local</strong>.</p>
+        <p>5. Confirme a exclusão.</p>
+      </section>
+
+      <section>
+        <h2>O que é apagado</h2>
+        <p>A exclusão remove desta instalação local a conta autenticada e os dados financeiros armazenados no aparelho, incluindo clientes, pagamentos, renegociações, lembretes e sessão ativa.</p>
+      </section>
+
+      <section>
+        <h2>O que pode permanecer fora do app</h2>
+        <p>Se o usuário exportou backups, PDFs, CSVs, comprovantes ou outros arquivos para fora da COBREJÁ, esses arquivos não são apagados automaticamente e precisam ser removidos manualmente do local onde foram salvos.</p>
+      </section>
+
+      <section>
+        <h2>Contato</h2>
+        <p>Contato atual informado para a COBREJÁ: (21) 96568-0720.</p>
+      </section>
+
+      <div class="danger-box">
+        <strong>Atenção:</strong> a exclusão local é irreversível para os dados que estiverem apenas dentro do app e não tiverem sido exportados em backup.
+      </div>
+    </div>
+  </main>
+</body>
+</html>

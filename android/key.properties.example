@@ -1,0 +1,4 @@
+storePassword=SUA_SENHA_DA_KEYSTORE
+keyPassword=SUA_SENHA_DA_CHAVE
+keyAlias=cobreja
+storeFile=../keystore/cobreja-release.jks

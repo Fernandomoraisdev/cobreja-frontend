@@ -1,0 +1,17 @@
+﻿<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="52" x2="432" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F62FE"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="208" y1="120" x2="320" y2="324" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6FFFB"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="56" y="56" width="400" height="400" rx="112" fill="url(#bg)"/>
+  <path d="M254 126L186 256H244L216 376L326 232H266L300 126H254Z" fill="url(#bolt)"/>
+  <path d="M248 100C179.517 100 124 155.517 124 224C124 292.483 179.517 348 248 348C316.483 348 372 292.483 372 224" stroke="#DFFDF8" stroke-width="24" stroke-linecap="round"/>
+  <path d="M262 100C321.06 106.285 365.715 150.94 372 210" stroke="#DFFDF8" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="346" cy="138" r="20" fill="#DFFDF8" fill-opacity="0.92"/>
+</svg>
