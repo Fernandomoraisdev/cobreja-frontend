@@ -7468,6 +7468,41 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   List<ReminderItem> get _reminders => FinanceService.generateReminders(_clients);
 
+  bool get _isDarkTheme => Theme.of(context).brightness == Brightness.dark;
+
+  List<Color> get _shellBackgroundColors => _isDarkTheme
+      ? const [
+          Color(0xFF06111F),
+          Color(0xFF081A2E),
+          Color(0xFF092D24),
+        ]
+      : const [
+          AppColors.backgroundTop,
+          AppColors.backgroundMid,
+          AppColors.backgroundBottom,
+        ];
+
+  Color get _shellPanelColor =>
+      _isDarkTheme ? const Color(0xFF0B1F36) : Colors.white.withOpacity(0.92);
+
+  Color get _shellPanelSoftColor =>
+      _isDarkTheme ? const Color(0xFF102A46) : const Color(0xFFF8FBFF);
+
+  Color get _shellBorderColor =>
+      _isDarkTheme ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+
+  Color get _shellStrongTextColor =>
+      _isDarkTheme ? const Color(0xFFF8FBFF) : const Color(0xFF111827);
+
+  Color get _shellMutedTextColor =>
+      _isDarkTheme ? const Color(0xFFB6C2D2) : const Color(0xFF5B6474);
+
+  Color get _shellNavTextColor =>
+      _isDarkTheme ? const Color(0xFFD7E3F4) : const Color(0xFF22324A);
+
+  Color get _shellNavIconColor =>
+      _isDarkTheme ? const Color(0xFF9FB3CC) : const Color(0xFF365071);
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -7477,15 +7512,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         return Scaffold(
           drawer: isCompact ? Drawer(child: _buildNavigationRailContent(compact: true)) : null,
           body: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.backgroundTop,
-                  AppColors.backgroundMid,
-                  AppColors.backgroundBottom,
-                ],
+                colors: _shellBackgroundColors,
               ),
             ),
             child: SafeArea(
@@ -7528,14 +7559,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   Widget _buildDeveloperFooter() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(18, 0, 18, 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Text(
         '© COBREJÁ • Fernando Morais • 2026',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
-          color: AppColors.textMuted,
+          color: _shellMutedTextColor,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -7574,23 +7605,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAFF),
+                            color: _shellPanelSoftColor,
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: const Color(0xFFDCE9FF)),
+                            border: Border.all(color: _shellBorderColor),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.verified_user_rounded,
-                                color: Color(0xFF061C3D),
+                                color: _shellStrongTextColor,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 widget.windowsLicense!.typeLabel,
-                                style: const TextStyle(
-                                  color: Color(0xFF061C3D),
+                                style: TextStyle(
+                                  color: _shellStrongTextColor,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -7625,7 +7656,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               Text(
                 'Bem-vindo, ${widget.account.name}',
                 style: TextStyle(
-                  color: const Color(0xFF5B6474),
+                  color: _shellMutedTextColor,
                   fontSize: compact ? 15 : 16,
                   fontWeight: FontWeight.w500,
                 ),
@@ -7669,9 +7700,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: _shellPanelColor,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDCE9FF)),
+        border: Border.all(color: _shellBorderColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A0F172A),
@@ -7693,23 +7724,25 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   style: TextStyle(
                     fontSize: compact ? 15 : 16,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF111827),
+                    color: _shellStrongTextColor,
                   ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: compact ? 48 : 54,
                   child: SvgPicture.asset(
-                    'assets/branding/cobreja_logo.svg',
+                    _isDarkTheme
+                        ? 'assets/branding/cobreja_logo_white.svg'
+                        : 'assets/branding/cobreja_logo.svg',
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Cobrança inteligente, recebimento garantido.',
                   style: TextStyle(
-                    color: Color(0xFF5B6474),
+                    color: _shellMutedTextColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -7718,9 +7751,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FBFF),
+                    color: _shellPanelSoftColor,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFDCE9FF)),
+                    border: Border.all(color: _shellBorderColor),
                   ),
                   child: Row(
                     children: [
@@ -7728,9 +7761,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         width: 56,
                         height: 76,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F1FF),
+                          color: _isDarkTheme
+                              ? const Color(0xFF173452)
+                              : const Color(0xFFE8F1FF),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFD6E7FF)),
+                          border: Border.all(
+                            color: _isDarkTheme
+                                ? const Color(0xFF315577)
+                                : const Color(0xFFD6E7FF),
+                          ),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: _buildProfilePhotoFrame(
@@ -7748,9 +7787,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               _safeProfileDisplayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF111827),
+                                color: _shellStrongTextColor,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -7758,8 +7797,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               widget.account.email,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF5B6474),
+                              style: TextStyle(
+                                color: _shellMutedTextColor,
                                 fontSize: 12,
                               ),
                             ),
@@ -7772,7 +7811,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: _shellBorderColor),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(12),
@@ -7804,7 +7843,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         border: Border.all(
                           color: selected
                               ? accentPrimary.withOpacity(0.34)
-                              : const Color(0xFFDCE9FF),
+                              : _shellBorderColor,
                         ),
                         boxShadow: selected
                             ? [
@@ -7820,9 +7859,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         children: [
                           Icon(
                             item.$3 as IconData,
-                            color: selected
-                                ? accentPrimary
-                                : const Color(0xFF365071),
+                            color: selected ? accentPrimary : _shellNavIconColor,
                             size: 20,
                           ),
                           const SizedBox(width: 12),
@@ -7830,9 +7867,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             child: Text(
                               item.$2 as String,
                               style: TextStyle(
-                                color: selected
-                                    ? accentPrimary
-                                    : const Color(0xFF22324A),
+                                color: selected ? accentPrimary : _shellNavTextColor,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -9628,7 +9663,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Widget _buildBrandLockup({required bool compact}) {
     return SvgPicture.asset(
-      'assets/branding/cobreja_logo.svg',
+      _isDarkTheme
+          ? 'assets/branding/cobreja_logo_white.svg'
+          : 'assets/branding/cobreja_logo.svg',
       height: compact ? 52 : 60,
       fit: BoxFit.fitHeight,
       alignment: Alignment.centerLeft,
