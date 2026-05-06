@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -232,6 +233,40 @@ class ApiService {
       );
     }
     return _extractPayloadList(response.body);
+  }
+
+  static Future<Map<String, dynamic>> createInstallmentPix({
+    required String token,
+    required int installmentId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/payments/mercadopago/installments/$installmentId/pix'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> fetchPixIntentStatus({
+    required String token,
+    required int intentId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/payments/mercadopago/intents/$intentId/status'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
   }
 
   static Future<List<Map<String, dynamic>>> fetchMyRequests({
@@ -4431,7 +4466,10 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
                         isSubmittingRequest: _isSubmittingRequest,
                         onRequestCredit: _requestCredit,
                       ),
-                      _ClientDebtsList(debts: _debts),
+                      _ClientDebtsList(
+                        debts: _debts,
+                        onRefresh: _loadClientPortal,
+                      ),
                       _ClientPaymentsList(payments: _payments),
                     ],
                   )),
@@ -5007,8 +5045,12 @@ extension _ClientDebtFilterExtension on _ClientDebtFilter {
 
 class _ClientDebtsList extends StatefulWidget {
   final List<Map<String, dynamic>> debts;
+  final Future<void> Function() onRefresh;
 
-  const _ClientDebtsList({required this.debts});
+  const _ClientDebtsList({
+    required this.debts,
+    required this.onRefresh,
+  });
 
   @override
   State<_ClientDebtsList> createState() => _ClientDebtsListState();
@@ -5016,6 +5058,51 @@ class _ClientDebtsList extends StatefulWidget {
 
 class _ClientDebtsListState extends State<_ClientDebtsList> {
   _ClientDebtFilter _filter = _ClientDebtFilter.all;
+  bool _isCreatingPix = false;
+
+  Future<void> _payInstallmentWithPix(Map<String, dynamic> installment) async {
+    final installmentId = (installment['id'] as num?)?.toInt();
+    if (installmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Parcela invalida para pagamento Pix.')),
+      );
+      return;
+    }
+
+    setState(() => _isCreatingPix = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null || token.isEmpty) {
+        throw const ApiException(
+          statusCode: 401,
+          message: 'Sessao expirada. Entre novamente.',
+        );
+      }
+
+      final intent = await ApiService.createInstallmentPix(
+        token: token,
+        installmentId: installmentId,
+      );
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _PixPaymentDialog(
+          initialIntent: intent,
+          onRefresh: widget.onRefresh,
+        ),
+      );
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err is ApiException ? err.message : 'Erro ao gerar Pix.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreatingPix = false);
+    }
+  }
 
   bool _matchesFilter(Map<String, dynamic> debt) {
     final status = debt['status']?.toString().toUpperCase() ?? 'ACTIVE';
@@ -5229,6 +5316,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                       'PARTIAL' => 'Parcial',
                       _ => 'Pendente',
                     };
+                    final canPay = remaining > 0 && status != 'PAID';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
@@ -5243,6 +5331,16 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                             '${_currency(remaining)} • $statusLabel',
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
+                          if (canPay) ...[
+                            const SizedBox(width: 8),
+                            FilledButton.icon(
+                              onPressed: _isCreatingPix
+                                  ? null
+                                  : () => _payInstallmentWithPix(installment),
+                              icon: const Icon(Icons.pix_rounded, size: 18),
+                              label: const Text('Pagar Pix'),
+                            ),
+                          ],
                         ],
                       ),
                     );
@@ -5253,6 +5351,196 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
           ),
         );
       },
+    );
+  }
+}
+
+class _PixPaymentDialog extends StatefulWidget {
+  final Map<String, dynamic> initialIntent;
+  final Future<void> Function() onRefresh;
+
+  const _PixPaymentDialog({
+    required this.initialIntent,
+    required this.onRefresh,
+  });
+
+  @override
+  State<_PixPaymentDialog> createState() => _PixPaymentDialogState();
+}
+
+class _PixPaymentDialogState extends State<_PixPaymentDialog> {
+  late Map<String, dynamic> _intent;
+  Timer? _pollTimer;
+  bool _isChecking = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _intent = Map<String, dynamic>.from(widget.initialIntent);
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  int? get _intentId => (_intent['id'] as num?)?.toInt();
+
+  String get _status => (_intent['status']?.toString().toUpperCase() ?? 'PENDING');
+
+  String get _qrCode => _intent['qrCode']?.toString() ?? '';
+
+  Uint8List? get _qrCodeImageBytes {
+    final raw = _intent['qrCodeBase64']?.toString() ?? '';
+    if (raw.isEmpty) return null;
+    try {
+      return base64Decode(raw.contains(',') ? raw.split(',').last : raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_isChecking && _status != 'APPROVED') {
+        _checkStatus(showSnack: false);
+      }
+    });
+  }
+
+  Future<void> _checkStatus({bool showSnack = true}) async {
+    final id = _intentId;
+    if (id == null) return;
+
+    setState(() => _isChecking = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null || token.isEmpty) {
+        throw const ApiException(statusCode: 401, message: 'Sessao expirada.');
+      }
+
+      final updatedIntent = await ApiService.fetchPixIntentStatus(
+        token: token,
+        intentId: id,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _intent = updatedIntent;
+        _message = _status == 'APPROVED'
+            ? 'Pagamento aprovado. Atualizando parcela...'
+            : (showSnack ? 'Pagamento ainda nao confirmado.' : _message);
+      });
+
+      if (_status == 'APPROVED') {
+        _pollTimer?.cancel();
+        await widget.onRefresh();
+        if (mounted) Navigator.of(context).pop();
+      }
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _message = err is ApiException ? err.message : 'Erro ao consultar pagamento.';
+      });
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
+  }
+
+  Future<void> _copyPix() async {
+    if (_qrCode.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: _qrCode));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pix copia e cola copiado.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = _readDouble(_intent['amount']);
+    final imageBytes = _qrCodeImageBytes;
+
+    return AlertDialog(
+      title: const Text('Pagamento Pix'),
+      content: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _currency(amount),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 220,
+                  child: _qrCode.isNotEmpty
+                      ? QrImageView(data: _qrCode, backgroundColor: Colors.white)
+                      : (imageBytes == null
+                          ? const Center(child: Text('QR Code indisponivel.'))
+                          : Image.memory(imageBytes, fit: BoxFit.contain)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (_qrCode.isNotEmpty)
+                SelectableText(
+                  _qrCode,
+                  maxLines: 4,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _status == 'APPROVED' ? 'Pago' : 'Aguardando pagamento',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _status == 'APPROVED' ? const Color(0xFF16A34A) : AppColors.textMuted,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (_message != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _message!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isChecking ? null : () => Navigator.of(context).pop(),
+          child: const Text('Fechar'),
+        ),
+        FilledButton.icon(
+          onPressed: _qrCode.isEmpty ? null : _copyPix,
+          icon: const Icon(Icons.copy_rounded, size: 18),
+          label: const Text('Copiar Pix'),
+        ),
+        FilledButton.icon(
+          onPressed: _isChecking ? null : () => _checkStatus(),
+          icon: _isChecking
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Verificar'),
+        ),
+      ],
     );
   }
 }
