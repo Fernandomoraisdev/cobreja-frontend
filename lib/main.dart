@@ -9538,6 +9538,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 icon: const Icon(Icons.download_for_offline_rounded),
                 label: const Text('Baixar backup dos dados'),
               ),
+              OutlinedButton.icon(
+                onPressed: _downloadLegacyLocalBackupFile,
+                icon: const Icon(Icons.history_rounded),
+                label: const Text('Recuperar backup antigo local'),
+              ),
               FilledButton.icon(
                 onPressed: _clearAllBusinessData,
                 style: FilledButton.styleFrom(
@@ -12507,6 +12512,38 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
+  Future<String?> _buildLegacyLocalBackupPayload() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawClients = prefs.getString('clients');
+    final rawReminders = prefs.getString('custom_reminders');
+
+    if (rawClients == null || rawClients.trim().isEmpty) {
+      return null;
+    }
+
+    final decodedClients = jsonDecode(rawClients);
+    if (decodedClients is! List) {
+      return null;
+    }
+
+    var decodedReminders = const <dynamic>[];
+    if (rawReminders != null && rawReminders.trim().isNotEmpty) {
+      final parsed = jsonDecode(rawReminders);
+      if (parsed is List) decodedReminders = parsed;
+    }
+
+    final payload = {
+      'app': 'COBREJA',
+      'schema': 1,
+      'source': 'legacy_local_shared_preferences',
+      'exportedAt': DateTime.now().toIso8601String(),
+      'clients': decodedClients,
+      'customReminders': decodedReminders,
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
   String _buildCsvPayload() {
     final buffer = StringBuffer();
     buffer.writeln('Nome,Telefone,Status,Emprestimo,Vencimento,Valor emprestado,Principal em aberto,Juros em aberto,Total atualizado,Renegociado');
@@ -12866,6 +12903,33 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       mimeType: 'application/json',
       successTitle: 'Backup baixado',
     );
+  }
+
+  Future<void> _downloadLegacyLocalBackupFile() async {
+    try {
+      final payload = await _buildLegacyLocalBackupPayload();
+      if (payload == null) {
+        _showSnack(
+          'Nao encontrei dados antigos salvos localmente nesta instalacao.',
+          tone: _FeedbackTone.warning,
+          title: 'Backup antigo nao encontrado',
+        );
+        return;
+      }
+
+      await _downloadTextExport(
+        content: payload,
+        fileName: _buildExportFileName('cobreja_backup_local_antigo', 'json'),
+        mimeType: 'application/json',
+        successTitle: 'Backup antigo baixado',
+      );
+    } catch (_) {
+      _showSnack(
+        'Encontrei a chave antiga, mas ela nao esta em um formato valido de backup.',
+        tone: _FeedbackTone.error,
+        title: 'Falha ao recuperar',
+      );
+    }
   }
 
   Future<void> _exportCsvReport() async {
@@ -13600,6 +13664,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   },
                   icon: const Icon(Icons.download_for_offline_rounded),
                   label: const Text('Baixar backup .json'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _downloadLegacyLocalBackupFile();
+                  },
+                  icon: const Icon(Icons.history_rounded),
+                  label: const Text('Recuperar backup antigo local'),
                 ),
               ),
                 const SizedBox(height: 10),
