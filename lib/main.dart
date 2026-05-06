@@ -3319,6 +3319,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   String? _windowsLicenseError;
   String? _lastAuthError;
   int? _inviteAccountId;
+  bool _clientInviteMode = false;
   final _nameController = TextEditingController();
   final _cpfController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -3354,10 +3355,12 @@ void _showError(String msg) {
       _inviteCodeController.text = inviteFromUrl.trim().toUpperCase();
       _isRegisterMode = true;
       _registerAsClient = true;
+      _clientInviteMode = true;
     }
     if (_inviteAccountId != null) {
       _isRegisterMode = true;
       _registerAsClient = true;
+      _clientInviteMode = true;
     }
     if (widget.savedAccount != null) {
       _emailController.text = widget.savedAccount!.email;
@@ -4233,26 +4236,47 @@ Future<bool> login(String identifier, String password) async {
             const SizedBox(height: 18),
           ],
           if (_isRegisterMode) ...[
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment<bool>(
-                  value: true,
-                  label: Text('Cliente'),
-                  icon: Icon(Icons.person_rounded),
+            if (_clientInviteMode)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFFCF6),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFB6F0CF)),
                 ),
-                ButtonSegment<bool>(
-                  value: false,
-                  label: Text('Admin'),
-                  icon: Icon(Icons.admin_panel_settings_rounded),
+                child: const Row(
+                  children: [
+                    Icon(Icons.person_rounded, color: Color(0xFF15803D)),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Cadastro de cliente por convite',
+                        style: TextStyle(
+                          color: Color(0xFF166534),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-              selected: {_registerAsClient},
-              onSelectionChanged: (values) {
-                setState(() {
-                  _registerAsClient = values.first;
-                });
-              },
-            ),
+              )
+            else
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('Cliente'),
+                    icon: Icon(Icons.person_rounded),
+                  ),
+                ],
+                selected: {_registerAsClient},
+                onSelectionChanged: (values) {
+                  setState(() {
+                    _registerAsClient = true;
+                  });
+                },
+              ),
             const SizedBox(height: 12),
             TextField(
               controller: _nameController,
