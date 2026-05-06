@@ -7503,6 +7503,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Color get _shellNavIconColor =>
       _isDarkTheme ? const Color(0xFF9FB3CC) : const Color(0xFF365071);
 
+  Color get _shellSelectedNavColor =>
+      _isDarkTheme ? AppColors.secondary : widget.accentPreset.primaryColor;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -7696,7 +7699,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       (_MainSection.metricas, 'Métricas', Icons.bar_chart_rounded),
       (_MainSection.configuracoes, 'Configurações', Icons.settings_rounded),
     ];
-    final accentPrimary = widget.accentPreset.primaryColor;
+    final accentPrimary = _shellSelectedNavColor;
 
     return Container(
       decoration: BoxDecoration(
@@ -7915,18 +7918,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   if (title != null)
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF111827),
+                        color: _shellStrongTextColor,
                       ),
                     ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF5B6474),
+                      style: TextStyle(
+                        color: _shellMutedTextColor,
                         height: 1.45,
                       ),
                     ),
@@ -9505,19 +9508,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 runSpacing: 8,
                 children: AppAccentPreset.values.map((preset) {
                   final selected = widget.accentPreset == preset;
+                  final selectedChipColor = widget.themePreference == AppThemePreference.escuro
+                      ? (preset == AppAccentPreset.cobreja
+                          ? AppColors.secondary
+                          : preset.primaryColor)
+                      : preset.primaryColor;
                   return ChoiceChip(
                     label: Text(preset.label),
                     selected: selected,
                     onSelected: (_) => widget.onUpdateAccentPreset(preset),
-                    selectedColor: preset.primaryColor.withOpacity(0.14),
+                    selectedColor: selectedChipColor,
                     side: BorderSide(
                       color: selected
-                          ? preset.primaryColor
+                          ? selectedChipColor
                           : const Color(0xFFD8E2F0),
                     ),
                     labelStyle: TextStyle(
                       color: selected
-                          ? preset.primaryColor
+                          ? Colors.white
                           : const Color(0xFF4B5563),
                       fontWeight: FontWeight.w700,
                     ),
@@ -9582,6 +9590,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 onPressed: _clearAllBusinessData,
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFB91C1C),
+                  foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.delete_sweep_rounded),
                 label: const Text('Apagar todos os dados'),
