@@ -12560,34 +12560,90 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Future<String?> _buildLegacyLocalBackupPayload() async {
     final prefs = await SharedPreferences.getInstance();
-    final rawClients = prefs.getString('clients');
-    final rawReminders = prefs.getString('custom_reminders');
+    final keys = <String>{
+      'clients',
+      'cobreja_clients',
+      'cobreja_local_clients',
+      'local_clients',
+      'client_list',
+      'flutter.clients',
+      ...prefs.getKeys(),
+    };
 
-    if (rawClients == null || rawClients.trim().isEmpty) {
-      return null;
+    List<dynamic>? decodedClients;
+    String? sourceKey;
+
+    for (final key in keys) {
+      final raw = prefs.getString(key);
+      if (raw == null || raw.trim().isEmpty) continue;
+
+      try {
+        final decoded = jsonDecode(raw);
+        final candidate = decoded is List
+            ? decoded
+            : decoded is Map && decoded['clients'] is List
+                ? decoded['clients'] as List
+                : null;
+
+        if (candidate != null && candidate.any(_looksLikeLegacyClientMap)) {
+          decodedClients = candidate;
+          sourceKey = key;
+          break;
+        }
+      } catch (_) {
+        continue;
+      }
     }
 
-    final decodedClients = jsonDecode(rawClients);
-    if (decodedClients is! List) {
+    if (decodedClients == null || decodedClients.isEmpty) {
       return null;
     }
 
     var decodedReminders = const <dynamic>[];
-    if (rawReminders != null && rawReminders.trim().isNotEmpty) {
-      final parsed = jsonDecode(rawReminders);
-      if (parsed is List) decodedReminders = parsed;
+    for (final key in const [
+      'custom_reminders',
+      'cobreja_custom_reminders',
+      'flutter.custom_reminders',
+    ]) {
+      final rawReminders = prefs.getString(key);
+      if (rawReminders == null || rawReminders.trim().isEmpty) continue;
+      try {
+        final parsed = jsonDecode(rawReminders);
+        if (parsed is List) {
+          decodedReminders = parsed;
+          break;
+        }
+      } catch (_) {}
     }
 
     final payload = {
       'app': 'COBREJA',
       'schema': 1,
-      'source': 'legacy_local_shared_preferences',
+      'source': 'legacy_local_shared_preferences_scan',
+      'sourceKey': sourceKey,
       'exportedAt': DateTime.now().toIso8601String(),
       'clients': decodedClients,
       'customReminders': decodedReminders,
     };
 
     return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  bool _looksLikeLegacyClientMap(dynamic item) {
+    if (item is! Map) return false;
+    final keys = item.keys.map((key) => key.toString()).toSet();
+    final hasName = keys.contains('name') || keys.contains('nome');
+    final hasFinancialField = keys.contains('borrowedAmount') ||
+        keys.contains('borrowed_amount') ||
+        keys.contains('amount') ||
+        keys.contains('valor') ||
+        keys.contains('payments') ||
+        keys.contains('paymentHistory');
+    final hasDateOrStatus = keys.contains('dueDate') ||
+        keys.contains('borrowedDate') ||
+        keys.contains('status') ||
+        keys.contains('vencimento');
+    return hasName && (hasFinancialField || hasDateOrStatus);
   }
 
   String _buildCsvPayload() {
