@@ -144,6 +144,7 @@ class ApiService {
     String? cpf,
     String? phone,
     String? address,
+    String? inviteCode,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/client-register'),
@@ -155,6 +156,8 @@ class ApiService {
         if (cpf != null && cpf.trim().isNotEmpty) 'cpf': cpf.trim(),
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+        if (inviteCode != null && inviteCode.trim().isNotEmpty)
+          'inviteCode': inviteCode.trim(),
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -193,6 +196,22 @@ class ApiService {
     final response = await http.get(
       Uri.parse('$baseUrl/me'),
       headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> fetchInvite({
+    required String inviteCode,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/invite/${Uri.encodeComponent(inviteCode.trim())}'),
+      headers: _jsonHeaders(),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
@@ -3301,6 +3320,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   final _cpfController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -3320,6 +3340,13 @@ void _showError(String msg) {
     _isRegisterMode = false;
     _authenticated = widget.initiallyAuthenticated;
     _sessionAccount = widget.savedAccount;
+    final inviteFromUrl = Uri.base.queryParameters['convite'] ??
+        Uri.base.queryParameters['invite'];
+    if (inviteFromUrl != null && inviteFromUrl.trim().isNotEmpty) {
+      _inviteCodeController.text = inviteFromUrl.trim().toUpperCase();
+      _isRegisterMode = true;
+      _registerAsClient = true;
+    }
     if (widget.savedAccount != null) {
       _emailController.text = widget.savedAccount!.email;
     }
@@ -3347,6 +3374,7 @@ Future<bool> registerClient(
   String? cpf,
   String? phone,
   String? address,
+  String? inviteCode,
 }) async {
   try {
     final data = await ApiService.registerClient(
@@ -3356,6 +3384,7 @@ Future<bool> registerClient(
       cpf: cpf,
       phone: phone,
       address: address,
+      inviteCode: inviteCode,
     );
     final token = (data['token'] ?? data['data']?['token'] ?? '').toString();
     final payload = data['data'] is Map<String, dynamic>
@@ -3456,6 +3485,7 @@ Future<bool> login(String identifier, String password) async {
     _cpfController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _inviteCodeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -3592,6 +3622,7 @@ Future<bool> login(String identifier, String password) async {
               cpf: _cpfController.text.trim(),
               phone: _phoneController.text.trim(),
               address: _addressController.text.trim(),
+              inviteCode: _inviteCodeController.text.trim(),
             )
           : (await register(_nameController.text.trim(), email, password) &&
               await login(email, password)))
@@ -4233,6 +4264,16 @@ Future<bool> login(String identifier, String password) async {
                 controller: _addressController,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(labelText: 'Endereco'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _inviteCodeController,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Codigo de convite',
+                  hintText: 'Enviado pelo administrador',
+                ),
               ),
               const SizedBox(height: 12),
             ],
@@ -5815,6 +5856,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   double _profilePhotoOffsetY = 0;
   double _profilePhotoScale = 1.85;
   double _profilePhotoAspectRatio = 0.75;
+  String? _adminInviteCode;
   List<Map<String, dynamic>> _creditRequests = const [];
   bool _isLoadingCreditRequests = false;
   String? _creditRequestsError;
@@ -6144,7 +6186,61 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       });
     });
     _loadClients();
+    _loadAdminInviteCode();
     fetchDashboard();
+  }
+
+  Future<void> _loadAdminInviteCode() async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      final me = await ApiService.fetchMe(token: token);
+      final account = me['account'];
+      if (account is! Map<String, dynamic>) return;
+      final inviteCode = account['inviteCode']?.toString().trim();
+      if (inviteCode == null || inviteCode.isEmpty) return;
+      if (!mounted) return;
+      setState(() {
+        _adminInviteCode = inviteCode;
+      });
+    } catch (e) {
+      debugPrint('Falha ao carregar convite do administrador: $e');
+    }
+  }
+
+  String _buildClientInviteLink(String inviteCode) {
+    return Uri.base
+        .replace(
+          path: '/',
+          queryParameters: {'convite': inviteCode},
+          fragment: '',
+        )
+        .toString();
+  }
+
+  Future<void> _copyClientInviteLink() async {
+    final inviteCode = _adminInviteCode;
+    if (inviteCode == null || inviteCode.isEmpty) {
+      await _loadAdminInviteCode();
+    }
+    final resolvedCode = _adminInviteCode;
+    if (resolvedCode == null || resolvedCode.isEmpty) {
+      _showSnack(
+        'Nao consegui carregar o codigo de convite agora. Tente novamente em instantes.',
+        tone: _FeedbackTone.warning,
+        title: 'Convite indisponivel',
+      );
+      return;
+    }
+    await Clipboard.setData(
+      ClipboardData(text: _buildClientInviteLink(resolvedCode)),
+    );
+    if (!mounted) return;
+    _showSnack(
+      'Link de cadastro do cliente copiado.',
+      tone: _FeedbackTone.success,
+      title: 'Convite copiado',
+    );
   }
 
   @override
@@ -9463,6 +9559,54 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.link_rounded,
+          title: 'Convite de clientes',
+          subtitle:
+              'Envie este link para clientes novos criarem conta direto na sua carteira.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                _adminInviteCode == null
+                    ? 'Carregando codigo de convite...'
+                    : 'Codigo: $_adminInviteCode',
+                style: const TextStyle(
+                  color: AppColors.textStrong,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (_adminInviteCode != null) ...[
+                const SizedBox(height: 8),
+                SelectableText(
+                  _buildClientInviteLink(_adminInviteCode!),
+                  style: const TextStyle(
+                    color: Color(0xFF5B6474),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _copyClientInviteLink,
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('Copiar link'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _loadAdminInviteCode,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Atualizar'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
