@@ -1160,24 +1160,24 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
 
 
 class AppColors {
-  static const primary = Color(0xFF0F62FE);
-  static const secondary = Color(0xFF14B8A6);
+  static const primary = Color(0xFF061C3D);
+  static const secondary = Color(0xFF22C55E);
   static const accent = Color(0xFF7C3AED);
   static const success = Color(0xFF16A34A);
   static const warning = Color(0xFFF59E0B);
   static const danger = Color(0xFFDC2626);
-  static const textStrong = Color(0xFF111827);
-  static const textBody = Color(0xFF344054);
-  static const textMuted = Color(0xFF5B6474);
-  static const border = Color(0xFFD1D9E6);
-  static const borderSoft = Color(0xFFDCE9FF);
+  static const textStrong = Color(0xFF061C3D);
+  static const textBody = Color(0xFF253A57);
+  static const textMuted = Color(0xFF64748B);
+  static const border = Color(0xFFC8D3E2);
+  static const borderSoft = Color(0xFFD7E0EC);
   static const surface = Colors.white;
-  static const surfaceSoft = Color(0xFFF8FBFF);
-  static const surfaceTint = Color(0xFFF0F6FF);
-  static const background = Color(0xFFF4F7FB);
-  static const backgroundTop = Color(0xFFEAF2FF);
-  static const backgroundMid = Color(0xFFF9FBFF);
-  static const backgroundBottom = Color(0xFFE6FFFA);
+  static const surfaceSoft = Color(0xFFF3F7FB);
+  static const surfaceTint = Color(0xFFEAF1F8);
+  static const background = Color(0xFFE9EEF5);
+  static const backgroundTop = Color(0xFFDDE6F0);
+  static const backgroundMid = Color(0xFFEFF4F8);
+  static const backgroundBottom = Color(0xFFE3F4EC);
 }
 
 class AppRadii {
@@ -1282,7 +1282,7 @@ String _normalizeClientName(String value) => value.trim().toLowerCase();
 const String _currentPasswordHashVersion = 'pbkdf2_sha256_v1';
 const int _currentPasswordIterations = 60000;
 const int _currentPasswordKeyLength = 32;
-const Duration _minimumSplashDuration = Duration(milliseconds: 1800);
+const Duration _splashAnimationDuration = Duration(milliseconds: 650);
 const String _pixPrimaryKey = '12704258708';
 const String _pixFallbackPhoneKey = '21965680720';
 const String _pixMerchantName = 'COBREJA';
@@ -1763,14 +1763,14 @@ extension AppAccentPresetExtension on AppAccentPreset {
   };
 
   Color get primaryColor => switch (this) {
-    AppAccentPreset.cobreja => const Color(0xFF0F62FE),
+    AppAccentPreset.cobreja => const Color(0xFF061C3D),
     AppAccentPreset.esmeralda => const Color(0xFF059669),
     AppAccentPreset.oceano => const Color(0xFF0284C7),
     AppAccentPreset.sunset => const Color(0xFFEA580C),
   };
 
   Color get secondaryColor => switch (this) {
-    AppAccentPreset.cobreja => const Color(0xFF14B8A6),
+    AppAccentPreset.cobreja => const Color(0xFF22C55E),
     AppAccentPreset.esmeralda => const Color(0xFF10B981),
     AppAccentPreset.oceano => const Color(0xFF06B6D4),
     AppAccentPreset.sunset => const Color(0xFFF59E0B),
@@ -1799,8 +1799,8 @@ extension AppPlanExtension on AppPlan {
   };
 
   Color get color => switch (this) {
-    AppPlan.basic => const Color(0xFF0F62FE),
-    AppPlan.professional => const Color(0xFF14B8A6),
+    AppPlan.basic => const Color(0xFF061C3D),
+    AppPlan.professional => const Color(0xFF22C55E),
     AppPlan.premium => const Color(0xFF7C3AED),
   };
 
@@ -2140,7 +2140,7 @@ class FinanceService {
             title: '${client.name} vence amanhã',
             subtitle: 'Prepare a cobrança de ${_currency(debt.totalDebt)}',
             client: client,
-            color: const Color(0xFF0F62FE),
+            color: const Color(0xFF061C3D),
           ),
         );
       }
@@ -2179,7 +2179,6 @@ class _CobrejaAppState extends State<CobrejaApp> {
   }
 
   Future<void> _loadAccount() async {
-    final startedAt = DateTime.now();
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('account');
     final accountsRaw = prefs.getString('accounts');
@@ -2273,12 +2272,6 @@ class _CobrejaAppState extends State<CobrejaApp> {
           await prefs.remove('windows_license_key');
         }
       }
-    }
-
-    final elapsed = DateTime.now().difference(startedAt);
-    final remaining = _minimumSplashDuration - elapsed;
-    if (remaining > Duration.zero) {
-      await Future.delayed(remaining);
     }
 
     if (!mounted) return;
@@ -2637,7 +2630,7 @@ class _SplashPageState extends State<SplashPage>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: _minimumSplashDuration,
+      duration: _splashAnimationDuration,
     )..forward();
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
@@ -2679,7 +2672,11 @@ class _SplashPageState extends State<SplashPage>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFECF4FF), Color(0xFFF8FBFF), Color(0xFFE9FFFA)],
+            colors: [
+              AppColors.backgroundTop,
+              AppColors.backgroundMid,
+              AppColors.backgroundBottom,
+            ],
           ),
         ),
         child: Stack(
@@ -2692,7 +2689,7 @@ class _SplashPageState extends State<SplashPage>
                 height: 220,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF0F62FE).withOpacity(0.08),
+                  color: AppColors.primary.withOpacity(0.10),
                 ),
               ),
             ),
@@ -2704,7 +2701,7 @@ class _SplashPageState extends State<SplashPage>
                 height: 260,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF14B8A6).withOpacity(0.10),
+                  color: AppColors.secondary.withOpacity(0.12),
                 ),
               ),
             ),
@@ -2745,12 +2742,12 @@ class _SplashPageState extends State<SplashPage>
                                 gradient: const LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+                                  colors: [AppColors.primary, AppColors.secondary],
                                 ),
                                 borderRadius: BorderRadius.circular(28),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF0F62FE).withOpacity(0.18),
+                                    color: AppColors.primary.withOpacity(0.22),
                                     blurRadius: 24,
                                     offset: const Offset(0, 14),
                                   ),
@@ -2804,7 +2801,7 @@ class _SplashPageState extends State<SplashPage>
                                 minHeight: 8,
                                 backgroundColor: const Color(0xFFD9E7FF),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF0F62FE),
+                                  AppColors.primary,
                                 ),
                               ),
                             ),
@@ -3563,7 +3560,7 @@ Future<bool> login(String identifier, String password) async {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+              colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
             ),
           ),
           child: Padding(
@@ -3635,7 +3632,7 @@ Future<bool> login(String identifier, String password) async {
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF0F62FE),
+                      foregroundColor: const Color(0xFF061C3D),
                     ),
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Fechar'),
@@ -3664,7 +3661,7 @@ Future<bool> login(String identifier, String password) async {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFEAF2FF), Color(0xFFF9FBFF), Color(0xFFE6FFFA)],
+            colors: [Color(0xFFDDE6F0), Color(0xFFEFF4F8), Color(0xFFE3F4EC)],
           ),
         ),
         child: SafeArea(
@@ -3712,7 +3709,7 @@ Future<bool> login(String identifier, String password) async {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+          colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
         ),
         borderRadius: BorderRadius.horizontal(left: Radius.circular(36)),
       ),
@@ -3827,7 +3824,7 @@ Future<bool> login(String identifier, String password) async {
                         right: 0,
                         bottom: -6,
                         child: Material(
-                          color: const Color(0xFFF0F6FF),
+                          color: const Color(0xFFEAF1F8),
                           borderRadius: BorderRadius.circular(14),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(14),
@@ -3836,7 +3833,7 @@ Future<bool> login(String identifier, String password) async {
                               padding: EdgeInsets.all(9),
                               child: Icon(
                                 Icons.info_outline_rounded,
-                                color: Color(0xFF0F62FE),
+                                color: Color(0xFF061C3D),
                                 size: 20,
                               ),
                             ),
@@ -3855,7 +3852,7 @@ Future<bool> login(String identifier, String password) async {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFF0F6FF), Color(0xFFF2FFFC)],
+                colors: [Color(0xFFEAF1F8), Color(0xFFF2FFFC)],
               ),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: const Color(0xFFD9E7FF)),
@@ -3868,7 +3865,7 @@ Future<bool> login(String identifier, String password) async {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+                      colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -3960,7 +3957,7 @@ Future<bool> login(String identifier, String password) async {
                           widget.windowsMachineCode ??
                               'Não foi possível gerar o código da máquina.',
                           style: const TextStyle(
-                            color: Color(0xFF0F62FE),
+                            color: Color(0xFF061C3D),
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                           ),
@@ -4879,7 +4876,7 @@ class _ClientProfileTab extends StatelessWidget {
             _ClientProfileMetricChip(
               title: 'Dívidas ativas',
               value: '$activeCount',
-              color: const Color(0xFF0F62FE),
+              color: const Color(0xFF061C3D),
               icon: Icons.account_balance_wallet_rounded,
             ),
             _ClientProfileMetricChip(
@@ -6536,7 +6533,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               : 'C',
           style: const TextStyle(
             fontWeight: FontWeight.w800,
-            color: Color(0xFF0F62FE),
+            color: Color(0xFF061C3D),
           ),
         ),
       );
@@ -7370,7 +7367,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFF0F6FF), Color(0xFFF7FBFF), Color(0xFFF4FFFC)],
+                colors: [
+                  AppColors.backgroundTop,
+                  AppColors.backgroundMid,
+                  AppColors.backgroundBottom,
+                ],
               ),
             ),
             child: SafeArea(
@@ -7413,15 +7414,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   Widget _buildDeveloperFooter() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Text(
-        'COBREJÁ • Sistema criado por Fernando Morais • Contato: 21 96568-0720 • fernandomorais.ads@gmail.com',
+        '© COBREJÁ • Fernando Morais • 2026',
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
-          color: Color(0xFF6B7280),
-          fontWeight: FontWeight.w500,
+          color: AppColors.textMuted,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -7468,14 +7469,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             children: [
                               const Icon(
                                 Icons.verified_user_rounded,
-                                color: Color(0xFF0F62FE),
+                                color: Color(0xFF061C3D),
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 widget.windowsLicense!.typeLabel,
                                 style: const TextStyle(
-                                  color: Color(0xFF0F62FE),
+                                  color: Color(0xFF061C3D),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -8930,7 +8931,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     child: const Icon(
                       Icons.receipt_long_rounded,
-                      color: Color(0xFF0F62FE),
+                      color: Color(0xFF061C3D),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -9025,7 +9026,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         icon: const Icon(
                           Icons.receipt_long_rounded,
-                          color: Color(0xFF0F62FE),
+                          color: Color(0xFF061C3D),
                         ),
                       ),
                       PopupMenuButton<String>(
@@ -9098,7 +9099,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+                  colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
                 ),
                 borderRadius: BorderRadius.circular(28),
               ),
@@ -9732,7 +9733,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         totalToReceive
       ),
         subtitle: '$activeClients clientes ativos',
-        color: const Color(0xFF0F62FE),
+        color: const Color(0xFF061C3D),
         icon: Icons.account_balance_wallet_rounded,
         kind: _MetricCardKind.totalToReceive,
       ),
@@ -9862,7 +9863,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         ? _reminders.first.subtitle
         : _safeCustomReminders.first.description;
     final firstColor =
-        hasSystemReminder ? _reminders.first.color : const Color(0xFF0F62FE);
+        hasSystemReminder ? _reminders.first.color : const Color(0xFF061C3D);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Tooltip(
@@ -10021,7 +10022,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     child: Text(
                       '${clients.length} registro(s)',
                       style: const TextStyle(
-                        color: Color(0xFF0F62FE),
+                        color: Color(0xFF061C3D),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -10324,7 +10325,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         _currency(latest.total),
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F62FE),
+                          color: Color(0xFF061C3D),
                         ),
                       ),
                     ],
@@ -10369,8 +10370,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                   begin: Alignment.bottomCenter,
                                   end: Alignment.topCenter,
                                   colors: [
-                                    Color(0xFF0F62FE),
-                                    Color(0xFF14B8A6),
+                                    Color(0xFF061C3D),
+                                    Color(0xFF22C55E),
                                   ],
                                 ),
                               ),
@@ -10457,10 +10458,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       onSelected: (_) => onTap(),
       selectedColor: const Color(0xFFE8F1FF),
       side: BorderSide(
-        color: selected ? const Color(0xFF0F62FE) : const Color(0xFFD8E2F0),
+        color: selected ? const Color(0xFF061C3D) : const Color(0xFFD8E2F0),
       ),
       labelStyle: TextStyle(
-        color: selected ? const Color(0xFF0F62FE) : const Color(0xFF4B5563),
+        color: selected ? const Color(0xFF061C3D) : const Color(0xFF4B5563),
         fontWeight: FontWeight.w700,
       ),
       showCheckmark: false,
@@ -10543,12 +10544,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+                          colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
                         ),
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0F62FE).withOpacity(0.18),
+                            color: const Color(0xFF061C3D).withOpacity(0.18),
                             blurRadius: 22,
                             offset: const Offset(0, 12),
                           ),
@@ -11718,7 +11719,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     ? const Color(0xFF16A34A)
                                     : debt.isOverdue
                                         ? const Color(0xFFDC2626)
-                                        : const Color(0xFF0F62FE),
+                                        : const Color(0xFF061C3D),
                               ),
                             ],
                           )
@@ -11758,7 +11759,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     ? const Color(0xFF16A34A)
                                     : debt.isOverdue
                                         ? const Color(0xFFDC2626)
-                                        : const Color(0xFF0F62FE),
+                                        : const Color(0xFF061C3D),
                               ),
                             ],
                           ),
@@ -11912,7 +11913,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _ActionChip(
             icon: Icons.edit_rounded,
             label: 'Editar dívida',
-            color: const Color(0xFF0F62FE),
+            color: const Color(0xFF061C3D),
             onTap: () {
               Navigator.pop(context);
               _showEditClientDialog(client);
@@ -11953,7 +11954,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _ActionChip(
             icon: Icons.payments_rounded,
             label: 'Pagamento parcial',
-            color: const Color(0xFF0F62FE),
+            color: const Color(0xFF061C3D),
             onTap: () {
               Navigator.pop(context);
               _showPaymentDialog(client);
@@ -11993,7 +11994,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _ActionChip(
             icon: Icons.message_rounded,
             label: 'Cobrar automático',
-            color: const Color(0xFF14B8A6),
+            color: const Color(0xFF22C55E),
             onTap: () => _launchWhatsApp(client, debt, automatic: true),
           ),
 
@@ -12212,7 +12213,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     child: const Icon(
                       Icons.receipt_long_rounded,
-                      color: Color(0xFF0F62FE),
+                      color: Color(0xFF061C3D),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -12267,7 +12268,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         icon: const Icon(
                           Icons.receipt_long_rounded,
-                          color: Color(0xFF0F62FE),
+                          color: Color(0xFF061C3D),
                         ),
                         visualDensity: VisualDensity.compact,
                       ),
@@ -12773,7 +12774,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ];
             }).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF0F62FE)),
+            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF061C3D)),
             cellAlignment: pw.Alignment.centerLeft,
             cellPadding: const pw.EdgeInsets.all(6),
             border: pw.TableBorder.all(color: PdfColor.fromHex('#DCE9FF')),
@@ -13095,7 +13096,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ];
             }).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF0F62FE)),
+            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF061C3D)),
             cellPadding: const pw.EdgeInsets.all(6),
             border: pw.TableBorder.all(color: PdfColor.fromHex('#DCE9FF')),
           ),
@@ -13120,7 +13121,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ];
               }).toList(),
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF14B8A6)),
+              headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF22C55E)),
               cellPadding: const pw.EdgeInsets.all(6),
               border: pw.TableBorder.all(color: PdfColor.fromHex('#DCE9FF')),
             ),
@@ -13913,7 +13914,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             backgroundColor: Color(0xFFE8F1FF),
                             child: Icon(
                               Icons.edit_calendar_rounded,
-                              color: Color(0xFF0F62FE),
+                              color: Color(0xFF061C3D),
                             ),
                           ),
                           title: Text(item.title),
@@ -15202,7 +15203,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   color: enabled
-                      ? const Color(0xFF0F62FE)
+                      ? const Color(0xFF061C3D)
                       : const Color(0xFF9CA3AF),
                 ),
               ),
@@ -15887,7 +15888,7 @@ class _MetricsActionCard extends StatelessWidget {
               width: 48,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0F62FE), Color(0xFF14B8A6)],
+                  colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -16238,7 +16239,7 @@ class _ClientGroupCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
     final highlightColor =
-        overdueCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF0F62FE);
+        overdueCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF061C3D);
 
     final hasLate = totalLate > 0.009;
     final subtitleParts = <String>[
@@ -16492,13 +16493,13 @@ class _AdminClientGroupProfilePageState
                   value: _currency(totalDebt),
                   color: overdueCount > 0
                       ? const Color(0xFFDC2626)
-                      : const Color(0xFF0F62FE),
+                      : const Color(0xFF061C3D),
                   icon: Icons.assessment_rounded,
                 ),
                 _ProfileMetricCard(
                   title: 'Principal em aberto',
                   value: _currency(totalPrincipal),
-                  color: const Color(0xFF0F62FE),
+                  color: const Color(0xFF061C3D),
                   icon: Icons.account_balance_wallet_rounded,
                 ),
                 _ProfileMetricCard(
@@ -16741,7 +16742,7 @@ class _ClientCard extends StatelessWidget {
         ? const Color(0xFF16A34A)
         : debt.isOverdue
             ? const Color(0xFFDC2626)
-            : const Color(0xFF0F62FE);
+            : const Color(0xFF061C3D);
 
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
@@ -17110,7 +17111,7 @@ class _SettingsCard extends StatelessWidget {
                   color: const Color(0xFFE8F1FF),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: const Color(0xFF0F62FE)),
+                child: Icon(icon, color: const Color(0xFF061C3D)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -17218,3 +17219,5 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
+
