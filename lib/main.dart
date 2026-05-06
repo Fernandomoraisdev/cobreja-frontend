@@ -145,6 +145,7 @@ class ApiService {
     String? phone,
     String? address,
     String? inviteCode,
+    int? accountId,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/client-register'),
@@ -158,6 +159,7 @@ class ApiService {
         if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
         if (inviteCode != null && inviteCode.trim().isNotEmpty)
           'inviteCode': inviteCode.trim(),
+        if (accountId != null) 'accountId': accountId,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -3316,6 +3318,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   UserAccount? _sessionAccount;
   String? _windowsLicenseError;
   String? _lastAuthError;
+  int? _inviteAccountId;
   final _nameController = TextEditingController();
   final _cpfController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -3342,8 +3345,17 @@ void _showError(String msg) {
     _sessionAccount = widget.savedAccount;
     final inviteFromUrl = Uri.base.queryParameters['convite'] ??
         Uri.base.queryParameters['invite'];
+    _inviteAccountId = int.tryParse(
+      Uri.base.queryParameters['conta'] ??
+          Uri.base.queryParameters['accountId'] ??
+          '',
+    );
     if (inviteFromUrl != null && inviteFromUrl.trim().isNotEmpty) {
       _inviteCodeController.text = inviteFromUrl.trim().toUpperCase();
+      _isRegisterMode = true;
+      _registerAsClient = true;
+    }
+    if (_inviteAccountId != null) {
       _isRegisterMode = true;
       _registerAsClient = true;
     }
@@ -3375,6 +3387,7 @@ Future<bool> registerClient(
   String? phone,
   String? address,
   String? inviteCode,
+  int? accountId,
 }) async {
   try {
     final data = await ApiService.registerClient(
@@ -3385,6 +3398,7 @@ Future<bool> registerClient(
       phone: phone,
       address: address,
       inviteCode: inviteCode,
+      accountId: accountId,
     );
     final token = (data['token'] ?? data['data']?['token'] ?? '').toString();
     final payload = data['data'] is Map<String, dynamic>
@@ -3623,6 +3637,7 @@ Future<bool> login(String identifier, String password) async {
               phone: _phoneController.text.trim(),
               address: _addressController.text.trim(),
               inviteCode: _inviteCodeController.text.trim(),
+              accountId: _inviteAccountId,
             )
           : (await register(_nameController.text.trim(), email, password) &&
               await login(email, password)))
@@ -5857,6 +5872,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   double _profilePhotoScale = 1.85;
   double _profilePhotoAspectRatio = 0.75;
   String? _adminInviteCode;
+  int? _adminInviteAccountId;
   List<Map<String, dynamic>> _creditRequests = const [];
   bool _isLoadingCreditRequests = false;
   String? _creditRequestsError;
@@ -6198,10 +6214,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final account = me['account'];
       if (account is! Map<String, dynamic>) return;
       final inviteCode = account['inviteCode']?.toString().trim();
-      if (inviteCode == null || inviteCode.isEmpty) return;
+      final accountId = int.tryParse(account['id']?.toString() ?? '');
+      if ((inviteCode == null || inviteCode.isEmpty) && accountId == null) {
+        return;
+      }
       if (!mounted) return;
       setState(() {
-        _adminInviteCode = inviteCode;
+        _adminInviteCode = inviteCode == null || inviteCode.isEmpty
+            ? null
+            : inviteCode;
+        _adminInviteAccountId = accountId;
       });
     } catch (e) {
       debugPrint('Falha ao carregar convite do administrador: $e');
@@ -6218,13 +6240,25 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         .toString();
   }
 
+  String _buildClientAccountInviteLink(int accountId) {
+    return Uri.base
+        .replace(
+          path: '/',
+          queryParameters: {'conta': accountId.toString()},
+          fragment: '',
+        )
+        .toString();
+  }
+
   Future<void> _copyClientInviteLink() async {
-    final inviteCode = _adminInviteCode;
-    if (inviteCode == null || inviteCode.isEmpty) {
+    if ((_adminInviteCode == null || _adminInviteCode!.isEmpty) &&
+        _adminInviteAccountId == null) {
       await _loadAdminInviteCode();
     }
     final resolvedCode = _adminInviteCode;
-    if (resolvedCode == null || resolvedCode.isEmpty) {
+    final resolvedAccountId = _adminInviteAccountId;
+    if ((resolvedCode == null || resolvedCode.isEmpty) &&
+        resolvedAccountId == null) {
       _showSnack(
         'Nao consegui carregar o codigo de convite agora. Tente novamente em instantes.',
         tone: _FeedbackTone.warning,
@@ -6232,8 +6266,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       );
       return;
     }
+    final inviteLink = resolvedCode != null && resolvedCode.isNotEmpty
+        ? _buildClientInviteLink(resolvedCode)
+        : _buildClientAccountInviteLink(resolvedAccountId!);
     await Clipboard.setData(
-      ClipboardData(text: _buildClientInviteLink(resolvedCode)),
+      ClipboardData(text: inviteLink),
     );
     if (!mounted) return;
     _showSnack(
@@ -9572,18 +9609,22 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SelectableText(
-                _adminInviteCode == null
-                    ? 'Carregando codigo de convite...'
-                    : 'Codigo: $_adminInviteCode',
+                _adminInviteCode != null
+                    ? 'Codigo: $_adminInviteCode'
+                    : _adminInviteAccountId != null
+                        ? 'Link vinculado a sua carteira'
+                        : 'Carregando codigo de convite...',
                 style: const TextStyle(
                   color: AppColors.textStrong,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              if (_adminInviteCode != null) ...[
+              if (_adminInviteCode != null || _adminInviteAccountId != null) ...[
                 const SizedBox(height: 8),
                 SelectableText(
-                  _buildClientInviteLink(_adminInviteCode!),
+                  _adminInviteCode != null
+                      ? _buildClientInviteLink(_adminInviteCode!)
+                      : _buildClientAccountInviteLink(_adminInviteAccountId!),
                   style: const TextStyle(
                     color: Color(0xFF5B6474),
                     height: 1.4,
