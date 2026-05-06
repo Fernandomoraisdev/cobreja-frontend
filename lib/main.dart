@@ -136,6 +136,35 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> registerClient({
+    required String name,
+    required String email,
+    required String password,
+    String? cpf,
+    String? phone,
+    String? address,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/client-register'),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        if (cpf != null && cpf.trim().isNotEmpty) 'cpf': cpf.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
@@ -225,6 +254,8 @@ class ApiService {
     required String token,
     required double amount,
     String? description,
+    int? desiredTermDays,
+    int? requestedInstallments,
     String type = 'EMPRESTIMO',
   }) async {
     final response = await http.post(
@@ -233,6 +264,10 @@ class ApiService {
       body: jsonEncode({
         'amount': amount,
         'type': type,
+        if (desiredTermDays != null && desiredTermDays > 0)
+          'desiredTermDays': desiredTermDays,
+        if (requestedInstallments != null && requestedInstallments > 0)
+          'requestedInstallments': requestedInstallments,
         if (description != null && description.trim().isNotEmpty)
           'description': description.trim(),
       }),
@@ -270,6 +305,8 @@ class ApiService {
     required DateTime dueDate,
     double? interestValue,
     double? dailyFee,
+    int? installmentCount,
+    String? decisionNote,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/request/approve-request'),
@@ -279,6 +316,10 @@ class ApiService {
         'dueDate': dueDate.toIso8601String(),
         if (interestValue != null) 'interestValue': interestValue,
         if (dailyFee != null) 'dailyFee': dailyFee,
+        if (installmentCount != null && installmentCount > 0)
+          'installmentCount': installmentCount,
+        if (decisionNote != null && decisionNote.trim().isNotEmpty)
+          'decisionNote': decisionNote.trim(),
       }),
     );
 
@@ -3068,11 +3109,15 @@ class _AuthGatePageState extends State<AuthGatePage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isActivatingWindowsLicense = false;
+  bool _registerAsClient = true;
   int _failedAttempts = 0;
   DateTime? _lockedUntil;
   UserAccount? _sessionAccount;
   String? _windowsLicenseError;
   final _nameController = TextEditingController();
+  final _cpfController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -3106,6 +3151,49 @@ Future<bool> register(String name, String email, String password) async {
     final message = e is ApiException ? e.message : 'Erro geral no cadastro.';
     _showError(message);
     debugPrint('Erro geral cadastro: $e');
+    return false;
+  }
+}
+
+Future<bool> registerClient(
+  String name,
+  String email,
+  String password, {
+  String? cpf,
+  String? phone,
+  String? address,
+}) async {
+  try {
+    final data = await ApiService.registerClient(
+      name: name,
+      email: email,
+      password: password,
+      cpf: cpf,
+      phone: phone,
+      address: address,
+    );
+    final token = (data['token'] ?? data['data']?['token'] ?? '').toString();
+    final payload = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final userData = data['user'] is Map<String, dynamic>
+        ? data['user'] as Map<String, dynamic>
+        : payload['user'] is Map<String, dynamic>
+            ? payload['user'] as Map<String, dynamic>
+            : data;
+    final resolvedEmail = userData['email']?.toString() ?? email;
+    final resolvedName = userData['name']?.toString() ?? name;
+    if (token.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      await prefs.setString('session_role', 'CLIENT');
+    }
+    widget.onAuthenticated(UserAccount(name: resolvedName, email: resolvedEmail));
+    return true;
+  } catch (e) {
+    final message = e is ApiException ? e.message : 'Erro geral no cadastro do cliente.';
+    _showError(message);
+    debugPrint('Erro geral cadastro cliente: $e');
     return false;
   }
 }
@@ -3176,6 +3264,9 @@ Future<bool> login(String identifier, String password) async {
   @override
   void dispose() {
     _nameController.dispose();
+    _cpfController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -3269,6 +3360,23 @@ Future<bool> login(String identifier, String password) async {
       _showAuthMessage('Campo obrigatório', 'Informe um nome para cadastro.');
       return;
     }
+    if (_registerAsClient) {
+      if (!_isValidCpf(_cpfController.text)) {
+        _showAuthMessage(
+          'CPF obrigatorio',
+          'Informe um CPF valido para criar sua conta de cliente.',
+        );
+        return;
+      }
+      if (_phoneController.text.trim().isEmpty ||
+          _addressController.text.trim().isEmpty) {
+        _showAuthMessage(
+          'Dados obrigatorios',
+          'Informe telefone e endereco para criar sua conta de cliente.',
+        );
+        return;
+      }
+    }
     if (!_isStrongPassword(password)) {
       _showAuthMessage(
         'Senha fraca',
@@ -3287,8 +3395,17 @@ Future<bool> login(String identifier, String password) async {
 
   setState(() => _isSubmitting = true);
   final success = _isRegisterMode
-      ? (await register(_nameController.text.trim(), email, password) &&
-          await login(email, password))
+      ? (_registerAsClient
+          ? await registerClient(
+              _nameController.text.trim(),
+              email,
+              password,
+              cpf: _cpfController.text.trim(),
+              phone: _phoneController.text.trim(),
+              address: _addressController.text.trim(),
+            )
+          : (await register(_nameController.text.trim(), email, password) &&
+              await login(email, password)))
       : await login(rawIdentifier, password);
   if (mounted) {
     setState(() => _isSubmitting = false);
@@ -3876,12 +3993,55 @@ Future<bool> login(String identifier, String password) async {
             const SizedBox(height: 18),
           ],
           if (_isRegisterMode) ...[
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(
+                  value: true,
+                  label: Text('Cliente'),
+                  icon: Icon(Icons.person_rounded),
+                ),
+                ButtonSegment<bool>(
+                  value: false,
+                  label: Text('Admin'),
+                  icon: Icon(Icons.admin_panel_settings_rounded),
+                ),
+              ],
+              selected: {_registerAsClient},
+              onSelectionChanged: (values) {
+                setState(() {
+                  _registerAsClient = values.first;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _nameController,
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(labelText: 'Nome'),
             ),
             const SizedBox(height: 12),
+            if (_registerAsClient) ...[
+              TextField(
+                controller: _cpfController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'CPF'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Telefone'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _addressController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Endereco'),
+              ),
+              const SizedBox(height: 12),
+            ],
           ],
           TextField(
             controller: _emailController,
@@ -4165,12 +4325,16 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
     }
 
     final amountController = TextEditingController();
+    final termController = TextEditingController(text: '30');
+    final installmentsController = TextEditingController(text: '1');
     final descriptionController = TextEditingController();
     try {
       final draft = await showDialog<_CreditRequestDraft>(
         context: context,
         builder: (dialogContext) => _CreditRequestDialog(
           amountController: amountController,
+          termController: termController,
+          installmentsController: installmentsController,
           descriptionController: descriptionController,
         ),
       );
@@ -4181,6 +4345,8 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
         token: token,
         amount: draft.amount,
         description: draft.description,
+        desiredTermDays: draft.desiredTermDays,
+        requestedInstallments: draft.requestedInstallments,
         type: 'EMPRESTIMO',
       );
 
@@ -4198,6 +4364,8 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
     } finally {
       if (mounted) setState(() => _isSubmittingRequest = false);
       amountController.dispose();
+      termController.dispose();
+      installmentsController.dispose();
       descriptionController.dispose();
     }
   }
@@ -4274,17 +4442,28 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
 
 class _CreditRequestDraft {
   final double amount;
+  final int desiredTermDays;
+  final int requestedInstallments;
   final String? description;
 
-  const _CreditRequestDraft({required this.amount, this.description});
+  const _CreditRequestDraft({
+    required this.amount,
+    required this.desiredTermDays,
+    required this.requestedInstallments,
+    this.description,
+  });
 }
 
 class _CreditRequestDialog extends StatefulWidget {
   final TextEditingController amountController;
+  final TextEditingController termController;
+  final TextEditingController installmentsController;
   final TextEditingController descriptionController;
 
   const _CreditRequestDialog({
     required this.amountController,
+    required this.termController,
+    required this.installmentsController,
     required this.descriptionController,
   });
 
@@ -4311,9 +4490,22 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
       return;
     }
 
+    final termDays = int.tryParse(widget.termController.text.trim()) ?? 0;
+    final installments = int.tryParse(widget.installmentsController.text.trim()) ?? 0;
+    if (termDays <= 0) {
+      setState(() => _error = 'Informe um prazo valido em dias.');
+      return;
+    }
+    if (installments <= 0) {
+      setState(() => _error = 'Informe a quantidade de parcelas desejada.');
+      return;
+    }
+
     Navigator.of(context).pop(
       _CreditRequestDraft(
         amount: amount,
+        desiredTermDays: termDays,
+        requestedInstallments: installments,
         description: widget.descriptionController.text.trim().isEmpty
             ? null
             : widget.descriptionController.text.trim(),
@@ -4345,11 +4537,37 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: widget.termController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Prazo desejado (dias)',
+                      prefixIcon: Icon(Icons.calendar_month_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: TextField(
+                    controller: widget.installmentsController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Parcelas',
+                      prefixIcon: Icon(Icons.view_week_rounded),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
             TextField(
               controller: widget.descriptionController,
               maxLines: 3,
               decoration: const InputDecoration(
-                labelText: 'Observação (opcional)',
+                labelText: 'Motivo da solicitação',
                 prefixIcon: Icon(Icons.notes_rounded),
               ),
             ),
@@ -4634,6 +4852,11 @@ class _ClientProfileTab extends StatelessWidget {
                 DateTime.tryParse(request['createdAt']?.toString() ?? '');
             final description = request['description']?.toString().trim() ?? '';
             final type = request['type']?.toString().trim() ?? '';
+            final desiredTermDays =
+                (request['desiredTermDays'] as num?)?.toInt();
+            final requestedInstallments =
+                (request['requestedInstallments'] as num?)?.toInt();
+            final decisionNote = request['decisionNote']?.toString().trim() ?? '';
 
             return Card(
               child: ListTile(
@@ -4670,10 +4893,25 @@ class _ClientProfileTab extends StatelessWidget {
                         'Enviado em ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}',
                         style: const TextStyle(color: AppColors.textMuted),
                       ),
+                    if (desiredTermDays != null || requestedInstallments != null)
+                      Text(
+                        [
+                          if (desiredTermDays != null)
+                            'Prazo: $desiredTermDays dias',
+                          if (requestedInstallments != null)
+                            'Parcelas: $requestedInstallments',
+                        ].join(' • '),
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
                     if (description.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(description),
+                      ),
+                    if (decisionNote.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text('Resposta: $decisionNote'),
                       ),
                   ],
                 ),
@@ -4876,6 +5114,10 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
             ? const Color(0xFF166534)
             : (overdueDays > 0 ? const Color(0xFFB91C1C) : const Color(0xFF1D4ED8));
         final badgeLabel = isSettled ? 'Quitada' : (overdueDays > 0 ? 'Em atraso' : 'Ativa');
+        final installments =
+            (debt['installments'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .toList();
 
         return Card(
           child: Padding(
@@ -4961,6 +5203,50 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                ],
+                if (installments.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const Text(
+                    'Parcelas',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textStrong,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  ...installments.map((installment) {
+                    final installmentDueDate = DateTime.tryParse(
+                      installment['dueDate']?.toString() ?? '',
+                    );
+                    final paidAmount = _readDouble(installment['paidAmount']);
+                    final amount = _readDouble(installment['amount']);
+                    final status =
+                        installment['status']?.toString().toUpperCase() ?? 'PENDING';
+                    final remaining = math.max(0, amount - paidAmount).toDouble();
+                    final statusLabel = switch (status) {
+                      'PAID' => 'Paga',
+                      'OVERDUE' => 'Em atraso',
+                      'PARTIAL' => 'Parcial',
+                      _ => 'Pendente',
+                    };
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Parcela ${installment['installmentNumber']} • ${installmentDueDate == null ? 'sem vencimento' : DateFormat('dd/MM/yyyy').format(installmentDueDate)}',
+                              style: const TextStyle(color: AppColors.textMuted),
+                            ),
+                          ),
+                          Text(
+                            '${_currency(remaining)} • $statusLabel',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
               ],
             ),
@@ -7603,6 +7889,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final dueDateController = TextEditingController();
       final monthlyInterestController = TextEditingController();
       final dailyFeeController = TextEditingController();
+      final installmentCountController = TextEditingController(
+        text: (request['requestedInstallments']?.toString() ?? '1'),
+      );
+      final decisionNoteController = TextEditingController();
       DateTime selectedDueDate = DateTime.now().add(const Duration(days: 30));
 
       double? parseMoney(String raw) {
@@ -7651,6 +7941,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             Future<void> submit(StateSetter setDialog) async {
               final interestValue = parseMoney(monthlyInterestController.text);
               final dailyFee = parseMoney(dailyFeeController.text);
+              final installmentCount =
+                  int.tryParse(installmentCountController.text.trim()) ?? 1;
+              if (installmentCount <= 0) {
+                setDialog(() {
+                  error = 'Informe uma quantidade de parcelas valida.';
+                });
+                return;
+              }
 
               setDialog(() {
                 submitting = true;
@@ -7664,6 +7962,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   dueDate: selectedDueDate,
                   interestValue: interestValue,
                   dailyFee: dailyFee,
+                  installmentCount: installmentCount,
+                  decisionNote: decisionNoteController.text,
                 );
                 if (!mounted) return;
                 Navigator.of(dialogContext).pop(true);
@@ -7724,6 +8024,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           prefixIcon: Icon(Icons.warning_amber_rounded),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: installmentCountController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Numero de parcelas',
+                          prefixIcon: Icon(Icons.view_week_rounded),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: decisionNoteController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Observacao da aprovacao (opcional)',
+                          prefixIcon: Icon(Icons.notes_rounded),
+                        ),
+                      ),
                       if (error != null) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -7771,6 +8089,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         dueDateController.dispose();
         monthlyInterestController.dispose();
         dailyFeeController.dispose();
+        installmentCountController.dispose();
+        decisionNoteController.dispose();
       }
     }
 
@@ -7779,6 +8099,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final createdAt = DateTime.tryParse(request['createdAt']?.toString() ?? '');
       final amount = _readDouble(request['amount']);
       final description = request['description']?.toString().trim() ?? '';
+      final desiredTermDays = (request['desiredTermDays'] as num?)?.toInt();
+      final requestedInstallments =
+          (request['requestedInstallments'] as num?)?.toInt();
+      final decisionNote = request['decisionNote']?.toString().trim() ?? '';
       final client = (request['client'] as Map?)?.cast<String, dynamic>();
       final clientName = (client?['name']?.toString() ?? 'Cliente').trim();
       final clientEmail = (client?['email']?.toString() ?? '').trim();
@@ -7833,6 +8157,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                   ),
               ],
+              if (desiredTermDays != null || requestedInstallments != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  [
+                    if (desiredTermDays != null) 'Prazo: $desiredTermDays dias',
+                    if (requestedInstallments != null)
+                      'Parcelas solicitadas: $requestedInstallments',
+                  ].join(' • '),
+                  style: const TextStyle(
+                    color: Color(0xFF374151),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
               if (description.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
@@ -7847,6 +8185,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     description,
                     style: const TextStyle(color: Color(0xFF374151), height: 1.35),
                   ),
+                ),
+              ],
+              if (decisionNote.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Resposta: $decisionNote',
+                  style: const TextStyle(color: Color(0xFF5B6474)),
                 ),
               ],
               if (status.toUpperCase() == 'PENDING') ...[
