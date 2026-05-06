@@ -3296,6 +3296,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   DateTime? _lockedUntil;
   UserAccount? _sessionAccount;
   String? _windowsLicenseError;
+  String? _lastAuthError;
   final _nameController = TextEditingController();
   final _cpfController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -3328,9 +3329,11 @@ void _showError(String msg) {
 Future<bool> register(String name, String email, String password) async {
   try {
     await ApiService.register(name: name, email: email, password: password);
+    _lastAuthError = null;
     return true;
   } catch (e) {
     final message = e is ApiException ? e.message : 'Erro geral no cadastro.';
+    _lastAuthError = message;
     _showError(message);
     debugPrint('Erro geral cadastro: $e');
     return false;
@@ -3371,9 +3374,11 @@ Future<bool> registerClient(
       await prefs.setString('session_role', 'CLIENT');
     }
     widget.onAuthenticated(UserAccount(name: resolvedName, email: resolvedEmail));
+    _lastAuthError = null;
     return true;
   } catch (e) {
     final message = e is ApiException ? e.message : 'Erro geral no cadastro do cliente.';
+    _lastAuthError = message;
     _showError(message);
     debugPrint('Erro geral cadastro cliente: $e');
     return false;
@@ -3421,9 +3426,11 @@ Future<bool> login(String identifier, String password) async {
       _authenticated = true;
     });
 
+    _lastAuthError = null;
     return true;
   } catch (e) {
     final message = e is ApiException ? e.message : 'Erro geral no login.';
+    _lastAuthError = message;
     _showError(message);
     debugPrint('Erro geral login: $e');
     return false;
@@ -3611,6 +3618,11 @@ Future<bool> login(String identifier, String password) async {
  }
 
   void _showAuthMessage(String title, String message, {bool success = false}) {
+    final isGenericAuthFailure =
+        message.startsWith('Nao foi') || message.startsWith('Email ou senha');
+    final visibleMessage = !success && isGenericAuthFailure
+        ? (_lastAuthError ?? message)
+        : message;
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -3632,7 +3644,7 @@ Future<bool> login(String identifier, String password) async {
             Expanded(child: Text(title)),
           ],
         ),
-        content: Text(message),
+        content: Text(visibleMessage),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(context),
