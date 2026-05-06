@@ -4231,7 +4231,11 @@ Future<bool> login(String identifier, String password) async {
             autofillHints: const [AutofillHints.email],
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
-              labelText: _isRegisterMode ? 'Email' : 'Email ou CPF',
+              labelText: _isRegisterMode ? 'Email' : null,
+              hintText: _isRegisterMode ? null : 'Email ou CPF',
+              floatingLabelBehavior: _isRegisterMode
+                  ? FloatingLabelBehavior.auto
+                  : FloatingLabelBehavior.never,
             ),
           ),
           const SizedBox(height: 12),
