@@ -1160,8 +1160,8 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
 
 
 class AppColors {
-  static const primary = Color(0xFF061C3D);
-  static const secondary = Color(0xFF22C55E);
+  static const primary = Color(0xFF082B54);
+  static const secondary = Color(0xFF16A34A);
   static const accent = Color(0xFF7C3AED);
   static const success = Color(0xFF16A34A);
   static const warning = Color(0xFFF59E0B);
@@ -1174,10 +1174,10 @@ class AppColors {
   static const surface = Colors.white;
   static const surfaceSoft = Color(0xFFF3F7FB);
   static const surfaceTint = Color(0xFFEAF1F8);
-  static const background = Color(0xFFE9EEF5);
-  static const backgroundTop = Color(0xFFDDE6F0);
-  static const backgroundMid = Color(0xFFEFF4F8);
-  static const backgroundBottom = Color(0xFFE3F4EC);
+  static const background = Color(0xFFF3F7FB);
+  static const backgroundTop = Color(0xFFEAF2FA);
+  static const backgroundMid = Color(0xFFF8FAFC);
+  static const backgroundBottom = Color(0xFFECFDF5);
 }
 
 class AppRadii {
@@ -1754,6 +1754,20 @@ enum _ChargeCollectionMode {
 
 enum AppAccentPreset { cobreja, esmeralda, oceano, sunset }
 
+enum AppThemePreference { claro, escuro }
+
+extension AppThemePreferenceExtension on AppThemePreference {
+  String get label => switch (this) {
+    AppThemePreference.claro => 'Claro',
+    AppThemePreference.escuro => 'Escuro',
+  };
+
+  IconData get icon => switch (this) {
+    AppThemePreference.claro => Icons.light_mode_rounded,
+    AppThemePreference.escuro => Icons.dark_mode_rounded,
+  };
+}
+
 extension AppAccentPresetExtension on AppAccentPreset {
   String get label => switch (this) {
     AppAccentPreset.cobreja => 'COBREJÁ',
@@ -1763,14 +1777,14 @@ extension AppAccentPresetExtension on AppAccentPreset {
   };
 
   Color get primaryColor => switch (this) {
-    AppAccentPreset.cobreja => const Color(0xFF061C3D),
+    AppAccentPreset.cobreja => AppColors.primary,
     AppAccentPreset.esmeralda => const Color(0xFF059669),
     AppAccentPreset.oceano => const Color(0xFF0284C7),
     AppAccentPreset.sunset => const Color(0xFFEA580C),
   };
 
   Color get secondaryColor => switch (this) {
-    AppAccentPreset.cobreja => const Color(0xFF22C55E),
+    AppAccentPreset.cobreja => AppColors.secondary,
     AppAccentPreset.esmeralda => const Color(0xFF10B981),
     AppAccentPreset.oceano => const Color(0xFF06B6D4),
     AppAccentPreset.sunset => const Color(0xFFF59E0B),
@@ -2170,6 +2184,7 @@ class _CobrejaAppState extends State<CobrejaApp> {
   String? _windowsMachineCode;
   WindowsLicenseInfo? _windowsLicense;
   AppAccentPreset _accentPreset = AppAccentPreset.cobreja;
+  AppThemePreference _themePreference = AppThemePreference.claro;
   double _fontScale = 1.0;
 
   @override
@@ -2186,6 +2201,7 @@ class _CobrejaAppState extends State<CobrejaApp> {
     final token = prefs.getString('token');
     final savedRole = prefs.getString('session_role');
     final rawAccentPreset = prefs.getString('app_accent_preset');
+    final rawThemePreference = prefs.getString('app_theme_preference');
     final rawFontScale = prefs.getDouble('app_font_scale');
 
     List<UserAccount> loadedAccounts = [];
@@ -2250,6 +2266,7 @@ class _CobrejaAppState extends State<CobrejaApp> {
     String? machineCode;
     WindowsLicenseInfo? windowsLicense;
     var accentPreset = AppAccentPreset.cobreja;
+    var themePreference = AppThemePreference.claro;
     var fontScale = 1.0;
     if (rawAccentPreset != null && rawAccentPreset.isNotEmpty) {
       try {
@@ -2260,6 +2277,13 @@ class _CobrejaAppState extends State<CobrejaApp> {
     }
     if (rawFontScale != null && rawFontScale >= 0.85 && rawFontScale <= 1.3) {
       fontScale = rawFontScale;
+    }
+    if (rawThemePreference != null && rawThemePreference.isNotEmpty) {
+      try {
+        themePreference = AppThemePreference.values.firstWhere(
+          (item) => item.name == rawThemePreference,
+        );
+      } catch (_) {}
     }
     if (isWindowsDesktopPlatform) {
       machineCode = await getPlatformMachineCode();
@@ -2284,8 +2308,18 @@ class _CobrejaAppState extends State<CobrejaApp> {
       _windowsMachineCode = machineCode;
       _windowsLicense = windowsLicense;
       _accentPreset = accentPreset;
+      _themePreference = themePreference;
       _fontScale = fontScale;
       _isLoading = false;
+    });
+  }
+
+  Future<void> _updateThemePreference(AppThemePreference preference) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_theme_preference', preference.name);
+    if (!mounted) return;
+    setState(() {
+      _themePreference = preference;
     });
   }
 
@@ -2311,10 +2345,12 @@ class _CobrejaAppState extends State<CobrejaApp> {
   Future<void> _resetVisualPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('app_accent_preset');
+    await prefs.remove('app_theme_preference');
     await prefs.remove('app_font_scale');
     if (!mounted) return;
     setState(() {
       _accentPreset = AppAccentPreset.cobreja;
+      _themePreference = AppThemePreference.claro;
       _fontScale = 1.0;
     });
   }
@@ -2579,6 +2615,78 @@ class _CobrejaAppState extends State<CobrejaApp> {
           unselectedLabelStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: accentSecondary,
+          brightness: Brightness.dark,
+          primary: accentSecondary,
+          secondary: accentSecondary,
+          surface: const Color(0xFF0F2238),
+          error: AppColors.danger,
+        ),
+        scaffoldBackgroundColor: const Color(0xFF071827),
+        textTheme: AppTypography.textTheme.apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF0F2238),
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            side: const BorderSide(color: Color(0xFF1E3A5F)),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: const Color(0xFF0F2238),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF10263F),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderSide: const BorderSide(color: Color(0xFF25476E)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderSide: const BorderSide(color: Color(0xFF25476E)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            borderSide: BorderSide(color: accentSecondary, width: 1.6),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: accentSecondary,
+            foregroundColor: const Color(0xFF061C3D),
+            minimumSize: const Size(0, 54),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+          ),
+        ),
+      ),
+      themeMode: _themePreference == AppThemePreference.escuro
+          ? ThemeMode.dark
+          : ThemeMode.light,
       home: _isLoading
           ? const SplashPage()
           : AuthGatePage(
@@ -2601,8 +2709,10 @@ class _CobrejaAppState extends State<CobrejaApp> {
                       onDeleteAccount: () => _deleteAccount(account),
                       windowsLicense: _windowsLicense,
                       accentPreset: _accentPreset,
+                      themePreference: _themePreference,
                       fontScale: _fontScale,
                       onUpdateAccentPreset: _updateAccentPreset,
+                      onUpdateThemePreference: _updateThemePreference,
                       onUpdateFontScale: _updateFontScale,
                       onResetVisualPreferences: _resetVisualPreferences,
                     ),
@@ -5641,8 +5751,10 @@ class MainNavigationPage extends StatefulWidget {
   final Future<void> Function() onDeleteAccount;
   final WindowsLicenseInfo? windowsLicense;
   final AppAccentPreset accentPreset;
+  final AppThemePreference themePreference;
   final double fontScale;
   final Future<void> Function(AppAccentPreset preset) onUpdateAccentPreset;
+  final Future<void> Function(AppThemePreference preference) onUpdateThemePreference;
   final Future<void> Function(double scale) onUpdateFontScale;
   final Future<void> Function() onResetVisualPreferences;
 
@@ -5653,8 +5765,10 @@ class MainNavigationPage extends StatefulWidget {
     required this.onDeleteAccount,
     this.windowsLicense,
     required this.accentPreset,
+    required this.themePreference,
     required this.fontScale,
     required this.onUpdateAccentPreset,
+    required this.onUpdateThemePreference,
     required this.onUpdateFontScale,
     required this.onResetVisualPreferences,
   });
@@ -9307,6 +9421,50 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Tema do sistema',
+                style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: AppThemePreference.values.map((preference) {
+                  final selected = widget.themePreference == preference;
+                  return ChoiceChip(
+                    avatar: Icon(
+                      preference.icon,
+                      size: 18,
+                      color: selected ? Colors.white : AppColors.primary,
+                    ),
+                    label: Text(preference.label),
+                    selected: selected,
+                    onSelected: (_) => widget.onUpdateThemePreference(preference),
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : AppColors.textStrong,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    showCheckmark: false,
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color: selected ? AppColors.primary : AppColors.borderSoft,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Cor de destaque',
+                style: TextStyle(
+                  color: AppColors.textStrong,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -9374,6 +9532,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 onPressed: _clearInterfaceCache,
                 icon: const Icon(Icons.cleaning_services_rounded),
                 label: const Text('Limpar cache'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _downloadBackupFile,
+                icon: const Icon(Icons.download_for_offline_rounded),
+                label: const Text('Baixar backup dos dados'),
               ),
               FilledButton.icon(
                 onPressed: _clearAllBusinessData,
@@ -13420,13 +13583,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: () async {
-                      final allowed = await _ensurePlanAccess(
-                        requiredPlan: AppPlan.professional,
-                        featureTitle: 'Exportar backup',
-                        description:
-                            'O plano Profissional libera backup da carteira para proteger seus dados e facilitar migração ou recuperação.',
-                      );
-                      if (!allowed || !context.mounted) return;
                       Navigator.pop(context);
                       _showExportBackupDialog();
                     },
@@ -13439,13 +13595,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final allowed = await _ensurePlanAccess(
-                      requiredPlan: AppPlan.professional,
-                      featureTitle: 'Baixar backup .json',
-                      description:
-                          'Esse recurso do Profissional permite salvar uma cópia real da carteira em arquivo.',
-                    );
-                    if (!allowed || !context.mounted) return;
                     Navigator.pop(context);
                     await _downloadBackupFile();
                   },

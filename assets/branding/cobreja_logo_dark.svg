@@ -1,15 +1,8 @@
-<svg width="920" height="300" viewBox="0 0 920 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="green" x1="352" y1="60" x2="420" y2="190" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#38E06D"/>
-      <stop offset="1" stop-color="#22C55E"/>
-    </linearGradient>
-  </defs>
-  <rect width="920" height="300" rx="34" fill="#061C3D"/>
-  <path d="M206 66H320C330 66 336 74 332 84L322 110C319 118 313 122 304 122H218C185 122 162 144 162 176C162 208 185 230 218 230H294C304 230 309 238 305 247L294 274C291 282 285 286 276 286H210C138 286 87 240 87 178C87 115 138 66 206 66Z" fill="white"/>
-  <path d="M355 66H410C420 66 426 74 424 84L388 244C382 270 363 286 336 286H292L307 232H329C335 232 339 229 340 223L374 78C376 70 381 66 389 66H355Z" fill="url(#green)"/>
-  <path d="M28 126H96M18 164H92M32 202H104" stroke="#38E06D" stroke-width="14" stroke-linecap="round"/>
-  <text x="42" y="264" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-1">Cobre</text>
-  <text x="337" y="264" fill="#22C55E" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-1">Já</text>
-  <text x="46" y="294" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="1.8">COBRANÇA INTELIGENTE, RECEBIMENTO GARANTIDO.</text>
+<svg width="560" height="180" viewBox="0 0 560 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="560" height="180" rx="28" fill="#061C3D"/>
+  <path d="M82 42H144C151 42 155 48 152 55L146 71C144 76 140 79 134 79H86C66 79 52 92 52 111C52 130 66 143 86 143H128C135 143 139 149 136 156L130 171C128 176 124 179 118 179H80C39 179 9 151 9 112C9 72 39 42 82 42Z" fill="white"/>
+  <path d="M166 42H201C208 42 212 48 210 55L188 144C184 164 170 179 149 179H123L135 143H149C154 143 157 141 158 136L179 52C180 46 184 42 190 42H166Z" fill="#22C55E"/>
+  <path d="M17 78H61M8 105H58M18 132H66" stroke="#38E06D" stroke-width="9" stroke-linecap="round"/>
+  <text x="220" y="114" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="-1">Cobre</text>
+  <text x="415" y="114" fill="#22C55E" font-family="Segoe UI, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="-1">J&#225;</text>
 </svg>
