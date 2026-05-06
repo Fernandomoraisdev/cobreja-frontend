@@ -1749,6 +1749,16 @@ extension AppPlanExtension on AppPlan {
   };
 }
 
+enum _MetricCardKind {
+  totalToReceive,
+  totalReceived,
+  totalOverdue,
+  monthlyInterestReceivable,
+  totalProfit,
+  totalLent,
+  estimatedLoss,
+}
+
 enum _PaymentHistoryQuickFilter {
   todos,
   hoje,
@@ -1836,6 +1846,7 @@ class DashboardMetrics {
   final double totalOverdue;
   final double totalProfit;
   final double totalLent;
+  final double monthlyInterestReceivable;
   final double estimatedLoss;
 
   const DashboardMetrics({
@@ -1844,6 +1855,7 @@ class DashboardMetrics {
     required this.totalOverdue,
     required this.totalProfit,
     required this.totalLent,
+    required this.monthlyInterestReceivable,
     required this.estimatedLoss,
   });
 }
@@ -1989,6 +2001,7 @@ class FinanceService {
     double totalOverdue = 0;
     double totalProfit = 0;
     double totalLent = 0;
+    double monthlyInterestReceivable = 0;
     double estimatedLoss = 0;
 
     for (final client in clients) {
@@ -1998,6 +2011,7 @@ class FinanceService {
       }
       if (client.status == 'devendo') {
         totalToReceive += debt.totalDebt;
+        monthlyInterestReceivable += debt.cycleInterest + debt.lateInterest;
         if (debt.isOverdue) {
           totalOverdue += debt.totalDebt;
         }
@@ -2016,6 +2030,7 @@ class FinanceService {
       totalOverdue: totalOverdue,
       totalProfit: totalProfit,
       totalLent: totalLent,
+      monthlyInterestReceivable: monthlyInterestReceivable,
       estimatedLoss: estimatedLoss,
     );
   }
@@ -2504,8 +2519,8 @@ class _CobrejaAppState extends State<CobrejaApp> {
               onAuthenticated: _saveAccount,
               onDeleteAccount: _deleteAccount,
               windowsMachineCode: _windowsMachineCode,
-              windowsLicense: _windowsLicense,
-              onActivateWindowsLicense: _activateWindowsLicense,
+              windowsLicense: null,
+              onActivateWindowsLicense: null,
               authenticatedBuilder: (account) => _sessionRole == 'CLIENT'
                   ? ClientPortalPage(
                       account: account,
@@ -8760,6 +8775,195 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 
+  double get _monthlyInterestReceivable {
+    return _clients.fold<double>(0, (sum, client) {
+      if (client.status != 'devendo') return sum;
+      final debt = FinanceService.calculateDebt(client);
+      return sum + debt.cycleInterest + debt.lateInterest;
+    });
+  }
+
+  String get _currentMonthRangeLabel {
+    final now = DateTime.now();
+    final first = DateTime(now.year, now.month, 1);
+    final last = DateTime(now.year, now.month + 1, 0);
+    final format = DateFormat('dd/MM/yyyy');
+    return '${format.format(first)} ate ${format.format(last)}';
+  }
+
+  List<({String title, String subtitle, double value, IconData icon, Color color})>
+      _metricDetailRows(_MetricCardKind kind) {
+    final rows =
+        <({String title, String subtitle, double value, IconData icon, Color color})>[];
+    final dateFormat = DateFormat('dd/MM/yyyy');
+
+    switch (kind) {
+      case _MetricCardKind.totalToReceive:
+        for (final client in _clients.where((item) => item.status == 'devendo')) {
+          final debt = FinanceService.calculateDebt(client);
+          if (debt.totalDebt <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle:
+                'Principal ${_currency(debt.remainingPrincipal)} + juros ${_currency(debt.totalInterestDue)}. Vence ${dateFormat.format(client.dueDate)}.',
+            value: debt.totalDebt,
+            icon: Icons.account_balance_wallet_rounded,
+            color: debt.isOverdue ? AppColors.danger : AppColors.success,
+          ));
+        }
+      case _MetricCardKind.totalReceived:
+        for (final client in _clients) {
+          final value =
+              client.totalInterestCollected + client.totalPrincipalCollected;
+          if (value <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle:
+                'Juros ${_currency(client.totalInterestCollected)} + principal ${_currency(client.totalPrincipalCollected)}.',
+            value: value,
+            icon: Icons.savings_rounded,
+            color: AppColors.success,
+          ));
+        }
+      case _MetricCardKind.totalOverdue:
+        for (final client in _clients.where((item) => item.status == 'devendo')) {
+          final debt = FinanceService.calculateDebt(client);
+          if (!debt.isOverdue || debt.totalDebt <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle:
+                '${debt.overdueDays} dia(s) em atraso. Diaria ${_currency(debt.lateInterest)}. Venceu em ${dateFormat.format(client.dueDate)}.',
+            value: debt.totalDebt,
+            icon: Icons.warning_amber_rounded,
+            color: AppColors.danger,
+          ));
+        }
+      case _MetricCardKind.monthlyInterestReceivable:
+        for (final client in _clients.where((item) => item.status == 'devendo')) {
+          final debt = FinanceService.calculateDebt(client);
+          final value = debt.cycleInterest + debt.lateInterest;
+          if (value <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle:
+                'Juros do ciclo ${_currency(debt.cycleInterest)} + diaria em atraso ${_currency(debt.lateInterest)}. Periodo $_currentMonthRangeLabel.',
+            value: value,
+            icon: Icons.percent_rounded,
+            color: debt.isOverdue ? AppColors.danger : const Color(0xFFF59E0B),
+          ));
+        }
+      case _MetricCardKind.totalProfit:
+        for (final client in _clients) {
+          if (client.totalInterestCollected <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle: 'Somente juros ja recebidos no historico do cliente.',
+            value: client.totalInterestCollected,
+            icon: Icons.trending_up_rounded,
+            color: const Color(0xFF8B5CF6),
+          ));
+        }
+      case _MetricCardKind.totalLent:
+        for (final client in _clients.where((item) => item.status != 'excluido')) {
+          if (client.borrowedAmount <= 0.009) continue;
+          rows.add((
+            title: client.name,
+            subtitle:
+                'Emprestado em ${dateFormat.format(client.borrowedDate)}. Principal atual ${_currency(client.remainingPrincipal)}.',
+            value: client.borrowedAmount,
+            icon: Icons.request_quote_rounded,
+            color: const Color(0xFF2563EB),
+          ));
+        }
+      case _MetricCardKind.estimatedLoss:
+        for (final client in _clients.where((item) => item.status == 'devendo')) {
+          final debt = FinanceService.calculateDebt(client);
+          if (!FinanceService.isEstimatedLoss(client) || debt.totalDebt <= 0.009) {
+            continue;
+          }
+          rows.add((
+            title: client.name,
+            subtitle:
+                client.isMarkedAsLostSafe ? 'Marcado como prejuizo.' : '${debt.overdueDays} dia(s) em atraso.',
+            value: debt.totalDebt,
+            icon: Icons.trending_down_rounded,
+            color: const Color(0xFFB91C1C),
+          ));
+        }
+    }
+
+    rows.sort((a, b) => b.value.compareTo(a.value));
+    return rows;
+  }
+
+  void _showMetricDetails(_MetricCardData card) {
+    final rows = _metricDetailRows(card.kind);
+    final total = rows.fold<double>(0, (sum, row) => sum + row.value);
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(card.title),
+        content: SizedBox(
+          width: 620,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildReceiptLine('Total do card', _currency(total)),
+              _buildReceiptLine('Referencia', card.subtitle),
+              if (card.kind == _MetricCardKind.monthlyInterestReceivable)
+                _buildReceiptLine('Periodo', _currentMonthRangeLabel),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: rows.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 18),
+                        child: Text(
+                          'Nenhum item compoe este valor no momento.',
+                          style: TextStyle(color: AppColors.textMuted),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: rows.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final row = rows[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: row.color.withOpacity(0.12),
+                              child: Icon(row.icon, color: row.color, size: 20),
+                            ),
+                            title: Text(
+                              row.title,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            subtitle: Text(row.subtitle),
+                            trailing: Text(
+                              _currency(row.value),
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDashboard() {
     double dashboardNumber(List<String> keys, {required double fallback}) {
       for (final key in keys) {
@@ -8794,33 +8998,41 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       'totalToReceive',
       'totalReceivable',
       'totalAReceber',
-    ], fallback: 0);
+    ], fallback: _metrics.totalToReceive);
     final totalReceived = dashboardNumber(
       ['totalReceived', 'totalRecebido'],
-      fallback: 0,
+      fallback: _metrics.totalReceived,
     );
     final totalOverdue = dashboardNumber(
       ['totalOverdue', 'totalEmAtraso'],
-      fallback: 0,
+      fallback: _metrics.totalOverdue,
     );
     final totalProfit = dashboardNumber(
       ['totalProfit', 'totalLucro'],
-      fallback: 0,
+      fallback: _metrics.totalProfit,
     );
     final totalLent = dashboardNumber(
       ['totalLent', 'totalEmprestado'],
-      fallback: 0,
+      fallback: _metrics.totalLent,
     );
     final totalLoss = dashboardNumber(
       ['totalLoss', 'totalPrejuizo', 'estimatedLoss'],
-      fallback: 0,
+      fallback: _metrics.estimatedLoss,
+    );
+    final monthlyInterestReceivable = dashboardNumber(
+      [
+        'monthlyInterestReceivable',
+        'totalMonthlyInterestReceivable',
+        'jurosDoMesAReceber',
+      ],
+      fallback: _monthlyInterestReceivable,
     );
     final activeClients = dashboardCount([
       'activeClients',
       'totalClients',
       'clientsCount',
       'clients',
-    ], fallback: 0);
+    ], fallback: _clients.where((item) => item.status == 'devendo').length);
 
     final cards = [
       _MetricCardData(
@@ -8831,6 +9043,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: '$activeClients clientes ativos',
         color: const Color(0xFF0F62FE),
         icon: Icons.account_balance_wallet_rounded,
+        kind: _MetricCardKind.totalToReceive,
       ),
       _MetricCardData(
         title: 'Total recebido',
@@ -8840,6 +9053,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: 'Entradas registradas',
         color: const Color(0xFF0EA5A4),
         icon: Icons.savings_rounded,
+        kind: _MetricCardKind.totalReceived,
       ),
       _MetricCardData(
         title: 'Total em atraso',
@@ -8849,6 +9063,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: 'Cobrança urgente',
         color: const Color(0xFFEF4444),
         icon: Icons.warning_amber_rounded,
+        kind: _MetricCardKind.totalOverdue,
+      ),
+      _MetricCardData(
+        title: 'Juros do mes',
+        value: _currency(monthlyInterestReceivable),
+        subtitle: '01 ao ultimo dia + diaria',
+        color: const Color(0xFFF59E0B),
+        icon: Icons.percent_rounded,
+        kind: _MetricCardKind.monthlyInterestReceivable,
       ),
       _MetricCardData(
         title: 'Lucro gerado',
@@ -8856,6 +9079,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: 'Juros recebidos',
         color: const Color(0xFF8B5CF6),
         icon: Icons.trending_up_rounded,
+        kind: _MetricCardKind.totalProfit,
       ),
       _MetricCardData(
         title: 'Total emprestado',
@@ -8865,6 +9089,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: 'Principal sem juros',
         color: const Color(0xFF2563EB),
         icon: Icons.request_quote_rounded,
+        kind: _MetricCardKind.totalLent,
       ),
       _MetricCardData(
         title: 'Prejuízo estimado',
@@ -8872,6 +9097,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         subtitle: 'Perdidos e atrasos +90 dias',
         color: const Color(0xFFB91C1C),
         icon: Icons.trending_down_rounded,
+        kind: _MetricCardKind.estimatedLoss,
       ),
     ];
 
@@ -8891,7 +9117,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) => SizedBox(
                 width: cardWidth,
-                child: _MetricCard(data: cards[index]),
+                child: _MetricCard(
+                  data: cards[index],
+                  onTap: () => _showMetricDetails(cards[index]),
+                ),
               ),
             ),
           );
@@ -8919,7 +9148,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               mainAxisSpacing: 12,
               childAspectRatio: aspectRatio,
             ),
-            itemBuilder: (context, index) => _MetricCard(data: cards[index]),
+            itemBuilder: (context, index) => _MetricCard(
+              data: cards[index],
+              onTap: () => _showMetricDetails(cards[index]),
+            ),
           ),
         );
       },
@@ -14920,6 +15152,7 @@ class _MetricCardData {
   final String subtitle;
   final Color color;
   final IconData icon;
+  final _MetricCardKind kind;
 
   const _MetricCardData({
     required this.title,
@@ -14927,6 +15160,7 @@ class _MetricCardData {
     required this.subtitle,
     required this.color,
     required this.icon,
+    required this.kind,
   });
 }
 
@@ -15158,29 +15392,36 @@ class _PlanCard extends StatelessWidget {
 
 class _MetricCard extends StatelessWidget {
   final _MetricCardData data;
+  final VoidCallback? onTap;
 
-  const _MetricCard({required this.data});
+  const _MetricCard({required this.data, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [data.color, data.color.withOpacity(0.85)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: data.color.withOpacity(0.20),
-            blurRadius: 24,
-            offset: const Offset(0, 16),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [data.color, data.color.withOpacity(0.85)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: data.color.withOpacity(0.20),
+                blurRadius: 24,
+                offset: const Offset(0, 16),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: LayoutBuilder(
+          child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 250;
           final ultraCompact = constraints.maxWidth < 228;
@@ -15217,7 +15458,7 @@ class _MetricCard extends StatelessWidget {
                 top: topInset + 2,
                 right: rightInset,
                 child: Icon(
-                  Icons.trending_up_rounded,
+                  Icons.chevron_right_rounded,
                   color: Colors.white,
                   size: trendSize,
                 ),
@@ -15271,6 +15512,8 @@ class _MetricCard extends StatelessWidget {
             ],
           );
         },
+          ),
+      ),
       ),
     );
   }
