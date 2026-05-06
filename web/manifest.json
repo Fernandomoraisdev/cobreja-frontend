@@ -3,9 +3,9 @@
   "short_name": "COBREJÁ",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0F62FE",
-  "theme_color": "#0F62FE",
-  "description": "Gestão inteligente de cobranças e acordos da COBREJÁ.",
+  "background_color": "#061C3D",
+  "theme_color": "#061C3D",
+  "description": "Cobrança inteligente, recebimento garantido.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

@@ -1,24 +1,22 @@
-﻿<svg width="860" height="240" viewBox="0 0 860 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="920" height="300" viewBox="0 0 920 300" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="badge" x1="24" y1="24" x2="216" y2="216" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F62FE"/>
-      <stop offset="1" stop-color="#14B8A6"/>
+    <linearGradient id="cjGreen" x1="352" y1="60" x2="420" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#37D969"/>
+      <stop offset="1" stop-color="#18A957"/>
     </linearGradient>
-    <linearGradient id="bolt" x1="92" y1="62" x2="146" y2="150" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E6FFFB"/>
-      <stop offset="1" stop-color="#FFFFFF"/>
-    </linearGradient>
-    <linearGradient id="word" x1="270" y1="70" x2="760" y2="170" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0B1F4D"/>
-      <stop offset="0.55" stop-color="#0F62FE"/>
-      <stop offset="1" stop-color="#0EA5A4"/>
+    <linearGradient id="speedGreen" x1="30" y1="95" x2="152" y2="176" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#37D969"/>
+      <stop offset="1" stop-color="#1FB75E"/>
     </linearGradient>
   </defs>
-  <rect x="24" y="24" width="192" height="192" rx="52" fill="url(#badge)"/>
-  <path d="M112 56C79.9675 56 54 81.9675 54 114C54 146.033 79.9675 172 112 172C144.033 172 170 146.033 170 114" stroke="#DFFDF8" stroke-width="14" stroke-linecap="round"/>
-  <path d="M118 56C145.614 58.9402 167.06 82.3858 170 110" stroke="#DFFDF8" stroke-width="14" stroke-linecap="round"/>
-  <path d="M122 64L90 118H118L104 176L150 108H122L138 64H122Z" fill="url(#bolt)"/>
-  <circle cx="160" cy="74" r="12" fill="#DFFDF8" fill-opacity="0.92"/>
-  <text x="266" y="118" fill="url(#word)" font-family="Segoe UI, Arial, sans-serif" font-size="76" font-weight="800" letter-spacing="2">COBREJÁ</text>
-  <text x="270" y="162" fill="#4B5563" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="600" letter-spacing="1.5">COBRANÇA INTELIGENTE</text>
+  <g>
+    <path d="M206 66H320C330 66 336 74 332 84L322 110C319 118 313 122 304 122H218C185 122 162 144 162 176C162 208 185 230 218 230H294C304 230 309 238 305 247L294 274C291 282 285 286 276 286H210C138 286 87 240 87 178C87 115 138 66 206 66Z" fill="#061C3D"/>
+    <path d="M355 66H410C420 66 426 74 424 84L388 244C382 270 363 286 336 286H292L307 232H329C335 232 339 229 340 223L374 78C376 70 381 66 389 66H355Z" fill="url(#cjGreen)"/>
+    <path d="M28 126H96" stroke="url(#speedGreen)" stroke-width="14" stroke-linecap="round"/>
+    <path d="M18 164H92" stroke="url(#speedGreen)" stroke-width="14" stroke-linecap="round"/>
+    <path d="M32 202H104" stroke="url(#speedGreen)" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <text x="42" y="264" fill="#061C3D" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-1">Cobre</text>
+  <text x="337" y="264" fill="#22C55E" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-1">Já</text>
+  <text x="46" y="294" fill="#061C3D" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="1.8">COBRANÇA INTELIGENTE, RECEBIMENTO GARANTIDO.</text>
 </svg>

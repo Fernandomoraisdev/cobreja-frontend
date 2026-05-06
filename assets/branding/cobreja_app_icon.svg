@@ -1,18 +1,22 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="110" y1="90" x2="916" y2="934" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F62FE"/>
-      <stop offset="1" stop-color="#14B8A6"/>
+    <linearGradient id="bg" x1="160" y1="126" x2="880" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#061C3D"/>
+      <stop offset="1" stop-color="#09385A"/>
     </linearGradient>
-    <linearGradient id="bolt" x1="428" y1="214" x2="630" y2="716" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E8FFFC"/>
-      <stop offset="1" stop-color="#FFFFFF"/>
+    <linearGradient id="green" x1="666" y1="226" x2="810" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38E06D"/>
+      <stop offset="1" stop-color="#18A957"/>
+    </linearGradient>
+    <linearGradient id="speed" x1="114" y1="372" x2="322" y2="554" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38E06D"/>
+      <stop offset="1" stop-color="#1FB75E"/>
     </linearGradient>
   </defs>
-  <rect x="82" y="82" width="860" height="860" rx="246" fill="url(#bg)"/>
-  <rect x="82" y="82" width="860" height="860" rx="246" stroke="white" stroke-opacity="0.16" stroke-width="12"/>
-  <path d="M544 278L412 530H516L454 760L672 480H560L626 278H544Z" fill="url(#bolt)"/>
-  <path d="M520 278C379.705 278 266 391.705 266 532C266 672.295 379.705 786 520 786C660.295 786 774 672.295 774 532" stroke="#F5FFFC" stroke-width="62" stroke-linecap="round"/>
-  <path d="M572 278C689.38 290.662 781.338 382.62 794 500" stroke="#E1FFF8" stroke-width="42" stroke-linecap="round"/>
-  <circle cx="744" cy="278" r="42" fill="#E9FFFB" fill-opacity="0.95"/>
+  <rect x="72" y="72" width="880" height="880" rx="220" fill="url(#bg)"/>
+  <path d="M416 236H666C692 236 706 256 696 280L672 346C664 366 648 376 626 376H440C364 376 312 428 312 502C312 576 364 628 440 628H600C624 628 638 648 628 672L602 736C594 756 578 768 556 768H426C258 768 140 656 140 506C140 354 258 236 416 236Z" fill="white"/>
+  <path d="M724 236H844C870 236 884 256 878 280L794 650C780 718 734 768 664 768H584L622 628H666C682 628 692 620 696 604L774 266C778 248 790 236 810 236H724Z" fill="url(#green)"/>
+  <path d="M96 378H250" stroke="url(#speed)" stroke-width="38" stroke-linecap="round"/>
+  <path d="M72 468H246" stroke="url(#speed)" stroke-width="38" stroke-linecap="round"/>
+  <path d="M104 558H274" stroke="url(#speed)" stroke-width="38" stroke-linecap="round"/>
 </svg>

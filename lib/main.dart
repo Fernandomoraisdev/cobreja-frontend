@@ -2781,7 +2781,7 @@ class _SplashPageState extends State<SplashPage>
                           child: SlideTransition(
                             position: _slideAnimation,
                             child: Text(
-                              'Gestão inteligente de cobranças, juros e acordos.',
+                              'Cobrança inteligente, recebimento garantido.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: const Color(0xFF4B5563),
@@ -2830,6 +2830,46 @@ class _SplashPageState extends State<SplashPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CobrejaLoading extends StatelessWidget {
+  final String label;
+
+  const _CobrejaLoading({
+    this.label = 'Carregando COBREJÁ',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 180,
+            child: SvgPicture.asset(
+              'assets/branding/cobreja_logo.svg',
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const SizedBox(
+            width: 34,
+            height: 34,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3550,7 +3590,7 @@ Future<bool> login(String identifier, String password) async {
                     const SizedBox(width: 12),
                     Expanded(
                       child: SvgPicture.asset(
-                        'assets/branding/cobreja_logo.svg',
+                        'assets/branding/cobreja_logo_white.svg',
                         height: 34,
                         fit: BoxFit.fitHeight,
                       ),
@@ -3559,7 +3599,7 @@ Future<bool> login(String identifier, String password) async {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Cobrança inteligente com mais clareza, organização e controle.',
+                  'Cobrança inteligente, recebimento garantido.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -3701,7 +3741,7 @@ Future<bool> login(String identifier, String password) async {
                   const SizedBox(width: 14),
                   Expanded(
                     child: SvgPicture.asset(
-                      'assets/branding/cobreja_logo.svg',
+                      'assets/branding/cobreja_logo_white.svg',
                       height: 40,
                       fit: BoxFit.fitHeight,
                     ),
@@ -3710,7 +3750,7 @@ Future<bool> login(String identifier, String password) async {
               ),
               const SizedBox(height: 28),
               const Text(
-                'Cobrança inteligente com mais clareza, organização e controle.',
+                'Cobrança inteligente, recebimento garantido.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 34,
@@ -4441,7 +4481,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const _CobrejaLoading(label: 'Carregando portal do cliente')
             : (_error != null
                 ? Center(
                     child: Padding(
@@ -7335,7 +7375,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             ),
             child: SafeArea(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const _CobrejaLoading(label: 'Carregando dashboard')
                   : Row(
                       children: [
                         if (!isCompact)
@@ -7542,6 +7582,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                SizedBox(
+                  height: compact ? 48 : 54,
+                  child: SvgPicture.asset(
+                    'assets/branding/cobreja_logo.svg',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Cobrança inteligente, recebimento garantido.',
+                  style: TextStyle(
+                    color: Color(0xFF5B6474),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
