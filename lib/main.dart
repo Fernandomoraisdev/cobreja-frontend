@@ -9862,6 +9862,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     var supportNotifications = notifications['support'] != false;
     var pixNotifications = notifications['pix'] != false;
     var creditNotifications = notifications['credit'] != false;
+    var saasNotifications = notifications['saas'] != false;
 
     try {
       final submitted = await showDialog<bool>(
@@ -9985,6 +9986,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
+                      value: saasNotifications,
+                      title: const Text('Notificações SaaS'),
+                      onChanged: (value) =>
+                          setDialogState(() => saasNotifications = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
                       value: whatsappNotifications,
                       title: const Text('Notificações WhatsApp'),
                       onChanged: (value) =>
@@ -10050,6 +10058,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             'support': supportNotifications,
             'pix': pixNotifications,
             'credit': creditNotifications,
+            'saas': saasNotifications,
             'whatsapp': whatsappNotifications,
           },
           'whatsapp': {
@@ -13479,6 +13488,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       if (notificationSettings['support'] != false) 'suporte',
       if (notificationSettings['pix'] != false) 'Pix',
       if (notificationSettings['credit'] != false) 'solicitações',
+      if (notificationSettings['saas'] != false) 'SaaS',
     ];
 
     return ListView(
@@ -18738,6 +18748,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case 'CREDIT_REQUESTS':
         setState(() => _selectedSection = _MainSection.solicitacoes);
         await _refreshCreditRequests(updateLoading: true);
+        break;
+      case 'SAAS':
+        await _openSaasPlanPanel();
         break;
       default:
         break;
