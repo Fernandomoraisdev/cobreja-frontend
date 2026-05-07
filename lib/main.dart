@@ -387,6 +387,40 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchSaasStatus({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/saas/status'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> selectSaasPlan({
+    required String token,
+    required String planCode,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/saas/select-plan'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'planCode': planCode}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -7194,6 +7228,218 @@ class _CollectionAutomationTile extends StatelessWidget {
   }
 }
 
+class _SaasPlanPanel extends StatelessWidget {
+  final Map<String, dynamic>? data;
+  final ValueChanged<String> onSelectPlan;
+
+  const _SaasPlanPanel({
+    required this.data,
+    required this.onSelectPlan,
+  });
+
+  String _price(Map<String, dynamic> plan) {
+    final cents = (plan['priceCents'] as num?)?.toInt() ?? 0;
+    if (cents <= 0) return 'Gratis';
+    return _currency(cents / 100);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subscription = (data?['subscription'] as Map<String, dynamic>?) ?? const {};
+    final currentPlan = (subscription['plan'] as Map<String, dynamic>?) ?? const {};
+    final usage = (data?['usage'] as Map<String, dynamic>?) ?? const {};
+    final plans = (data?['plans'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const <Map<String, dynamic>>[];
+    final activeClients = (usage['activeClients'] as num?)?.toInt() ?? 0;
+    final clientLimit = usage['clientLimit'];
+    final unlimited = usage['unlimitedClients'] == true;
+    final usagePercent = (usage['usagePercent'] as num?)?.toDouble() ?? 0;
+    final currentCode = currentPlan['code']?.toString() ?? '';
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Plano atual',
+                  value: currentPlan['name']?.toString() ?? 'Gratis',
+                  icon: Icons.workspace_premium_rounded,
+                  color: AppColors.primary,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Clientes ativos',
+                  value: unlimited ? '$activeClients / ilimitado' : '$activeClients / $clientLimit',
+                  icon: Icons.groups_rounded,
+                  color: usage['limitReached'] == true ? AppColors.danger : AppColors.success,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Status',
+                  value: subscription['status']?.toString() ?? 'TRIAL',
+                  icon: Icons.verified_user_rounded,
+                  color: AppColors.success,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Uso do limite',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    minHeight: 10,
+                    value: unlimited ? 0 : (usagePercent / 100).clamp(0.0, 1.0),
+                    backgroundColor: AppColors.borderSoft,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      usage['limitReached'] == true ? AppColors.danger : AppColors.success,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  unlimited
+                      ? 'Este plano nao possui limite de clientes ativos.'
+                      : 'Restam ${usage['remainingClients'] ?? 0} cliente(s) ativo(s) neste plano.',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: plans
+              .map(
+                (plan) => _SaasPlanCard(
+                  plan: plan,
+                  price: _price(plan),
+                  selected: plan['code']?.toString() == currentCode,
+                  onSelect: () => onSelectPlan(plan['code']?.toString() ?? ''),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _SaasPlanCard extends StatelessWidget {
+  final Map<String, dynamic> plan;
+  final String price;
+  final bool selected;
+  final VoidCallback onSelect;
+
+  const _SaasPlanCard({
+    required this.plan,
+    required this.price,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final features = (plan['features'] as List?)?.map((item) => item.toString()).toList() ??
+        const <String>[];
+    final limit = plan['clientLimit'];
+
+    return SizedBox(
+      width: 290,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      plan['name']?.toString() ?? 'Plano',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  if (selected)
+                    const _StatusPill(text: 'Atual', color: AppColors.success),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                price,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                limit == null ? 'Clientes ilimitados' : 'Ate $limit clientes ativos',
+                style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              ...features.take(5).map(
+                    (feature) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.check_circle_rounded,
+                              size: 18, color: AppColors.success),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              feature,
+                              style: const TextStyle(color: AppColors.textBody, height: 1.25),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: selected ? null : onSelect,
+                  icon: Icon(selected ? Icons.lock_rounded : Icons.upgrade_rounded),
+                  label: Text(selected ? 'Plano atual' : 'Selecionar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -7320,6 +7566,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? _collectionAutomation;
   bool _isLoadingCollections = false;
   String? _collectionAutomationError;
+  Map<String, dynamic>? _saasStatus;
+  bool _isLoadingSaas = false;
+  String? _saasError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -7652,7 +7901,126 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _refreshAuditLogs();
     _refreshMercadoPagoSummary();
     _refreshCollectionAutomation();
+    _refreshSaasStatus();
     fetchDashboard();
+  }
+
+  Future<void> _refreshSaasStatus({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingSaas = true;
+          _saasError = null;
+        });
+      }
+      final status = await ApiService.fetchSaasStatus(token: token);
+      if (!mounted) return;
+      setState(() {
+        _saasStatus = status;
+        _isLoadingSaas = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saasError = e is ApiException ? e.message : 'Nao foi possivel carregar o plano.';
+        _isLoadingSaas = false;
+      });
+    }
+  }
+
+  Future<void> _selectSaasPlan(String planCode) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) {
+      _showSnack('Sessao expirada. Entre novamente.', tone: _FeedbackTone.error);
+      return;
+    }
+    try {
+      setState(() => _isLoadingSaas = true);
+      final result = await ApiService.selectSaasPlan(token: token, planCode: planCode);
+      final overview = (result['overview'] as Map<String, dynamic>?) ?? result;
+      if (!mounted) return;
+      setState(() {
+        _saasStatus = overview;
+        _isLoadingSaas = false;
+      });
+      _showSnack(
+        'Plano atualizado com sucesso.',
+        tone: _FeedbackTone.success,
+        title: 'SaaS',
+      );
+      _refreshAuditLogs();
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSaas = false);
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel alterar o plano.',
+        tone: _FeedbackTone.error,
+        title: 'Plano nao alterado',
+      );
+    }
+  }
+
+  Future<void> _openSaasPlanPanel() async {
+    await _refreshSaasStatus(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980, maxHeight: 760),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Planos e limites',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Atualizar',
+                      onPressed: () => _refreshSaasStatus(updateLoading: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingSaas)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando plano'))
+              else if (_saasError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _saasError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _SaasPlanPanel(
+                    data: _saasStatus,
+                    onSelectPlan: _selectSaasPlan,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshCollectionAutomation({bool updateLoading = false}) async {
@@ -11516,6 +11884,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final mercadoPagoApiStatus = mercadoPagoApi['status']?.toString() ?? 'PENDENTE';
     final collectionTotals =
         (_collectionAutomation?['totals'] as Map<String, dynamic>?) ?? const {};
+    final saasSubscription =
+        (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
+    final saasPlan = (saasSubscription['plan'] as Map<String, dynamic>?) ?? const {};
+    final saasUsage = (_saasStatus?['usage'] as Map<String, dynamic>?) ?? const {};
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
@@ -11587,6 +11959,38 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               color: AppColors.success,
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.workspace_premium_rounded,
+          title: 'Planos e limites SaaS',
+          subtitle:
+              'Controle o plano atual, trial, limite de clientes e estrutura de upgrade.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _openSaasPlanPanel,
+                icon: const Icon(Icons.workspace_premium_rounded),
+                label: Text(_isLoadingSaas ? 'Carregando...' : 'Abrir planos'),
+              ),
+              _StatusPill(
+                text: 'Plano ${saasPlan['name']?.toString() ?? 'Gratis'}',
+                color: AppColors.primary,
+              ),
+              _StatusPill(
+                text: saasUsage['unlimitedClients'] == true
+                    ? '${saasUsage['activeClients'] ?? 0} clientes'
+                    : '${saasUsage['activeClients'] ?? 0}/${saasUsage['clientLimit'] ?? '-'} clientes',
+                color: saasUsage['limitReached'] == true ? AppColors.danger : AppColors.success,
+              ),
+              _StatusPill(
+                text: saasSubscription['status']?.toString() ?? 'TRIAL',
+                color: AppColors.warning,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         _SettingsCard(
