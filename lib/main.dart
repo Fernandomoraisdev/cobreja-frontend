@@ -6924,6 +6924,31 @@ class _MercadoPagoAdminPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'Credenciais',
+          subtitle: integration['credentialSource'] == 'ACCOUNT'
+              ? 'Usando chaves salvas nesta conta.'
+              : 'Usando variaveis globais do Railway como fallback.',
+          icon: Icons.key_rounded,
+          color: integration['credentialSource'] == 'ACCOUNT'
+              ? AppColors.success
+              : AppColors.primary,
+          children: [
+            _DetailLine(
+              label: 'Access token',
+              value: integration['maskedAccessToken']?.toString() ?? 'Nao configurado',
+            ),
+            _DetailLine(
+              label: 'Public key',
+              value: integration['maskedPublicKey']?.toString() ?? 'Nao configurado',
+            ),
+            _DetailLine(
+              label: 'Webhook secret',
+              value: integration['maskedWebhookSecret']?.toString() ?? 'Nao configurado',
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 720;
@@ -7133,6 +7158,44 @@ class _MercadoPagoInfoCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailLine({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -9139,6 +9202,181 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openMercadoPagoCredentialsDialog() async {
+    final settings = _premiumSettings ?? const <String, dynamic>{};
+    final mercadoPago = (settings['mercadoPago'] as Map<String, dynamic>?) ?? const {};
+    final accessTokenController = TextEditingController();
+    final publicKeyController = TextEditingController();
+    final webhookSecretController = TextEditingController();
+    var useAccountCredentials = mercadoPago['useAccountCredentials'] == true;
+    var sandbox = mercadoPago['sandbox'] != false;
+    var clearAccessToken = false;
+    var clearPublicKey = false;
+    var clearWebhookSecret = false;
+
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Credenciais Mercado Pago'),
+            content: SizedBox(
+              width: 640,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: useAccountCredentials,
+                      title: const Text('Usar credenciais desta conta'),
+                      subtitle: const Text(
+                        'Quando ativo, Pix e painel usam as chaves salvas para este admin.',
+                      ),
+                      onChanged: (value) =>
+                          setDialogState(() => useAccountCredentials = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: sandbox,
+                      title: const Text('Modo sandbox/teste'),
+                      subtitle: const Text('Use primeiro com credenciais de teste do Mercado Pago.'),
+                      onChanged: (value) => setDialogState(() => sandbox = value),
+                    ),
+                    const SizedBox(height: 10),
+                    _MercadoPagoInfoCard(
+                      title: 'Chaves atuais',
+                      subtitle:
+                          'Origem: ${mercadoPago['credentialSource']?.toString() ?? 'NONE'}',
+                      children: [
+                        _DetailLine(
+                          label: 'Access token',
+                          value: mercadoPago['maskedAccessToken']?.toString() ?? 'Nao configurado',
+                        ),
+                        _DetailLine(
+                          label: 'Public key',
+                          value: mercadoPago['maskedPublicKey']?.toString() ?? 'Nao configurado',
+                        ),
+                        _DetailLine(
+                          label: 'Webhook secret',
+                          value: mercadoPago['maskedWebhookSecret']?.toString() ?? 'Nao configurado',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: accessTokenController,
+                      decoration: const InputDecoration(
+                        labelText: 'Novo access token',
+                        hintText: 'APP_USR... ou TEST...',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: clearAccessToken,
+                      title: const Text('Limpar access token desta conta'),
+                      onChanged: (value) =>
+                          setDialogState(() => clearAccessToken = value == true),
+                    ),
+                    TextField(
+                      controller: publicKeyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nova public key',
+                        hintText: 'APP_USR... ou TEST...',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: clearPublicKey,
+                      title: const Text('Limpar public key desta conta'),
+                      onChanged: (value) =>
+                          setDialogState(() => clearPublicKey = value == true),
+                    ),
+                    TextField(
+                      controller: webhookSecretController,
+                      decoration: const InputDecoration(
+                        labelText: 'Novo webhook secret',
+                        hintText: 'Chave secreta do webhook',
+                      ),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: clearWebhookSecret,
+                      title: const Text('Limpar webhook secret desta conta'),
+                      onChanged: (value) =>
+                          setDialogState(() => clearWebhookSecret = value == true),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: _isSavingPremiumSettings
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: _isSavingPremiumSettings
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Salvar'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (submitted != true) return;
+
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        _showAdminSupportSnack('Sessao expirada. Entre novamente.', isError: true);
+        return;
+      }
+
+      final mercadoPagoPayload = <String, dynamic>{
+        'useAccountCredentials': useAccountCredentials,
+        'sandbox': sandbox,
+        'clearAccessToken': clearAccessToken,
+        'clearPublicKey': clearPublicKey,
+        'clearWebhookSecret': clearWebhookSecret,
+      };
+      if (accessTokenController.text.trim().isNotEmpty) {
+        mercadoPagoPayload['accessToken'] = accessTokenController.text.trim();
+      }
+      if (publicKeyController.text.trim().isNotEmpty) {
+        mercadoPagoPayload['publicKey'] = publicKeyController.text.trim();
+      }
+      if (webhookSecretController.text.trim().isNotEmpty) {
+        mercadoPagoPayload['webhookSecret'] = webhookSecretController.text.trim();
+      }
+
+      setState(() => _isSavingPremiumSettings = true);
+      final updated = await ApiService.updatePremiumSettings(
+        token: token,
+        settings: {'mercadoPago': mercadoPagoPayload},
+      );
+      if (!mounted) return;
+      setState(() => _premiumSettings = updated);
+      await _refreshMercadoPagoSummary(updateLoading: true);
+      _showAdminSupportSnack('Credenciais Mercado Pago salvas.');
+    } catch (e) {
+      if (!mounted) return;
+      _showAdminSupportSnack(
+        e is ApiException ? e.message : 'Nao foi possivel salvar Mercado Pago.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingPremiumSettings = false);
+      accessTokenController.dispose();
+      publicKeyController.dispose();
+      webhookSecretController.dispose();
+    }
   }
 
   Future<void> _refreshAuditLogs({bool updateLoading = false}) async {
@@ -12766,6 +13004,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         mercadoPagoIntegration['webhookSecretConfigured'] == true &&
         mercadoPagoIntegration['backendPublicUrlConfigured'] == true;
     final mercadoPagoApiStatus = mercadoPagoApi['status']?.toString() ?? 'PENDENTE';
+    final mercadoPagoSource = mercadoPagoIntegration['credentialSource']?.toString() ?? 'NONE';
     final collectionTotals =
         (_collectionAutomation?['totals'] as Map<String, dynamic>?) ?? const {};
     final saasSubscription =
@@ -12949,9 +13188,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 icon: const Icon(Icons.account_balance_wallet_rounded),
                 label: Text(_isLoadingMercadoPago ? 'Carregando...' : 'Abrir painel'),
               ),
+              OutlinedButton.icon(
+                onPressed: _openMercadoPagoCredentialsDialog,
+                icon: const Icon(Icons.key_rounded),
+                label: const Text('Configurar chaves'),
+              ),
               _StatusPill(
                 text: mercadoPagoReady ? 'Integracao configurada' : 'Configurar ambiente',
                 color: mercadoPagoReady ? AppColors.success : AppColors.warning,
+              ),
+              _StatusPill(
+                text: mercadoPagoSource == 'ACCOUNT' ? 'Chaves desta conta' : 'Chaves Railway',
+                color: mercadoPagoSource == 'ACCOUNT' ? AppColors.success : AppColors.primary,
               ),
               _StatusPill(
                 text: mercadoPagoApiStatus == 'OK' ? 'API respondendo' : 'API $mercadoPagoApiStatus',
