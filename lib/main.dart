@@ -282,6 +282,44 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> addSupportMessage({
+    required String token,
+    required int conversationId,
+    required String body,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/support/conversations/$conversationId/messages'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'body': body}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> updateSupportStatus({
+    required String token,
+    required int conversationId,
+    required String status,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/support/conversations/$conversationId/status'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'status': status}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<List<dynamic>> listAuditLogs({
     required String token,
   }) async {
@@ -4628,6 +4666,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
   List<Map<String, dynamic>> _debts = const [];
   List<Map<String, dynamic>> _payments = const [];
   List<Map<String, dynamic>> _requests = const [];
+  List<Map<String, dynamic>> _supportConversations = const [];
   bool _isSubmittingRequest = false;
 
   @override
@@ -4654,6 +4693,8 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
       final debts = await ApiService.fetchMyDebts(token: token);
       final payments = await ApiService.fetchMyPayments(token: token);
       final requests = await ApiService.fetchMyRequests(token: token);
+      final supportConversations =
+          await ApiService.listSupportConversations(token: token);
 
       if (!mounted) return;
       setState(() {
@@ -4661,6 +4702,9 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
         _debts = debts;
         _payments = payments;
         _requests = requests;
+        _supportConversations = supportConversations
+            .whereType<Map<String, dynamic>>()
+            .toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -4753,7 +4797,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
         : (clientName.isNotEmpty ? clientName : widget.account.email);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
@@ -4775,6 +4819,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
               Tab(text: 'Perfil'),
               Tab(text: 'Dívidas'),
               Tab(text: 'Pagamentos'),
+              Tab(text: 'Suporte'),
             ],
           ),
         ),
@@ -4809,6 +4854,11 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
                         onRefresh: _loadClientPortal,
                       ),
                       _ClientPaymentsList(payments: _payments),
+                      _SupportCenterTab(
+                        conversations: _supportConversations,
+                        onRefresh: _loadClientPortal,
+                        showPortalSnack: _showPortalSnack,
+                      ),
                     ],
                   )),
       ),
@@ -5883,6 +5933,315 @@ class _PixPaymentDialogState extends State<_PixPaymentDialog> {
   }
 }
 
+class _SupportCenterTab extends StatefulWidget {
+  final List<Map<String, dynamic>> conversations;
+  final Future<void> Function() onRefresh;
+  final void Function(String message, {bool isError}) showPortalSnack;
+  final bool adminMode;
+
+  const _SupportCenterTab({
+    required this.conversations,
+    required this.onRefresh,
+    required this.showPortalSnack,
+    this.adminMode = false,
+  });
+
+  @override
+  State<_SupportCenterTab> createState() => _SupportCenterTabState();
+}
+
+class _SupportCenterTabState extends State<_SupportCenterTab> {
+  bool _isSending = false;
+
+  List<Map<String, dynamic>> get _conversations => widget.conversations;
+
+  Future<String?> _readToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  Future<void> _startConversation() async {
+    final subjectController = TextEditingController(text: 'Atendimento');
+    final messageController = TextEditingController();
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Abrir suporte'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(labelText: 'Assunto'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: messageController,
+                  minLines: 4,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Mensagem',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Enviar'),
+            ),
+          ],
+        ),
+      );
+      if (submitted != true) return;
+
+      final body = messageController.text.trim();
+      if (body.isEmpty) {
+        widget.showPortalSnack('Digite uma mensagem para abrir o suporte.', isError: true);
+        return;
+      }
+
+      final token = await _readToken();
+      if (token == null) {
+        widget.showPortalSnack('Sessao expirada. Entre novamente.', isError: true);
+        return;
+      }
+
+      setState(() => _isSending = true);
+      await ApiService.createSupportConversation(
+        token: token,
+        subject: subjectController.text.trim().isEmpty
+            ? 'Atendimento'
+            : subjectController.text.trim(),
+        body: body,
+      );
+      await widget.onRefresh();
+      widget.showPortalSnack('Mensagem enviada para o suporte.');
+    } catch (e) {
+      widget.showPortalSnack(
+        e is ApiException ? e.message : 'Nao foi possivel enviar a mensagem.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+      subjectController.dispose();
+      messageController.dispose();
+    }
+  }
+
+  Future<void> _reply(Map<String, dynamic> conversation) async {
+    final controller = TextEditingController();
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Responder suporte'),
+          content: TextField(
+            controller: controller,
+            minLines: 4,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              labelText: 'Resposta',
+              alignLabelWithHint: true,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Enviar'),
+            ),
+          ],
+        ),
+      );
+      if (submitted != true) return;
+      final body = controller.text.trim();
+      if (body.isEmpty) return;
+
+      final token = await _readToken();
+      final id = (conversation['id'] as num?)?.toInt();
+      if (token == null || id == null) {
+        widget.showPortalSnack('Nao foi possivel identificar a conversa.', isError: true);
+        return;
+      }
+
+      setState(() => _isSending = true);
+      await ApiService.addSupportMessage(token: token, conversationId: id, body: body);
+      await widget.onRefresh();
+      widget.showPortalSnack('Resposta enviada.');
+    } catch (e) {
+      widget.showPortalSnack(
+        e is ApiException ? e.message : 'Nao foi possivel responder agora.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+      controller.dispose();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 110),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  height: 46,
+                  width: 46,
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.support_agent_rounded, color: AppColors.success),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Suporte Feronix',
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Atendimento interno com historico salvo por conta.',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: _isSending ? null : _startConversation,
+                  icon: const Icon(Icons.add_comment_rounded),
+                  label: Text(widget.adminMode ? 'Novo' : 'Abrir'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (_conversations.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(22),
+              child: Text(
+                'Nenhuma conversa de suporte ainda.',
+                style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+              ),
+            ),
+          )
+        else
+          for (final conversation in _conversations) ...[
+            _SupportConversationCard(
+              conversation: conversation,
+              onReply: () => _reply(conversation),
+            ),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _SupportConversationCard extends StatelessWidget {
+  final Map<String, dynamic> conversation;
+  final VoidCallback onReply;
+
+  const _SupportConversationCard({
+    required this.conversation,
+    required this.onReply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = (conversation['messages'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final client = conversation['client'] as Map<String, dynamic>?;
+    final subject = conversation['subject']?.toString().trim().isNotEmpty == true
+        ? conversation['subject'].toString()
+        : 'Atendimento';
+    final status = conversation['status']?.toString() ?? 'OPEN';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    client == null ? subject : '$subject - ${client['name'] ?? 'Cliente'}',
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  ),
+                ),
+                _StatusPill(
+                  text: status,
+                  color: status == 'OPEN' ? AppColors.success : AppColors.warning,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (messages.isEmpty)
+              const Text('Sem mensagens.', style: TextStyle(color: AppColors.textMuted))
+            else
+              for (final message in messages.take(5)) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (message['direction']?.toString() == 'OUTBOUND'
+                            ? AppColors.success
+                            : AppColors.primary)
+                        .withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    message['body']?.toString() ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onReply,
+                icon: const Icon(Icons.reply_rounded),
+                label: const Text('Responder'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -5995,6 +6354,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   List<Map<String, dynamic>> _creditRequests = const [];
   bool _isLoadingCreditRequests = false;
   String? _creditRequestsError;
+  List<Map<String, dynamic>> _supportConversations = const [];
+  bool _isLoadingSupport = false;
+  String? _supportError;
+  Map<String, dynamic>? _premiumSettings;
+  bool _isSavingPremiumSettings = false;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -6322,7 +6686,321 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     });
     _loadClients();
     _loadAdminInviteCode();
+    _refreshSupportConversations();
+    _loadPremiumSettings();
     fetchDashboard();
+  }
+
+  Future<void> _loadPremiumSettings() async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      final settings = await ApiService.getPremiumSettings(token: token);
+      if (!mounted) return;
+      setState(() => _premiumSettings = settings);
+    } catch (e) {
+      debugPrint('Falha ao carregar configuracoes premium: $e');
+    }
+  }
+
+  Future<void> _openPremiumSettingsDialog() async {
+    final settings = _premiumSettings ?? const <String, dynamic>{};
+    final company = (settings['company'] as Map<String, dynamic>?) ?? const {};
+    final finance = (settings['finance'] as Map<String, dynamic>?) ?? const {};
+    final notifications =
+        (settings['notifications'] as Map<String, dynamic>?) ?? const {};
+    final nameController = TextEditingController(
+      text: company['name']?.toString() ?? widget.account.name,
+    );
+    final cnpjController = TextEditingController(text: company['cnpj']?.toString() ?? '');
+    final phoneController = TextEditingController(text: company['phone']?.toString() ?? '');
+    final emailController = TextEditingController(text: company['email']?.toString() ?? '');
+    final addressController = TextEditingController(text: company['address']?.toString() ?? '');
+    final monthlyController =
+        TextEditingController(text: finance['monthlyInterest']?.toString() ?? '0');
+    final dailyController =
+        TextEditingController(text: finance['dailyInterest']?.toString() ?? '0');
+    final maxInstallmentsController =
+        TextEditingController(text: finance['maxInstallments']?.toString() ?? '12');
+    var billingNotifications = notifications['billing'] != false;
+    var whatsappNotifications = notifications['whatsapp'] != false;
+
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Configurações premium'),
+            content: SizedBox(
+              width: 620,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Empresa',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Nome da empresa'),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        SizedBox(
+                          width: 190,
+                          child: TextField(
+                            controller: cnpjController,
+                            decoration: const InputDecoration(labelText: 'CNPJ'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 190,
+                          child: TextField(
+                            controller: phoneController,
+                            decoration: const InputDecoration(labelText: 'Telefone'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 190,
+                          child: TextField(
+                            controller: emailController,
+                            decoration: const InputDecoration(labelText: 'Email'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: addressController,
+                      decoration: const InputDecoration(labelText: 'Endereço'),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Financeiro padrão',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        SizedBox(
+                          width: 180,
+                          child: TextField(
+                            controller: monthlyController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Juros mensal'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 180,
+                          child: TextField(
+                            controller: dailyController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Juros diário'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 180,
+                          child: TextField(
+                            controller: maxInstallmentsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Parcelas máximas'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: billingNotifications,
+                      title: const Text('Notificações de cobrança'),
+                      onChanged: (value) =>
+                          setDialogState(() => billingNotifications = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: whatsappNotifications,
+                      title: const Text('Notificações WhatsApp'),
+                      onChanged: (value) =>
+                          setDialogState(() => whatsappNotifications = value),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: _isSavingPremiumSettings
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: _isSavingPremiumSettings
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Salvar'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (submitted != true) return;
+
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        _showAdminSupportSnack('Sessao expirada. Entre novamente.', isError: true);
+        return;
+      }
+
+      setState(() => _isSavingPremiumSettings = true);
+      final updated = await ApiService.updatePremiumSettings(
+        token: token,
+        settings: {
+          'company': {
+            'name': nameController.text.trim(),
+            'cnpj': cnpjController.text.trim(),
+            'phone': phoneController.text.trim(),
+            'email': emailController.text.trim(),
+            'address': addressController.text.trim(),
+          },
+          'finance': {
+            'monthlyInterest': _readDouble(monthlyController.text),
+            'dailyInterest': _readDouble(dailyController.text),
+            'maxInstallments':
+                int.tryParse(maxInstallmentsController.text.trim()) ?? 12,
+          },
+          'notifications': {
+            'billing': billingNotifications,
+            'whatsapp': whatsappNotifications,
+          },
+        },
+      );
+
+      if (!mounted) return;
+      setState(() => _premiumSettings = updated);
+      _showAdminSupportSnack('Configuracoes premium salvas.');
+    } catch (e) {
+      if (!mounted) return;
+      _showAdminSupportSnack(
+        e is ApiException ? e.message : 'Nao foi possivel salvar configuracoes.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingPremiumSettings = false);
+      nameController.dispose();
+      cnpjController.dispose();
+      phoneController.dispose();
+      emailController.dispose();
+      addressController.dispose();
+      monthlyController.dispose();
+      dailyController.dispose();
+      maxInstallmentsController.dispose();
+    }
+  }
+
+  void _showAdminSupportSnack(String message, {bool isError = false}) {
+    _showSnack(
+      message,
+      tone: isError ? _FeedbackTone.error : _FeedbackTone.success,
+      title: isError ? 'Suporte' : 'Tudo certo',
+    );
+  }
+
+  Future<void> _refreshSupportConversations({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingSupport = true;
+          _supportError = null;
+        });
+      }
+      final conversations = await ApiService.listSupportConversations(token: token);
+      if (!mounted) return;
+      setState(() {
+        _supportConversations = conversations
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _isLoadingSupport = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _supportError = e is ApiException
+            ? e.message
+            : 'Nao foi possivel carregar o suporte.';
+        _isLoadingSupport = false;
+      });
+    }
+  }
+
+  Future<void> _openSupportPanel() async {
+    await _refreshSupportConversations(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820, maxHeight: 720),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Painel de suporte',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingSupport)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando suporte'))
+              else if (_supportError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _supportError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _SupportCenterTab(
+                    conversations: _supportConversations,
+                    onRefresh: () => _refreshSupportConversations(updateLoading: true),
+                    showPortalSnack: _showAdminSupportSnack,
+                    adminMode: true,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadAdminInviteCode() async {
@@ -9555,6 +10233,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
       children: [
         _PremiumFoundationCard(
+          onEditSettings: _openPremiumSettingsDialog,
           sections: const [
             _PremiumFoundationSection(
               title: 'Empresa',
@@ -9630,11 +10309,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           child: Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: const [
-              _StatusPill(text: 'Chat no banco', color: AppColors.success),
-              _StatusPill(text: 'Painel admin preparado', color: AppColors.success),
-              _StatusPill(text: 'WhatsApp API futuro', color: AppColors.warning),
-              _StatusPill(text: 'Anexos futuro', color: AppColors.warning),
+            children: [
+              FilledButton.icon(
+                onPressed: _openSupportPanel,
+                icon: const Icon(Icons.forum_rounded),
+                label: Text('Abrir painel (${_supportConversations.length})'),
+              ),
+              const _StatusPill(text: 'Chat no banco', color: AppColors.success),
+              const _StatusPill(text: 'Painel admin ativo', color: AppColors.success),
+              const _StatusPill(text: 'WhatsApp API futuro', color: AppColors.warning),
+              const _StatusPill(text: 'Anexos futuro', color: AppColors.warning),
             ],
           ),
         ),
@@ -17848,8 +18532,12 @@ class _PremiumFoundationSection {
 
 class _PremiumFoundationCard extends StatelessWidget {
   final List<_PremiumFoundationSection> sections;
+  final VoidCallback? onEditSettings;
 
-  const _PremiumFoundationCard({required this.sections});
+  const _PremiumFoundationCard({
+    required this.sections,
+    this.onEditSettings,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18021,6 +18709,14 @@ class _PremiumFoundationCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onEditSettings != null) ...[
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    onPressed: onEditSettings,
+                    icon: const Icon(Icons.tune_rounded),
+                    label: const Text('Editar'),
+                  ),
+                ],
               ],
             ),
           ),
