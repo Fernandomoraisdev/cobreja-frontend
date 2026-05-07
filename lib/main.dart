@@ -352,6 +352,41 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchCollectionAutomation({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/collections/automation-summary'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> registerCollectionGenerated({
+    required String token,
+    required int installmentId,
+    String channel = 'WHATSAPP_MANUAL',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/collections/installments/$installmentId/generated'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'channel': channel}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -6936,6 +6971,229 @@ class _MercadoPagoMetricCard extends StatelessWidget {
   }
 }
 
+class _CollectionAutomationPanel extends StatelessWidget {
+  final Map<String, dynamic>? data;
+  final ValueChanged<Map<String, dynamic>> onCopy;
+  final ValueChanged<Map<String, dynamic>> onWhatsApp;
+
+  const _CollectionAutomationPanel({
+    required this.data,
+    required this.onCopy,
+    required this.onWhatsApp,
+  });
+
+  List<Map<String, dynamic>> _items(String key) {
+    final value = data?[key];
+    if (value is List) return value.whereType<Map<String, dynamic>>().toList();
+    return const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totals = (data?['totals'] as Map<String, dynamic>?) ?? const {};
+    final dueToday = _items('dueToday');
+    final dueTomorrow = _items('dueTomorrow');
+    final overdue = _items('overdue');
+    final allEmpty = dueToday.isEmpty && dueTomorrow.isEmpty && overdue.isEmpty;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Vencem hoje',
+                  value: '${totals['dueToday'] ?? 0}',
+                  icon: Icons.today_rounded,
+                  color: AppColors.primary,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Em atraso',
+                  value: '${totals['overdue'] ?? 0}',
+                  icon: Icons.warning_amber_rounded,
+                  color: AppColors.danger,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Valor na fila',
+                  value: _currency(_readDouble(totals['totalAmount'])),
+                  icon: Icons.payments_rounded,
+                  color: AppColors.success,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        if (allEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Text(
+                'Nenhuma parcela vencendo ou atrasada no momento.',
+                style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w800),
+              ),
+            ),
+          )
+        else ...[
+          _CollectionAutomationSection(
+            title: 'Vencendo hoje',
+            items: dueToday,
+            color: AppColors.primary,
+            onCopy: onCopy,
+            onWhatsApp: onWhatsApp,
+          ),
+          const SizedBox(height: 12),
+          _CollectionAutomationSection(
+            title: 'Vencendo amanha',
+            items: dueTomorrow,
+            color: AppColors.warning,
+            onCopy: onCopy,
+            onWhatsApp: onWhatsApp,
+          ),
+          const SizedBox(height: 12),
+          _CollectionAutomationSection(
+            title: 'Atrasadas',
+            items: overdue,
+            color: AppColors.danger,
+            onCopy: onCopy,
+            onWhatsApp: onWhatsApp,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CollectionAutomationSection extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> items;
+  final Color color;
+  final ValueChanged<Map<String, dynamic>> onCopy;
+  final ValueChanged<Map<String, dynamic>> onWhatsApp;
+
+  const _CollectionAutomationSection({
+    required this.title,
+    required this.items,
+    required this.color,
+    required this.onCopy,
+    required this.onWhatsApp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return _MercadoPagoInfoCard(
+      title: title,
+      subtitle: '${items.length} parcela(s) com mensagem pronta',
+      icon: Icons.campaign_rounded,
+      color: color,
+      children: items
+          .map(
+            (item) => _CollectionAutomationTile(
+              item: item,
+              color: color,
+              onCopy: () => onCopy(item),
+              onWhatsApp: () => onWhatsApp(item),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _CollectionAutomationTile extends StatelessWidget {
+  final Map<String, dynamic> item;
+  final Color color;
+  final VoidCallback onCopy;
+  final VoidCallback onWhatsApp;
+
+  const _CollectionAutomationTile({
+    required this.item,
+    required this.color,
+    required this.onCopy,
+    required this.onWhatsApp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final client = (item['client'] as Map<String, dynamic>?) ?? const {};
+    final dueDate = DateTime.tryParse(item['dueDate']?.toString() ?? '');
+    final hasWhatsApp = (item['whatsappLink']?.toString() ?? '').isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  client['name']?.toString() ?? 'Cliente',
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+              _StatusPill(
+                text: item['daysLate'] != null && _readDouble(item['daysLate']) > 0
+                    ? '${item['daysLate']} dia(s) atraso'
+                    : 'No prazo',
+                color: color,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            [
+              'Parcela ${item['installmentNumber'] ?? '-'}',
+              if (dueDate != null) DateFormat('dd/MM/yyyy').format(dueDate),
+              _currency(_readDouble(item['remaining'])),
+              client['phone']?.toString(),
+            ].whereType<String>().where((entry) => entry.trim().isNotEmpty).join(' | '),
+            style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            item['message']?.toString() ?? '',
+            style: const TextStyle(color: AppColors.textBody, height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onCopy,
+                icon: const Icon(Icons.content_copy_rounded),
+                label: const Text('Copiar'),
+              ),
+              FilledButton.icon(
+                onPressed: hasWhatsApp ? onWhatsApp : null,
+                icon: const Icon(Icons.chat_rounded),
+                label: const Text('WhatsApp'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -7059,6 +7317,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? _mercadoPagoSummary;
   bool _isLoadingMercadoPago = false;
   String? _mercadoPagoError;
+  Map<String, dynamic>? _collectionAutomation;
+  bool _isLoadingCollections = false;
+  String? _collectionAutomationError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -7390,7 +7651,157 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _loadPremiumSettings();
     _refreshAuditLogs();
     _refreshMercadoPagoSummary();
+    _refreshCollectionAutomation();
     fetchDashboard();
+  }
+
+  Future<void> _refreshCollectionAutomation({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingCollections = true;
+          _collectionAutomationError = null;
+        });
+      }
+      final data = await ApiService.fetchCollectionAutomation(token: token);
+      if (!mounted) return;
+      setState(() {
+        _collectionAutomation = data;
+        _isLoadingCollections = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _collectionAutomationError =
+            e is ApiException ? e.message : 'Nao foi possivel carregar cobrancas.';
+        _isLoadingCollections = false;
+      });
+    }
+  }
+
+  Future<void> _registerAndUseCollectionItem(
+    Map<String, dynamic> item, {
+    required bool openWhatsApp,
+  }) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) {
+      _showSnack('Sessao expirada. Entre novamente.', tone: _FeedbackTone.error);
+      return;
+    }
+
+    final installmentId = (item['installmentId'] as num?)?.toInt();
+    final message = item['message']?.toString() ?? '';
+    if (installmentId == null || message.trim().isEmpty) {
+      _showSnack('Cobranca invalida para gerar mensagem.', tone: _FeedbackTone.warning);
+      return;
+    }
+
+    try {
+      await ApiService.registerCollectionGenerated(
+        token: token,
+        installmentId: installmentId,
+        channel: openWhatsApp ? 'WHATSAPP_LINK' : 'COPY_MESSAGE',
+      );
+      await Clipboard.setData(ClipboardData(text: message));
+
+      if (openWhatsApp) {
+        final link = item['whatsappLink']?.toString() ?? '';
+        if (link.trim().isEmpty) {
+          _showSnack(
+            'Mensagem copiada, mas este cliente nao tem telefone cadastrado.',
+            tone: _FeedbackTone.warning,
+            title: 'WhatsApp indisponivel',
+          );
+          return;
+        }
+        final uri = Uri.parse(link);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      _showSnack(
+        openWhatsApp
+            ? 'Cobranca registrada e WhatsApp aberto.'
+            : 'Mensagem copiada e cobranca registrada.',
+        tone: _FeedbackTone.success,
+        title: 'Cobranca gerada',
+      );
+      _refreshAuditLogs();
+    } catch (e) {
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel registrar a cobranca.',
+        tone: _FeedbackTone.error,
+        title: 'Erro na cobranca',
+      );
+    }
+  }
+
+  Future<void> _openCollectionAutomationPanel() async {
+    await _refreshCollectionAutomation(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980, maxHeight: 780),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Automacoes de cobranca',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Atualizar',
+                      onPressed: () => _refreshCollectionAutomation(updateLoading: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingCollections)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando cobrancas'))
+              else if (_collectionAutomationError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _collectionAutomationError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _CollectionAutomationPanel(
+                    data: _collectionAutomation,
+                    onCopy: (item) =>
+                        _registerAndUseCollectionItem(item, openWhatsApp: false),
+                    onWhatsApp: (item) =>
+                        _registerAndUseCollectionItem(item, openWhatsApp: true),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshMercadoPagoSummary({bool updateLoading = false}) async {
@@ -11103,6 +11514,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         mercadoPagoIntegration['webhookSecretConfigured'] == true &&
         mercadoPagoIntegration['backendPublicUrlConfigured'] == true;
     final mercadoPagoApiStatus = mercadoPagoApi['status']?.toString() ?? 'PENDENTE';
+    final collectionTotals =
+        (_collectionAutomation?['totals'] as Map<String, dynamic>?) ?? const {};
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
@@ -11174,6 +11587,33 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               color: AppColors.success,
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.campaign_rounded,
+          title: 'Automacoes de cobranca',
+          subtitle:
+              'Veja vencimentos, atrasos e mensagens prontas para cobrar por WhatsApp.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _openCollectionAutomationPanel,
+                icon: const Icon(Icons.send_rounded),
+                label: Text(_isLoadingCollections ? 'Carregando...' : 'Abrir central'),
+              ),
+              _StatusPill(
+                text: '${collectionTotals['dueToday'] ?? 0} vencem hoje',
+                color: AppColors.primary,
+              ),
+              _StatusPill(
+                text: '${collectionTotals['overdue'] ?? 0} atrasadas',
+                color: AppColors.danger,
+              ),
+              const _StatusPill(text: 'Historico em auditoria', color: AppColors.success),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         _SettingsCard(
