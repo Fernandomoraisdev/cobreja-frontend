@@ -336,6 +336,22 @@ class ApiService {
     return _extractPayloadList(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchMercadoPagoSummary({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/payments/mercadopago/admin/summary'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -6585,6 +6601,341 @@ class _AuditLogList extends StatelessWidget {
   }
 }
 
+class _MercadoPagoAdminPanel extends StatelessWidget {
+  final Map<String, dynamic>? summary;
+
+  const _MercadoPagoAdminPanel({required this.summary});
+
+  Map<String, dynamic> _map(String key) {
+    final value = summary?[key];
+    return value is Map<String, dynamic> ? value : const <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> _list(Map<String, dynamic> source, String key) {
+    final value = source[key];
+    if (value is List) {
+      return value.whereType<Map<String, dynamic>>().toList();
+    }
+    return const [];
+  }
+
+  String _statusText(dynamic value) => value == true ? 'OK' : 'Pendente';
+
+  Color _statusColor(dynamic value) => value == true ? AppColors.success : AppColors.warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final integration = _map('integration');
+    final local = _map('local');
+    final webhook = _map('webhook');
+    final api = _map('mercadoPagoApi');
+    final recentIntents = _list(local, 'recentIntents');
+    final recentLogs = _list(webhook, 'recentLogs');
+    final recentPayments = _list(api, 'recentPayments');
+    final apiStatus = api['status']?.toString() ?? 'NOT_CHECKED';
+    final apiOk = apiStatus == 'OK';
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _StatusPill(
+              text: 'Token ${_statusText(integration['accessTokenConfigured'])}',
+              color: _statusColor(integration['accessTokenConfigured']),
+            ),
+            _StatusPill(
+              text: 'Public key ${_statusText(integration['publicKeyConfigured'])}',
+              color: _statusColor(integration['publicKeyConfigured']),
+            ),
+            _StatusPill(
+              text: 'Webhook secret ${_statusText(integration['webhookSecretConfigured'])}',
+              color: _statusColor(integration['webhookSecretConfigured']),
+            ),
+            _StatusPill(
+              text: apiOk ? 'API Mercado Pago OK' : 'API $apiStatus',
+              color: apiOk ? AppColors.success : AppColors.warning,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Recebido local',
+                  value: _currency(_readDouble(local['approvedAmount'])),
+                  icon: Icons.check_circle_rounded,
+                  color: AppColors.success,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Pendente local',
+                  value: _currency(_readDouble(local['pendingAmount'])),
+                  icon: Icons.pending_actions_rounded,
+                  color: AppColors.warning,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Recebido API',
+                  value: _currency(_readDouble(api['approvedAmount'])),
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: AppColors.primary,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'Webhook',
+          subtitle: integration['webhookUrl']?.toString() ?? 'BACKEND_PUBLIC_URL pendente',
+          children: [
+            Text(
+              'Processados: ${(webhook['counts'] as Map<String, dynamic>?)?['processed'] ?? 0}  |  Falhas: ${(webhook['counts'] as Map<String, dynamic>?)?['failed'] ?? 0}  |  Assinatura invalida: ${(webhook['counts'] as Map<String, dynamic>?)?['invalidSignature'] ?? 0}',
+              style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        if ((api['error']?.toString() ?? '').isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MercadoPagoInfoCard(
+            title: 'Retorno da API',
+            subtitle: api['error'].toString(),
+            icon: Icons.warning_amber_rounded,
+            color: AppColors.warning,
+          ),
+        ],
+        const SizedBox(height: 12),
+        _MercadoPagoInfoCard(
+          title: 'Ultimas cobrancas Pix',
+          subtitle: recentIntents.isEmpty
+              ? 'Nenhuma cobranca local encontrada.'
+              : '${recentIntents.length} cobranca(s) recentes',
+          children: recentIntents
+              .map(
+                (intent) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    intent['client'] is Map<String, dynamic>
+                        ? ((intent['client'] as Map<String, dynamic>)['name']?.toString() ??
+                            'Cliente')
+                        : 'Cliente',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    [
+                      'Parcela ${(intent['installment'] as Map<String, dynamic>?)?['installmentNumber'] ?? '-'}',
+                      intent['status']?.toString() ?? 'UNKNOWN',
+                      intent['mercadoPagoPaymentId']?.toString(),
+                    ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                  ),
+                  trailing: Text(
+                    _currency(_readDouble(intent['amount'])),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        if (recentPayments.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MercadoPagoInfoCard(
+            title: 'Pagamentos recentes na API',
+            subtitle: '${recentPayments.length} retorno(s) do Mercado Pago',
+            children: recentPayments
+                .map(
+                  (payment) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      payment['id']?.toString() ?? 'Pagamento',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      [
+                        payment['status']?.toString(),
+                        payment['paymentMethodId']?.toString(),
+                        payment['externalReference']?.toString(),
+                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                    ),
+                    trailing: Text(
+                      _currency(_readDouble(payment['amount'])),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+        if (recentLogs.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _MercadoPagoInfoCard(
+            title: 'Ultimos webhooks',
+            subtitle: '${recentLogs.length} evento(s) recebidos',
+            children: recentLogs
+                .map(
+                  (log) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      log['eventType']?.toString() ?? 'Webhook',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      [
+                        log['resourceId']?.toString(),
+                        log['processed'] == true ? 'processado' : 'pendente',
+                        log['processingError']?.toString(),
+                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                    ),
+                    trailing: Icon(
+                      log['signatureValid'] == true
+                          ? Icons.verified_rounded
+                          : Icons.report_problem_rounded,
+                      color:
+                          log['signatureValid'] == true ? AppColors.success : AppColors.warning,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MercadoPagoInfoCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final List<Widget> children;
+
+  const _MercadoPagoInfoCard({
+    required this.title,
+    required this.subtitle,
+    this.icon = Icons.pix_rounded,
+    this.color = AppColors.primary,
+    this.children = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(color: AppColors.textMuted, height: 1.35),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (children.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...children,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MercadoPagoMetricCard extends StatelessWidget {
+  final double width;
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MercadoPagoMetricCard({
+    required this.width,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -6705,6 +7056,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   List<Map<String, dynamic>> _auditLogs = const [];
   bool _isLoadingAudit = false;
   String? _auditError;
+  Map<String, dynamic>? _mercadoPagoSummary;
+  bool _isLoadingMercadoPago = false;
+  String? _mercadoPagoError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -7035,7 +7389,93 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _refreshSupportConversations();
     _loadPremiumSettings();
     _refreshAuditLogs();
+    _refreshMercadoPagoSummary();
     fetchDashboard();
+  }
+
+  Future<void> _refreshMercadoPagoSummary({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingMercadoPago = true;
+          _mercadoPagoError = null;
+        });
+      }
+      final summary = await ApiService.fetchMercadoPagoSummary(token: token);
+      if (!mounted) return;
+      setState(() {
+        _mercadoPagoSummary = summary;
+        _isLoadingMercadoPago = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _mercadoPagoError =
+            e is ApiException ? e.message : 'Nao foi possivel carregar Mercado Pago.';
+        _isLoadingMercadoPago = false;
+      });
+    }
+  }
+
+  Future<void> _openMercadoPagoPanel() async {
+    await _refreshMercadoPagoSummary(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Mercado Pago',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Atualizar',
+                      onPressed: () => _refreshMercadoPagoSummary(updateLoading: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingMercadoPago)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando Mercado Pago'))
+              else if (_mercadoPagoError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _mercadoPagoError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _MercadoPagoAdminPanel(summary: _mercadoPagoSummary),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshAuditLogs({bool updateLoading = false}) async {
@@ -10655,6 +11095,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   Widget _buildSettingsPage() {
+    final mercadoPagoIntegration =
+        (_mercadoPagoSummary?['integration'] as Map<String, dynamic>?) ?? const {};
+    final mercadoPagoApi =
+        (_mercadoPagoSummary?['mercadoPagoApi'] as Map<String, dynamic>?) ?? const {};
+    final mercadoPagoReady = mercadoPagoIntegration['accessTokenConfigured'] == true &&
+        mercadoPagoIntegration['webhookSecretConfigured'] == true &&
+        mercadoPagoIntegration['backendPublicUrlConfigured'] == true;
+    final mercadoPagoApiStatus = mercadoPagoApi['status']?.toString() ?? 'PENDENTE';
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
       children: [
@@ -10725,6 +11174,36 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               color: AppColors.success,
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.pix_rounded,
+          title: 'Mercado Pago',
+          subtitle:
+              'Acompanhe Pix por parcela, webhook, recebimentos confirmados e retorno da API.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _openMercadoPagoPanel,
+                icon: const Icon(Icons.account_balance_wallet_rounded),
+                label: Text(_isLoadingMercadoPago ? 'Carregando...' : 'Abrir painel'),
+              ),
+              _StatusPill(
+                text: mercadoPagoReady ? 'Integracao configurada' : 'Configurar ambiente',
+                color: mercadoPagoReady ? AppColors.success : AppColors.warning,
+              ),
+              _StatusPill(
+                text: mercadoPagoApiStatus == 'OK' ? 'API respondendo' : 'API $mercadoPagoApiStatus',
+                color: mercadoPagoApiStatus == 'OK' ? AppColors.success : AppColors.warning,
+              ),
+              _StatusPill(
+                text: 'Pix por parcela',
+                color: AppColors.success,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         _SettingsCard(
