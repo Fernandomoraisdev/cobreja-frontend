@@ -7285,6 +7285,10 @@ class _CollectionAutomationPanel extends StatelessWidget {
     final dueToday = _items('dueToday');
     final dueTomorrow = _items('dueTomorrow');
     final overdue = _items('overdue');
+    final templates = ((data?['templates'] as Map<String, dynamic>?)?['active'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const [];
     final allEmpty = dueToday.isEmpty && dueTomorrow.isEmpty && overdue.isEmpty;
 
     return ListView(
@@ -7321,6 +7325,23 @@ class _CollectionAutomationPanel extends StatelessWidget {
               ],
             );
           },
+        ),
+        const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'Templates ativos',
+          subtitle: templates.isEmpty
+              ? 'Usando mensagens padrao do sistema.'
+              : '${templates.length} template(s) personalizados ou padrao em uso.',
+          icon: Icons.chat_rounded,
+          color: AppColors.success,
+          children: templates
+              .map(
+                (template) => _DetailLine(
+                  label: template['title']?.toString() ?? template['type']?.toString() ?? 'Template',
+                  value: template['type']?.toString() ?? '-',
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: 14),
         if (allEmpty)
@@ -8993,6 +9014,199 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             e is ApiException ? e.message : 'Nao foi possivel carregar cobrancas.';
         _isLoadingCollections = false;
       });
+    }
+  }
+
+  List<Map<String, dynamic>> _defaultWhatsappTemplates() => [
+        {
+          'type': 'DUE_TODAY',
+          'title': 'Vencimento hoje',
+          'body': [
+            'Ola, {{cliente}}.',
+            'Passando para lembrar que sua parcela {{parcela}} vence hoje ({{vencimento}}).',
+            'Valor da parcela: {{valor}}.',
+            'Se quiser, posso te enviar o Pix para pagamento.',
+          ].join('\n\n'),
+        },
+        {
+          'type': 'DUE_TOMORROW',
+          'title': 'Vencimento amanha',
+          'body': [
+            'Ola, {{cliente}}.',
+            'Sua parcela {{parcela}} vence amanha ({{vencimento}}).',
+            'Valor previsto: {{valor}}.',
+            'Se quiser adiantar, posso te enviar o Pix.',
+          ].join('\n\n'),
+        },
+        {
+          'type': 'OVERDUE',
+          'title': 'Parcela em atraso',
+          'body': [
+            'Ola, {{cliente}}.',
+            'Identificamos que sua parcela {{parcela}} venceu em {{vencimento}} e esta com {{diasAtraso}} dia(s) de atraso.',
+            'Valor atualizado da parcela: {{valor}}.',
+            'Se ja realizou o pagamento, por favor desconsidere esta mensagem. Caso precise, posso te enviar o Pix para regularizar.',
+          ].join('\n\n'),
+        },
+      ];
+
+  List<Map<String, dynamic>> _whatsappTemplatesFromSettings() {
+    final settings = _premiumSettings ?? const <String, dynamic>{};
+    final whatsapp = (settings['whatsapp'] as Map<String, dynamic>?) ?? const {};
+    final templates = whatsapp['templates'];
+    if (templates is List && templates.whereType<Map<String, dynamic>>().isNotEmpty) {
+      return templates.whereType<Map<String, dynamic>>().toList();
+    }
+    return _defaultWhatsappTemplates();
+  }
+
+  Future<void> _openWhatsappTemplatesDialog() async {
+    final templates = _whatsappTemplatesFromSettings();
+    Map<String, dynamic> findTemplate(String type) {
+      return templates.firstWhere(
+        (template) => template['type']?.toString() == type,
+        orElse: () => _defaultWhatsappTemplates()
+            .firstWhere((template) => template['type']?.toString() == type),
+      );
+    }
+
+    final dueTodayController =
+        TextEditingController(text: findTemplate('DUE_TODAY')['body']?.toString() ?? '');
+    final dueTomorrowController =
+        TextEditingController(text: findTemplate('DUE_TOMORROW')['body']?.toString() ?? '');
+    final overdueController =
+        TextEditingController(text: findTemplate('OVERDUE')['body']?.toString() ?? '');
+
+    try {
+      final submitted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Templates WhatsApp'),
+          content: SizedBox(
+            width: 720,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Variaveis: {{cliente}}, {{parcela}}, {{vencimento}}, {{valor}}, {{diasAtraso}}, {{empresa}}',
+                    style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: dueTodayController,
+                    minLines: 4,
+                    maxLines: 7,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensagem para vencimento hoje',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: dueTomorrowController,
+                    minLines: 4,
+                    maxLines: 7,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensagem para vencimento amanha',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: overdueController,
+                    minLines: 5,
+                    maxLines: 8,
+                    decoration: const InputDecoration(
+                      labelText: 'Mensagem para atraso',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isSavingPremiumSettings
+                  ? null
+                  : () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _isSavingPremiumSettings
+                  ? null
+                  : () {
+                      final defaults = _defaultWhatsappTemplates();
+                      dueTodayController.text = defaults[0]['body']?.toString() ?? '';
+                      dueTomorrowController.text = defaults[1]['body']?.toString() ?? '';
+                      overdueController.text = defaults[2]['body']?.toString() ?? '';
+                    },
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Padrao'),
+            ),
+            FilledButton.icon(
+              onPressed: _isSavingPremiumSettings
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.save_rounded),
+              label: const Text('Salvar'),
+            ),
+          ],
+        ),
+      );
+      if (submitted != true) return;
+
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        _showAdminSupportSnack('Sessao expirada. Entre novamente.', isError: true);
+        return;
+      }
+
+      final payload = [
+        {
+          'type': 'DUE_TODAY',
+          'title': 'Vencimento hoje',
+          'body': dueTodayController.text.trim(),
+        },
+        {
+          'type': 'DUE_TOMORROW',
+          'title': 'Vencimento amanha',
+          'body': dueTomorrowController.text.trim(),
+        },
+        {
+          'type': 'OVERDUE',
+          'title': 'Parcela em atraso',
+          'body': overdueController.text.trim(),
+        },
+      ];
+
+      setState(() => _isSavingPremiumSettings = true);
+      final updated = await ApiService.updatePremiumSettings(
+        token: token,
+        settings: {
+          'whatsapp': {
+            'templates': payload,
+            'billingAutomationEnabled': true,
+          },
+        },
+      );
+      if (!mounted) return;
+      setState(() => _premiumSettings = updated);
+      await _refreshCollectionAutomation(updateLoading: true);
+      _showAdminSupportSnack('Templates WhatsApp salvos.');
+    } catch (e) {
+      if (!mounted) return;
+      _showAdminSupportSnack(
+        e is ApiException ? e.message : 'Nao foi possivel salvar templates.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingPremiumSettings = false);
+      dueTodayController.dispose();
+      dueTomorrowController.dispose();
+      overdueController.dispose();
     }
   }
 
@@ -13007,6 +13221,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final mercadoPagoSource = mercadoPagoIntegration['credentialSource']?.toString() ?? 'NONE';
     final collectionTotals =
         (_collectionAutomation?['totals'] as Map<String, dynamic>?) ?? const {};
+    final whatsappSettings =
+        ((_premiumSettings?['whatsapp'] as Map<String, dynamic>?) ?? const {});
+    final whatsappTemplatesCount =
+        (whatsappSettings['templates'] is List) ? (whatsappSettings['templates'] as List).length : 0;
     final saasSubscription =
         (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
     final saasPlan = (saasSubscription['plan'] as Map<String, dynamic>?) ?? const {};
@@ -13161,6 +13379,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 icon: const Icon(Icons.send_rounded),
                 label: Text(_isLoadingCollections ? 'Carregando...' : 'Abrir central'),
               ),
+              OutlinedButton.icon(
+                onPressed: _openWhatsappTemplatesDialog,
+                icon: const Icon(Icons.edit_note_rounded),
+                label: const Text('Editar templates'),
+              ),
               _StatusPill(
                 text: '${collectionTotals['dueToday'] ?? 0} vencem hoje',
                 color: AppColors.primary,
@@ -13168,6 +13391,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               _StatusPill(
                 text: '${collectionTotals['overdue'] ?? 0} atrasadas',
                 color: AppColors.danger,
+              ),
+              _StatusPill(
+                text: '$whatsappTemplatesCount templates',
+                color: AppColors.success,
               ),
               const _StatusPill(text: 'Historico em auditoria', color: AppColors.success),
             ],
