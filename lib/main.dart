@@ -301,6 +301,26 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> markSupportRead({
+    required String token,
+    int? conversationId,
+  }) async {
+    final path = conversationId == null
+        ? '$baseUrl/api/support/conversations/read'
+        : '$baseUrl/api/support/conversations/$conversationId/read';
+    final response = await http.post(
+      Uri.parse(path),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> updateSupportStatus({
     required String token,
     required int conversationId,
@@ -6659,6 +6679,7 @@ class _SupportCenterTabState extends State<_SupportCenterTab> {
       setState(() => _isSending = true);
       await ApiService.addSupportMessage(token: token, conversationId: id, body: body);
       await widget.onRefresh();
+      await ApiService.markSupportRead(token: token, conversationId: id);
       widget.showPortalSnack('Resposta enviada.');
     } catch (e) {
       widget.showPortalSnack(
@@ -10097,6 +10118,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   Future<void> _openSupportPanel() async {
+    final token = await _readAuthToken();
+    if (token != null && token.isNotEmpty) {
+      try {
+        await ApiService.markSupportRead(token: token);
+        await _refreshNotificationSummary();
+      } catch (e) {
+        debugPrint('Falha ao marcar suporte como lido: $e');
+      }
+    }
     await _refreshSupportConversations(updateLoading: true);
     if (!mounted) return;
     await showDialog<void>(
