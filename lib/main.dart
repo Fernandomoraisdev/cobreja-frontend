@@ -5069,6 +5069,11 @@ class _ClientProfileTab extends StatelessWidget {
     int overdueCount = 0;
     int activeCount = 0;
     int settledCount = 0;
+    double totalDue = 0;
+    double totalPaid = 0;
+    double activePrincipal = 0;
+    DateTime? nextDueDate;
+    double nextDueAmount = 0;
 
     for (final debt in debts) {
       final status = debt['status']?.toString().toUpperCase() ?? 'ACTIVE';
@@ -5076,14 +5081,51 @@ class _ClientProfileTab extends StatelessWidget {
       final snapshot = debt['snapshot'] as Map<String, dynamic>?;
       final overdueDays = (snapshot?['overdueDays'] as num?)?.toInt() ?? 0;
       final isSettled = status == 'SETTLED' || (snapshot?['isSettled'] == true);
+      final debtTotal = _readDouble(snapshot?['totalDue']);
+      final debtPrincipal =
+          _readDouble(snapshot?['principalOutstanding'] ?? debt['principalOutstanding']);
       if (isSettled) {
         settledCount += 1;
       } else if (overdueDays > 0) {
         overdueCount += 1;
+        totalDue += debtTotal;
+        activePrincipal += debtPrincipal;
       } else {
         activeCount += 1;
+        totalDue += debtTotal;
+        activePrincipal += debtPrincipal;
+      }
+
+      final installments = (debt['installments'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>();
+      for (final installment in installments) {
+        final installmentStatus =
+            installment['status']?.toString().toUpperCase() ?? 'PENDING';
+        if (installmentStatus == 'PAID') continue;
+        final dueDate =
+            DateTime.tryParse(installment['dueDate']?.toString() ?? '');
+        if (dueDate == null) continue;
+        if (nextDueDate == null || dueDate.isBefore(nextDueDate!)) {
+          nextDueDate = dueDate;
+          nextDueAmount = _readDouble(installment['amount']) -
+              _readDouble(installment['paidAmount']);
+        }
       }
     }
+
+    for (final payment in payments) {
+      totalPaid += _readDouble(payment['amount']);
+    }
+
+    final approvedCredit = requests
+        .where((request) =>
+            request['status']?.toString().toUpperCase() == 'APPROVED')
+        .fold<double>(
+          0,
+          (sum, request) => sum + _readDouble(request['amount']),
+        );
+    final virtualBalance = math.max(0, totalPaid - totalDue).toDouble();
+    final availableLimit = math.max(0, approvedCredit - activePrincipal).toDouble();
 
     Widget _infoRow(IconData icon, String label, String value) {
       return Row(
@@ -5143,6 +5185,19 @@ class _ClientProfileTab extends StatelessWidget {
         110,
       ),
       children: [
+        _ClientBankDashboardCard(
+          displayName: name.isNotEmpty ? name : 'Cliente',
+          virtualBalance: virtualBalance,
+          availableLimit: availableLimit,
+          totalPaid: totalPaid,
+          totalDue: totalDue,
+          nextDueDate: nextDueDate,
+          nextDueAmount: nextDueAmount,
+          activeDebts: activeCount + overdueCount,
+          overdueDebts: overdueCount,
+          onRequestCredit: isSubmittingRequest ? null : onRequestCredit,
+        ),
+        const SizedBox(height: AppSpacing.md),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -5346,6 +5401,232 @@ class _ClientProfileTab extends StatelessWidget {
             );
           }),
       ],
+    );
+  }
+}
+
+class _ClientBankDashboardCard extends StatelessWidget {
+  final String displayName;
+  final double virtualBalance;
+  final double availableLimit;
+  final double totalPaid;
+  final double totalDue;
+  final DateTime? nextDueDate;
+  final double nextDueAmount;
+  final int activeDebts;
+  final int overdueDebts;
+  final VoidCallback? onRequestCredit;
+
+  const _ClientBankDashboardCard({
+    required this.displayName,
+    required this.virtualBalance,
+    required this.availableLimit,
+    required this.totalPaid,
+    required this.totalDue,
+    required this.nextDueDate,
+    required this.nextDueAmount,
+    required this.activeDebts,
+    required this.overdueDebts,
+    required this.onRequestCredit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 620;
+    final nextDueLabel = nextDueDate == null
+        ? 'Sem parcelas pendentes'
+        : '${DateFormat('dd/MM/yyyy').format(nextDueDate!)} • ${_currency(math.max(0, nextDueAmount))}';
+
+    return Container(
+      padding: EdgeInsets.all(compact ? 18 : 22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF061C3D), Color(0xFF0F766E), Color(0xFF16A34A)],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22061C3D),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Olá, $displayName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Saldo operacional interno. Não representa saldo bancário real.',
+                      style: TextStyle(
+                        color: Color(0xFFD8FFF0),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                height: 46,
+                width: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Saldo virtual',
+            style: TextStyle(
+              color: Color(0xFFD8FFF0),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _currency(virtualBalance),
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: compact ? 30 : 38,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _ClientBankMetricTile(
+                title: 'Limite disponível',
+                value: _currency(availableLimit),
+                icon: Icons.credit_score_rounded,
+              ),
+              _ClientBankMetricTile(
+                title: 'Total devido',
+                value: _currency(totalDue),
+                icon: Icons.trending_down_rounded,
+              ),
+              _ClientBankMetricTile(
+                title: 'Total pago',
+                value: _currency(totalPaid),
+                icon: Icons.payments_rounded,
+              ),
+              _ClientBankMetricTile(
+                title: 'Próxima parcela',
+                value: nextDueLabel,
+                icon: Icons.event_available_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$activeDebts dívida(s) ativa(s) • $overdueDebts em atraso',
+                  style: const TextStyle(
+                    color: Color(0xFFE8FFF7),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: onRequestCredit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primary,
+                ),
+                icon: const Icon(Icons.add_card_rounded),
+                label: const Text('Pedir crédito'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClientBankMetricTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+
+  const _ClientBankMetricTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 150, maxWidth: 260),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFD8FFF0),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -6242,6 +6523,68 @@ class _SupportConversationCard extends StatelessWidget {
   }
 }
 
+class _AuditLogList extends StatelessWidget {
+  final List<Map<String, dynamic>> logs;
+
+  const _AuditLogList({required this.logs});
+
+  @override
+  Widget build(BuildContext context) {
+    if (logs.isEmpty) {
+      return const Center(
+        child: Text(
+          'Nenhum log de auditoria encontrado.',
+          style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      itemBuilder: (context, index) {
+        final log = logs[index];
+        final createdAt = DateTime.tryParse(log['createdAt']?.toString() ?? '');
+        final user = log['user'] as Map<String, dynamic>?;
+        final severity = log['severity']?.toString() ?? 'INFO';
+        final color = severity == 'ERROR'
+            ? AppColors.danger
+            : severity == 'WARNING'
+                ? AppColors.warning
+                : AppColors.success;
+
+        return Card(
+          child: ListTile(
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.fact_check_rounded, color: color),
+            ),
+            title: Text(
+              log['action']?.toString() ?? 'AUDIT_LOG',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            subtitle: Text(
+              [
+                if (user != null) user['email']?.toString() ?? user['name']?.toString(),
+                if (createdAt != null) DateFormat('dd/MM/yyyy HH:mm').format(createdAt),
+                if (log['entity'] != null) log['entity'].toString(),
+              ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
+            trailing: _StatusPill(text: severity, color: color),
+          ),
+        );
+      },
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemCount: logs.length,
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -6359,6 +6702,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   String? _supportError;
   Map<String, dynamic>? _premiumSettings;
   bool _isSavingPremiumSettings = false;
+  List<Map<String, dynamic>> _auditLogs = const [];
+  bool _isLoadingAudit = false;
+  String? _auditError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -6688,7 +7034,87 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _loadAdminInviteCode();
     _refreshSupportConversations();
     _loadPremiumSettings();
+    _refreshAuditLogs();
     fetchDashboard();
+  }
+
+  Future<void> _refreshAuditLogs({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingAudit = true;
+          _auditError = null;
+        });
+      }
+      final logs = await ApiService.listAuditLogs(token: token);
+      if (!mounted) return;
+      setState(() {
+        _auditLogs = logs.whereType<Map<String, dynamic>>().toList();
+        _isLoadingAudit = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _auditError = e is ApiException ? e.message : 'Nao foi possivel carregar auditoria.';
+        _isLoadingAudit = false;
+      });
+    }
+  }
+
+  Future<void> _openAuditPanel() async {
+    await _refreshAuditLogs(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820, maxHeight: 720),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Auditoria',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingAudit)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando auditoria'))
+              else if (_auditError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _auditError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _AuditLogList(logs: _auditLogs),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadPremiumSettings() async {
@@ -10319,6 +10745,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               const _StatusPill(text: 'Painel admin ativo', color: AppColors.success),
               const _StatusPill(text: 'WhatsApp API futuro', color: AppColors.warning),
               const _StatusPill(text: 'Anexos futuro', color: AppColors.warning),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.fact_check_rounded,
+          title: 'Auditoria',
+          subtitle:
+              'Acompanhe alteracoes, suporte, acessos e acoes criticas registradas por conta.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _openAuditPanel,
+                icon: const Icon(Icons.receipt_long_rounded),
+                label: Text('Ver logs (${_auditLogs.length})'),
+              ),
+              const _StatusPill(text: 'Isolado por conta', color: AppColors.success),
+              const _StatusPill(text: 'Acoes criticas', color: AppColors.warning),
             ],
           ),
         ),
