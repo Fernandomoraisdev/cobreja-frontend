@@ -458,6 +458,22 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> fetchFinancialAnalytics({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/analytics/financial'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -7708,6 +7724,255 @@ class _SecurityLogCard extends StatelessWidget {
   }
 }
 
+class _FinancialAnalyticsPanel extends StatelessWidget {
+  final Map<String, dynamic>? data;
+
+  const _FinancialAnalyticsPanel({required this.data});
+
+  List<Map<String, dynamic>> _list(String key) {
+    final value = data?[key];
+    if (value is List) return value.whereType<Map<String, dynamic>>().toList();
+    return const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kpis = (data?['kpis'] as Map<String, dynamic>?) ?? const {};
+    final receipts = _list('monthlyReceipts');
+    final forecast = _list('forecast');
+    final ranking = _list('overdueRanking');
+    final alerts = (data?['alerts'] as List?)?.map((item) => item.toString()).toList() ??
+        const <String>[];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Caixa do mes',
+                  value: _currency(_readDouble(kpis['monthlyCash'])),
+                  icon: Icons.payments_rounded,
+                  color: AppColors.success,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Previsao 30 dias',
+                  value: _currency(_readDouble(kpis['next30Forecast'])),
+                  icon: Icons.event_available_rounded,
+                  color: AppColors.primary,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Inadimplencia',
+                  value: '${(kpis['delinquencyRate'] as num?)?.toInt() ?? 0}%',
+                  icon: Icons.trending_down_rounded,
+                  color: AppColors.danger,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'Alertas',
+          subtitle: alerts.isEmpty ? 'Nenhum alerta financeiro no momento.' : '${alerts.length} alerta(s)',
+          icon: Icons.notification_important_rounded,
+          color: alerts.isEmpty ? AppColors.success : AppColors.warning,
+          children: alerts
+              .map(
+                (alert) => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    alert,
+                    style: const TextStyle(
+                      color: AppColors.textBody,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 12),
+        _FinancialSeriesCard(
+          title: 'Recebimentos por mes',
+          subtitle: 'Entradas, principal, juros e Pix registrado.',
+          items: receipts,
+          valueKey: 'received',
+        ),
+        const SizedBox(height: 12),
+        _FinancialSeriesCard(
+          title: 'Previsao de recebimentos',
+          subtitle: 'Parcelas abertas nos proximos meses.',
+          items: forecast,
+          valueKey: 'expected',
+        ),
+        const SizedBox(height: 12),
+        _MercadoPagoInfoCard(
+          title: 'Maiores atrasos',
+          subtitle: ranking.isEmpty ? 'Nenhum atraso encontrado.' : '${ranking.length} cliente(s)',
+          icon: Icons.warning_amber_rounded,
+          color: AppColors.danger,
+          children: ranking
+              .map(
+                (item) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    item['clientName']?.toString() ?? 'Cliente',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text('${item['overdueDays'] ?? 0} dia(s) em atraso'),
+                  trailing: Text(
+                    _currency(_readDouble(item['totalDue'])),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _FinancialSeriesCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<Map<String, dynamic>> items;
+  final String valueKey;
+
+  const _FinancialSeriesCard({
+    required this.title,
+    required this.subtitle,
+    required this.items,
+    required this.valueKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = items.fold<double>(
+      0,
+      (max, item) => math.max(max, _readDouble(item[valueKey])),
+    );
+
+    return _MercadoPagoInfoCard(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.bar_chart_rounded,
+      color: AppColors.primary,
+      children: items
+          .map(
+            (item) {
+              final value = _readDouble(item[valueKey]);
+              final percent = maxValue <= 0 ? 0.0 : (value / maxValue).clamp(0.0, 1.0);
+              return Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 64,
+                      child: Text(
+                        item['label']?.toString() ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          minHeight: 10,
+                          value: percent,
+                          backgroundColor: AppColors.borderSoft,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.success),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 110,
+                      child: Text(
+                        _currency(value),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          )
+          .toList(),
+    );
+  }
+}
+
+class _FinancialAnalyticsStrip extends StatelessWidget {
+  final Map<String, dynamic> kpis;
+  final VoidCallback onOpen;
+
+  const _FinancialAnalyticsStrip({
+    required this.kpis,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onOpen,
+      borderRadius: BorderRadius.circular(18),
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.borderSoft),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.query_stats_rounded, color: AppColors.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Painel financeiro',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Caixa do mes ${_currency(_readDouble(kpis['monthlyCash']))} | Previsao 30 dias ${_currency(_readDouble(kpis['next30Forecast']))} | Inadimplencia ${(kpis['delinquencyRate'] as num?)?.toInt() ?? 0}%',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -7840,6 +8105,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? _securityOverview;
   bool _isLoadingSecurity = false;
   String? _securityError;
+  Map<String, dynamic>? _financialAnalytics;
+  bool _isLoadingFinancialAnalytics = false;
+  String? _financialAnalyticsError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -8174,7 +8442,91 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _refreshCollectionAutomation();
     _refreshSaasStatus();
     _refreshSecurityOverview();
+    _refreshFinancialAnalytics();
     fetchDashboard();
+  }
+
+  Future<void> _refreshFinancialAnalytics({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingFinancialAnalytics = true;
+          _financialAnalyticsError = null;
+        });
+      }
+      final analytics = await ApiService.fetchFinancialAnalytics(token: token);
+      if (!mounted) return;
+      setState(() {
+        _financialAnalytics = analytics;
+        _isLoadingFinancialAnalytics = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _financialAnalyticsError =
+            e is ApiException ? e.message : 'Nao foi possivel carregar analytics.';
+        _isLoadingFinancialAnalytics = false;
+      });
+    }
+  }
+
+  Future<void> _openFinancialAnalyticsPanel() async {
+    await _refreshFinancialAnalytics(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980, maxHeight: 780),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Painel financeiro',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Atualizar',
+                      onPressed: () => _refreshFinancialAnalytics(updateLoading: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingFinancialAnalytics)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando financeiro'))
+              else if (_financialAnalyticsError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _financialAnalyticsError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(child: _FinancialAnalyticsPanel(data: _financialAnalytics)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshSecurityOverview({bool updateLoading = false}) async {
@@ -13219,6 +13571,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       'clientsCount',
       'clients',
     ], fallback: _clients.where((item) => item.status == 'devendo').length);
+    final analyticsKpis =
+        (_financialAnalytics?['kpis'] as Map<String, dynamic>?) ?? const {};
 
     final cards = [
       _MetricCardData(
@@ -13324,20 +13678,29 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
-          child: GridView.builder(
-            itemCount: cards.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: aspectRatio,
-            ),
-            itemBuilder: (context, index) => _MetricCard(
-              data: cards[index],
-              onTap: () => _showMetricDetails(cards[index]),
-            ),
+          child: Column(
+            children: [
+              _FinancialAnalyticsStrip(
+                kpis: analyticsKpis,
+                onOpen: _openFinancialAnalyticsPanel,
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                itemCount: cards.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: aspectRatio,
+                ),
+                itemBuilder: (context, index) => _MetricCard(
+                  data: cards[index],
+                  onTap: () => _showMetricDetails(cards[index]),
+                ),
+              ),
+            ],
           ),
         );
       },
