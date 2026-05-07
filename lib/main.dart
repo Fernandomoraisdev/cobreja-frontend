@@ -265,9 +265,14 @@ class ApiService {
       headers: _jsonHeaders(token: token),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = response.body.trim();
+      final missingPixRoute = response.statusCode == 404 &&
+          (body.isEmpty || body.contains('Cannot POST') || body.contains('Cannot GET'));
       throw ApiException(
         statusCode: response.statusCode,
-        message: _errorMessageFromBody(response.body),
+        message: missingPixRoute
+            ? 'Modulo Pix ainda nao publicado no servidor. Aguarde o redeploy do backend e tente novamente.'
+            : _errorMessageFromBody(response.body),
       );
     }
     return _extractPayloadMap(response.body);
