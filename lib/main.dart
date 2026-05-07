@@ -9859,6 +9859,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         TextEditingController(text: whatsapp['adminPhone']?.toString() ?? '');
     var billingNotifications = notifications['billing'] != false;
     var whatsappNotifications = notifications['whatsapp'] != false;
+    var supportNotifications = notifications['support'] != false;
+    var pixNotifications = notifications['pix'] != false;
+    var creditNotifications = notifications['credit'] != false;
 
     try {
       final submitted = await showDialog<bool>(
@@ -9961,6 +9964,27 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
+                      value: supportNotifications,
+                      title: const Text('Notificações de suporte'),
+                      onChanged: (value) =>
+                          setDialogState(() => supportNotifications = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: pixNotifications,
+                      title: const Text('Notificações Pix'),
+                      onChanged: (value) =>
+                          setDialogState(() => pixNotifications = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: creditNotifications,
+                      title: const Text('Notificações de solicitações'),
+                      onChanged: (value) =>
+                          setDialogState(() => creditNotifications = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
                       value: whatsappNotifications,
                       title: const Text('Notificações WhatsApp'),
                       onChanged: (value) =>
@@ -10023,6 +10047,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           },
           'notifications': {
             'billing': billingNotifications,
+            'support': supportNotifications,
+            'pix': pixNotifications,
+            'credit': creditNotifications,
             'whatsapp': whatsappNotifications,
           },
           'whatsapp': {
@@ -13445,6 +13472,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (_securityOverview?['jwt'] as Map<String, dynamic>?) ?? const {};
     final securityIsolation =
         (_securityOverview?['accountIsolation'] as Map<String, dynamic>?) ?? const {};
+    final notificationSettings =
+        ((_premiumSettings?['notifications'] as Map<String, dynamic>?) ?? const {});
+    final activeNotificationTypes = [
+      if (notificationSettings['billing'] != false) 'cobrança',
+      if (notificationSettings['support'] != false) 'suporte',
+      if (notificationSettings['pix'] != false) 'Pix',
+      if (notificationSettings['credit'] != false) 'solicitações',
+    ];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
@@ -13572,6 +13607,35 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               _StatusPill(
                 text: saasSubscription['status']?.toString() ?? 'TRIAL',
                 color: AppColors.warning,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.notifications_active_rounded,
+          title: 'Notificacoes',
+          subtitle:
+              'Controle quais alertas aparecem no sino da conta e no painel operacional.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _showNotificationCenter,
+                icon: const Icon(Icons.notifications_active_rounded),
+                label: Text('Abrir central ($_notificationBadgeCount)'),
+              ),
+              _StatusPill(
+                text: activeNotificationTypes.isEmpty
+                    ? 'Tudo pausado'
+                    : activeNotificationTypes.join(', '),
+                color: activeNotificationTypes.isEmpty ? AppColors.warning : AppColors.success,
+              ),
+              OutlinedButton.icon(
+                onPressed: _openPremiumSettingsDialog,
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Editar preferencias'),
               ),
             ],
           ),
