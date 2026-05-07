@@ -421,6 +421,43 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchSecurityOverview({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/security/overview'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/security/change-password'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -7440,6 +7477,237 @@ class _SaasPlanCard extends StatelessWidget {
   }
 }
 
+class _SecurityPanel extends StatefulWidget {
+  final Map<String, dynamic>? data;
+  final Future<void> Function({
+    required String currentPassword,
+    required String newPassword,
+  }) onChangePassword;
+
+  const _SecurityPanel({
+    required this.data,
+    required this.onChangePassword,
+  });
+
+  @override
+  State<_SecurityPanel> createState() => _SecurityPanelState();
+}
+
+class _SecurityPanelState extends State<_SecurityPanel> {
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _isChangingPassword = false;
+  String? _passwordError;
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitPasswordChange() async {
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _newPasswordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+    if (newPassword.length < 8) {
+      setState(() => _passwordError = 'A nova senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (newPassword != confirmPassword) {
+      setState(() => _passwordError = 'A confirmacao da senha nao confere.');
+      return;
+    }
+
+    setState(() {
+      _isChangingPassword = true;
+      _passwordError = null;
+    });
+    await widget.onChangePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    if (!mounted) return;
+    setState(() => _isChangingPassword = false);
+    _currentPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+  }
+
+  List<Map<String, dynamic>> _list(String key) {
+    final value = widget.data?[key];
+    if (value is List) return value.whereType<Map<String, dynamic>>().toList();
+    return const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentUser = (widget.data?['currentUser'] as Map<String, dynamic>?) ?? const {};
+    final jwt = (widget.data?['jwt'] as Map<String, dynamic>?) ?? const {};
+    final isolation = (widget.data?['accountIsolation'] as Map<String, dynamic>?) ?? const {};
+    final admins = _list('admins');
+    final recentAccessLogs = _list('recentAccessLogs');
+    final criticalLogs = _list('criticalLogs');
+    final clientsWithLogin = (widget.data?['clientsWithLogin'] as num?)?.toInt() ?? 0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Usuario atual',
+                  value: currentUser['role']?.toString() ?? 'USER',
+                  icon: Icons.verified_user_rounded,
+                  color: AppColors.primary,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Admins',
+                  value: '${admins.length}',
+                  icon: Icons.admin_panel_settings_rounded,
+                  color: AppColors.success,
+                ),
+                _MercadoPagoMetricCard(
+                  width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
+                  title: 'Clientes com login',
+                  value: '$clientsWithLogin',
+                  icon: Icons.people_alt_rounded,
+                  color: AppColors.warning,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'JWT e isolamento',
+          subtitle: 'AccountId ${isolation['accountId'] ?? '-'} | Token expira em ${jwt['expiresIn'] ?? '7d'}',
+          icon: Icons.lock_rounded,
+          color: jwt['configured'] == true ? AppColors.success : AppColors.warning,
+          children: [
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _StatusPill(
+                  text: jwt['configured'] == true ? 'JWT_SECRET configurado' : 'JWT_SECRET pendente',
+                  color: jwt['configured'] == true ? AppColors.success : AppColors.warning,
+                ),
+                _StatusPill(
+                  text: isolation['enabled'] == true ? 'Isolamento ativo' : 'Isolamento pendente',
+                  color: isolation['enabled'] == true ? AppColors.success : AppColors.danger,
+                ),
+              ],
+            ),
+            if ((jwt['warning']?.toString() ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                jwt['warning'].toString(),
+                style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        _MercadoPagoInfoCard(
+          title: 'Alterar senha',
+          subtitle: 'Use uma senha forte para proteger sua conta.',
+          icon: Icons.password_rounded,
+          color: AppColors.primary,
+          children: [
+            const SizedBox(height: 4),
+            TextField(
+              controller: _currentPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Senha atual'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Nova senha'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirmar nova senha'),
+            ),
+            if (_passwordError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _passwordError!,
+                style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w800),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: _isChangingPassword ? null : _submitPasswordChange,
+                icon: const Icon(Icons.save_rounded),
+                label: Text(_isChangingPassword ? 'Salvando...' : 'Alterar senha'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _SecurityLogCard(title: 'Ultimos acessos', logs: recentAccessLogs),
+        const SizedBox(height: 12),
+        _SecurityLogCard(title: 'Acoes criticas', logs: criticalLogs),
+      ],
+    );
+  }
+}
+
+class _SecurityLogCard extends StatelessWidget {
+  final String title;
+  final List<Map<String, dynamic>> logs;
+
+  const _SecurityLogCard({
+    required this.title,
+    required this.logs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _MercadoPagoInfoCard(
+      title: title,
+      subtitle: logs.isEmpty ? 'Nenhum registro encontrado.' : '${logs.length} registro(s)',
+      icon: Icons.history_rounded,
+      color: AppColors.primary,
+      children: logs
+          .map(
+            (log) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                log['action']?.toString() ?? 'LOG',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              subtitle: Text(
+                [
+                  (log['user'] as Map<String, dynamic>?)?['email']?.toString(),
+                  log['createdAt']?.toString(),
+                  log['severity']?.toString(),
+                ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' | '),
+                style: const TextStyle(color: AppColors.textMuted),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
 class _ClientPaymentsList extends StatelessWidget {
   final List<Map<String, dynamic>> payments;
 
@@ -7569,6 +7837,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? _saasStatus;
   bool _isLoadingSaas = false;
   String? _saasError;
+  Map<String, dynamic>? _securityOverview;
+  bool _isLoadingSecurity = false;
+  String? _securityError;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -7902,7 +8173,127 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _refreshMercadoPagoSummary();
     _refreshCollectionAutomation();
     _refreshSaasStatus();
+    _refreshSecurityOverview();
     fetchDashboard();
+  }
+
+  Future<void> _refreshSecurityOverview({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingSecurity = true;
+          _securityError = null;
+        });
+      }
+      final overview = await ApiService.fetchSecurityOverview(token: token);
+      if (!mounted) return;
+      setState(() {
+        _securityOverview = overview;
+        _isLoadingSecurity = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _securityError =
+            e is ApiException ? e.message : 'Nao foi possivel carregar seguranca.';
+        _isLoadingSecurity = false;
+      });
+    }
+  }
+
+  Future<void> _changePasswordFromSecurityPanel({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) {
+      _showSnack('Sessao expirada. Entre novamente.', tone: _FeedbackTone.error);
+      return;
+    }
+    try {
+      await ApiService.changePassword(
+        token: token,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      _showSnack(
+        'Senha alterada com sucesso.',
+        tone: _FeedbackTone.success,
+        title: 'Seguranca',
+      );
+      _refreshSecurityOverview();
+      _refreshAuditLogs();
+    } catch (e) {
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel alterar a senha.',
+        tone: _FeedbackTone.error,
+        title: 'Senha nao alterada',
+      );
+    }
+  }
+
+  Future<void> _openSecurityPanel() async {
+    await _refreshSecurityOverview(updateLoading: true);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920, maxHeight: 760),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Seguranca',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Atualizar',
+                      onPressed: () => _refreshSecurityOverview(updateLoading: true),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isLoadingSecurity)
+                const Expanded(child: _CobrejaLoading(label: 'Carregando seguranca'))
+              else if (_securityError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        _securityError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: _SecurityPanel(
+                    data: _securityOverview,
+                    onChangePassword: _changePasswordFromSecurityPanel,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _refreshSaasStatus({bool updateLoading = false}) async {
@@ -11888,6 +12279,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
     final saasPlan = (saasSubscription['plan'] as Map<String, dynamic>?) ?? const {};
     final saasUsage = (_saasStatus?['usage'] as Map<String, dynamic>?) ?? const {};
+    final securityJwt =
+        (_securityOverview?['jwt'] as Map<String, dynamic>?) ?? const {};
+    final securityIsolation =
+        (_securityOverview?['accountIsolation'] as Map<String, dynamic>?) ?? const {};
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
@@ -11959,6 +12354,33 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               color: AppColors.success,
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.security_rounded,
+          title: 'Seguranca',
+          subtitle:
+              'Revise JWT, isolamento por conta, acessos recentes e altere sua senha.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _openSecurityPanel,
+                icon: const Icon(Icons.shield_rounded),
+                label: Text(_isLoadingSecurity ? 'Carregando...' : 'Abrir seguranca'),
+              ),
+              _StatusPill(
+                text: securityJwt['configured'] == true ? 'JWT OK' : 'JWT pendente',
+                color: securityJwt['configured'] == true ? AppColors.success : AppColors.warning,
+              ),
+              _StatusPill(
+                text: securityIsolation['enabled'] == true ? 'AccountId ativo' : 'AccountId pendente',
+                color: securityIsolation['enabled'] == true ? AppColors.success : AppColors.danger,
+              ),
+              const _StatusPill(text: 'Logs criticos', color: AppColors.warning),
+            ],
+          ),
         ),
         const SizedBox(height: 14),
         _SettingsCard(
