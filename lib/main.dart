@@ -544,6 +544,40 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchInstallmentAnticipationQuote({
+    required String token,
+    required int installmentId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/payments/mercadopago/installments/$installmentId/anticipation/quote'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> createInstallmentAnticipationPix({
+    required String token,
+    required int installmentId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/payments/mercadopago/installments/$installmentId/anticipation/pix'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchPixIntentStatus({
     required String token,
     required int intentId,
@@ -5866,6 +5900,7 @@ class _ClientDebtsList extends StatefulWidget {
 class _ClientDebtsListState extends State<_ClientDebtsList> {
   _ClientDebtFilter _filter = _ClientDebtFilter.all;
   bool _isCreatingPix = false;
+  bool _isCreatingAnticipationPix = false;
 
   Future<void> _payInstallmentWithPix(Map<String, dynamic> installment) async {
     final installmentId = (installment['id'] as num?)?.toInt();
@@ -5908,6 +5943,98 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
       );
     } finally {
       if (mounted) setState(() => _isCreatingPix = false);
+    }
+  }
+
+  Future<void> _anticipateInstallmentWithPix(Map<String, dynamic> installment) async {
+    final installmentId = (installment['id'] as num?)?.toInt();
+    if (installmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Parcela invalida para antecipacao.')),
+      );
+      return;
+    }
+
+    setState(() => _isCreatingAnticipationPix = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null || token.isEmpty) {
+        throw const ApiException(
+          statusCode: 401,
+          message: 'Sessao expirada. Entre novamente.',
+        );
+      }
+
+      final quote = await ApiService.fetchInstallmentAnticipationQuote(
+        token: token,
+        installmentId: installmentId,
+      );
+
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Antecipar parcela'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Valor original: ${_currency(_readDouble(quote['originalAmount']))}'),
+                const SizedBox(height: 8),
+                Text('Desconto: ${_currency(_readDouble(quote['discountAmount']))}'),
+                const SizedBox(height: 8),
+                Text(
+                  'Valor antecipado: ${_currency(_readDouble(quote['anticipatedAmount']))}',
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${quote['earlyDays'] ?? 0} dia(s) antes do vencimento.',
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.pix_rounded),
+              label: const Text('Gerar Pix'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      final intent = await ApiService.createInstallmentAnticipationPix(
+        token: token,
+        installmentId: installmentId,
+      );
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _PixPaymentDialog(
+          initialIntent: intent,
+          onRefresh: widget.onRefresh,
+        ),
+      );
+    } catch (err) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err is ApiException ? err.message : 'Erro ao antecipar parcela.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreatingAnticipationPix = false);
     }
   }
 
@@ -6124,6 +6251,9 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                       _ => 'Pendente',
                     };
                     final canPay = remaining > 0 && status != 'PAID';
+                    final canAnticipate = canPay &&
+                        installmentDueDate != null &&
+                        installmentDueDate.isAfter(DateTime.now());
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
@@ -6140,6 +6270,16 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                           ),
                           if (canPay) ...[
                             const SizedBox(width: 8),
+                            if (canAnticipate) ...[
+                              OutlinedButton.icon(
+                                onPressed: _isCreatingAnticipationPix
+                                    ? null
+                                    : () => _anticipateInstallmentWithPix(installment),
+                                icon: const Icon(Icons.savings_rounded, size: 18),
+                                label: const Text('Antecipar'),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             FilledButton.icon(
                               onPressed: _isCreatingPix
                                   ? null
@@ -6350,6 +6490,7 @@ class _PixPaymentDialogState extends State<_PixPaymentDialog> {
       ],
     );
   }
+
 }
 
 class _SupportCenterTab extends StatefulWidget {
