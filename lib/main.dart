@@ -320,6 +320,22 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchNotificationSummary({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/notifications/summary'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<List<dynamic>> listAuditLogs({
     required String token,
   }) async {
@@ -8423,6 +8439,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   List<Map<String, dynamic>> _supportConversations = const [];
   bool _isLoadingSupport = false;
   String? _supportError;
+  Map<String, dynamic>? _notificationSummary;
+  bool _isLoadingNotifications = false;
+  String? _notificationError;
   Map<String, dynamic>? _premiumSettings;
   bool _isSavingPremiumSettings = false;
   List<Map<String, dynamic>> _auditLogs = const [];
@@ -8771,6 +8790,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _loadClients();
     _loadAdminInviteCode();
     _refreshSupportConversations();
+    _refreshNotificationSummary();
     _loadPremiumSettings();
     _refreshAuditLogs();
     _refreshMercadoPagoSummary();
@@ -10046,6 +10066,32 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             ? e.message
             : 'Nao foi possivel carregar o suporte.';
         _isLoadingSupport = false;
+      });
+    }
+  }
+
+  Future<void> _refreshNotificationSummary({bool updateLoading = false}) async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) return;
+    try {
+      if (updateLoading && mounted) {
+        setState(() {
+          _isLoadingNotifications = true;
+          _notificationError = null;
+        });
+      }
+      final summary = await ApiService.fetchNotificationSummary(token: token);
+      if (!mounted) return;
+      setState(() {
+        _notificationSummary = summary;
+        _isLoadingNotifications = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _notificationError =
+            e is ApiException ? e.message : 'Nao foi possivel carregar notificacoes.';
+        _isLoadingNotifications = false;
       });
     }
   }
@@ -11520,6 +11566,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   List<ReminderItem> get _reminders => FinanceService.generateReminders(_clients);
 
+  List<Map<String, dynamic>> get _serverNotifications {
+    final items = _notificationSummary?['items'];
+    if (items is List) return items.whereType<Map<String, dynamic>>().toList();
+    return const [];
+  }
+
+  int get _notificationBadgeCount {
+    final serverCount = (_notificationSummary?['unreadCount'] as num?)?.toInt() ?? 0;
+    return serverCount + _reminders.length + _safeCustomReminders.length;
+  }
+
   bool get _isDarkTheme => Theme.of(context).brightness == Brightness.dark;
 
   List<Color> get _shellBackgroundColors => _isDarkTheme
@@ -11689,9 +11746,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   ],
                   _IconBubble(
                     icon: Icons.notifications_active_rounded,
-                    badge: _reminders.length,
-                    onTap: _showReminderCenter,
-                    tooltip: 'Abrir central de lembretes',
+                    badge: _notificationBadgeCount,
+                    onTap: _showNotificationCenter,
+                    tooltip: 'Abrir central de notificacoes',
                   ),
                   const SizedBox(width: 10),
                   _IconBubble(
@@ -14468,7 +14525,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         message: 'Abrir lembretes e cobrar clientes rápidamente',
         child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        onTap: _showReminderCenter,
+        onTap: _showNotificationCenter,
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -18558,14 +18615,58 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       );
     }
   }
-  void _showReminderCenter() {
+  Color _notificationSeverityColor(String severity) {
+    switch (severity.toUpperCase()) {
+      case 'ERROR':
+        return AppColors.danger;
+      case 'WARNING':
+        return AppColors.warning;
+      case 'SUCCESS':
+        return AppColors.success;
+      default:
+        return AppColors.primary;
+    }
+  }
+
+  Future<void> _handleNotificationAction(String? action) async {
+    final normalized = (action ?? '').toUpperCase();
+    Navigator.of(context, rootNavigator: true).pop();
+    switch (normalized) {
+      case 'SUPPORT':
+        await _openSupportPanel();
+        break;
+      case 'COLLECTIONS':
+        await _openCollectionAutomationPanel();
+        break;
+      case 'MERCADO_PAGO':
+        await _openMercadoPagoPanel();
+        break;
+      case 'CREDIT_REQUESTS':
+        setState(() => _selectedSection = _MainSection.solicitacoes);
+        await _refreshCreditRequests(updateLoading: true);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _showNotificationCenter() {
     final reminders = _reminders;
+    final serverNotifications = _serverNotifications;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Expanded(child: Text('Central de lembretes')),
+            const Expanded(child: Text('Central de notificacoes')),
+            IconButton(
+              tooltip: 'Atualizar notificacoes',
+              onPressed: () {
+                Navigator.pop(context);
+                _refreshNotificationSummary(updateLoading: true);
+              },
+              icon: const Icon(Icons.refresh_rounded),
+            ),
             IconButton(
               tooltip: 'Criar novo lembrete',
               onPressed: () async {
@@ -18584,13 +18685,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ],
         ),
         content: SizedBox(
-          width: 460,
-          child: (_safeCustomReminders.isEmpty && reminders.isEmpty)
+          width: 520,
+          child: (_safeCustomReminders.isEmpty && reminders.isEmpty && serverNotifications.isEmpty)
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Nenhum alerta no momento.'),
+                    Text(_notificationError ?? 'Nenhum alerta no momento.'),
                     const SizedBox(height: 12),
                     FilledButton.icon(
                       onPressed: () async {
@@ -18612,6 +18713,49 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               : ListView(
                   shrinkWrap: true,
                   children: [
+                    if (_notificationError != null) ...[
+                      Text(
+                        _notificationError!,
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const Divider(height: 24),
+                    ],
+                    if (serverNotifications.isNotEmpty) ...[
+                      const Text(
+                        'Notificacoes do sistema',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 10),
+                      ...serverNotifications.map(
+                        (item) {
+                          final color = _notificationSeverityColor(item['severity']?.toString() ?? 'INFO');
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: color.withOpacity(0.12),
+                              child: Icon(Icons.notifications_active_rounded, color: color),
+                            ),
+                            title: Text(item['title']?.toString() ?? 'Notificacao'),
+                            subtitle: Text(item['message']?.toString() ?? ''),
+                            trailing: item['action'] == null
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Abrir',
+                                    icon: const Icon(Icons.arrow_forward_rounded),
+                                    onPressed: () => _handleNotificationAction(
+                                      item['action']?.toString(),
+                                    ),
+                                  ),
+                          );
+                        },
+                      ),
+                    ],
+                    if (serverNotifications.isNotEmpty &&
+                        (_safeCustomReminders.isNotEmpty || reminders.isNotEmpty))
+                      const Divider(height: 24),
                     if (_safeCustomReminders.isNotEmpty) ...[
                       const Text(
                         'Lembretes personalizados',
@@ -18720,6 +18864,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ),
     );
   }
+
+  void _showReminderCenter() => _showNotificationCenter();
 
   void _showReminderDialog({CustomReminder? reminder}) {
     final isEditing = reminder != null;
@@ -22019,6 +22165,7 @@ class _PremiumFoundationCard extends StatelessWidget {
       ),
     );
   }
+
 }
 
 class _SettingsCard extends StatelessWidget {
