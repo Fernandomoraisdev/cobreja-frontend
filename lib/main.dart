@@ -16790,8 +16790,25 @@ class _ClientGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final highlightColor =
-        overdueCount > 0 ? const Color(0xFFDC2626) : const Color(0xFF061C3D);
+        overdueCount > 0 ? const Color(0xFFDC2626) : AppColors.success;
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
+    final bodyColor = isDark ? const Color(0xFFD6E0EC) : const Color(0xFF4B5563);
+    final mutedColor = isDark ? const Color(0xFFA9B7C8) : const Color(0xFF6B7280);
+    final cardGradient = isDark
+        ? const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF102A43), Color(0xFF0B2137)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, Color(0xFFF8FBFF)],
+          );
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFE5E7EB);
 
     final hasLate = totalLate > 0.009;
     final subtitleParts = <String>[
@@ -16803,12 +16820,8 @@ class _ClientGroupCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFF8FBFF)],
-        ),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        gradient: cardGradient,
+        border: Border.all(color: borderColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C0F172A),
@@ -16860,6 +16873,7 @@ class _ClientGroupCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: compact ? 17 : 19,
                               fontWeight: FontWeight.w800,
+                              color: titleColor,
                             ),
                           ),
                           _StatusPill(
@@ -16883,7 +16897,7 @@ class _ClientGroupCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: const Color(0xFF4B5563),
+                          color: bodyColor,
                           fontSize: compact ? 11 : 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -16902,10 +16916,10 @@ class _ClientGroupCard extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Toque para ver o perfil completo com todas as dividas.',
                         style: TextStyle(
-                          color: Color(0xFF6B7280),
+                          color: mutedColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -17290,11 +17304,28 @@ class _ClientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final highlightColor = client.status == 'quitado'
         ? const Color(0xFF16A34A)
         : debt.isOverdue
             ? const Color(0xFFDC2626)
-            : const Color(0xFF061C3D);
+            : AppColors.success;
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
+    final bodyColor = isDark ? const Color(0xFFD6E0EC) : const Color(0xFF4B5563);
+    final mutedColor = isDark ? const Color(0xFFA9B7C8) : const Color(0xFF6B7280);
+    final cardGradient = isDark
+        ? const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF102A43), Color(0xFF0B2137)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, Color(0xFFF8FBFF)],
+          );
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFE5E7EB);
 
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
@@ -17324,12 +17355,8 @@ class _ClientCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFF8FBFF)],
-        ),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        gradient: cardGradient,
+        border: Border.all(color: borderColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0C0F172A),
@@ -17390,6 +17417,7 @@ class _ClientCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: compact ? 17 : 19,
                               fontWeight: FontWeight.w800,
+                              color: titleColor,
                             ),
                           ),
                           if (tabType == 'juros')
@@ -17413,7 +17441,7 @@ class _ClientCard extends StatelessWidget {
                       Text(
                         'Vencimento: ${DateFormat('dd/MM/yyyy').format(client.dueDate)}',
                         style: TextStyle(
-                          color: const Color(0xFF4B5563),
+                          color: bodyColor,
                           fontSize: compact ? 12 : 13,
                         ),
                       ),
@@ -17421,7 +17449,7 @@ class _ClientCard extends StatelessWidget {
                       Text(
                         'Empréstimo: ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
                         style: TextStyle(
-                          color: const Color(0xFF6B7280),
+                          color: mutedColor,
                           fontSize: compact ? 11 : 12,
                         ),
                       ),
@@ -17429,7 +17457,7 @@ class _ClientCard extends StatelessWidget {
                       Text(
                         ratesText,
                         style: TextStyle(
-                          color: const Color(0xFF6B7280),
+                          color: mutedColor,
                           fontSize: compact ? 11 : 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -17451,7 +17479,7 @@ class _ClientCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: const Color(0xFF4B5563),
+                            color: bodyColor,
                             fontSize: compact ? 11 : 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -17465,7 +17493,7 @@ class _ClientCard extends StatelessWidget {
                             style: TextStyle(
                               color: debt.isOverdue
                                   ? const Color(0xFFDC2626)
-                                  : const Color(0xFF4B5563),
+                                  : bodyColor,
                               fontSize: compact ? 11 : 12,
                               fontWeight: FontWeight.w700,
                             ),
