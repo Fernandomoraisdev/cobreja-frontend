@@ -208,6 +208,96 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> getPremiumSettings({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/settings'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> updatePremiumSettings({
+    required String token,
+    required Map<String, dynamic> settings,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/settings'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode(settings),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<List<dynamic>> listSupportConversations({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/support/conversations'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<Map<String, dynamic>> createSupportConversation({
+    required String token,
+    required String subject,
+    required String body,
+    int? clientId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/support/conversations'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        'subject': subject,
+        'body': body,
+        if (clientId != null) 'clientId': clientId,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<List<dynamic>> listAuditLogs({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/audit'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchInvite({
     required String inviteCode,
   }) async {
@@ -9464,6 +9554,91 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
       children: [
+        _PremiumFoundationCard(
+          sections: const [
+            _PremiumFoundationSection(
+              title: 'Empresa',
+              subtitle: 'Logo, favicon, CNPJ, contato, endereco e dominio.',
+              icon: Icons.apartment_rounded,
+              status: 'Base criada',
+              color: AppColors.success,
+            ),
+            _PremiumFoundationSection(
+              title: 'Conta/Admin',
+              subtitle: 'Perfil, seguranca, sessoes ativas e foto.',
+              icon: Icons.admin_panel_settings_rounded,
+              status: 'Em estrutura',
+              color: AppColors.primary,
+            ),
+            _PremiumFoundationSection(
+              title: 'Financeiro',
+              subtitle: 'Juros, multa, carencia, parcelas e renegociacao.',
+              icon: Icons.calculate_rounded,
+              status: 'Base criada',
+              color: AppColors.success,
+            ),
+            _PremiumFoundationSection(
+              title: 'Mercado Pago',
+              subtitle: 'Status, webhook, Pix, taxas e recebimentos.',
+              icon: Icons.pix_rounded,
+              status: 'Pix em deploy',
+              color: AppColors.warning,
+            ),
+            _PremiumFoundationSection(
+              title: 'WhatsApp',
+              subtitle: 'Conexao, templates e automacoes de cobranca.',
+              icon: Icons.chat_rounded,
+              status: 'Preparado',
+              color: AppColors.warning,
+            ),
+            _PremiumFoundationSection(
+              title: 'SaaS',
+              subtitle: 'Plano, trial, limites, assinatura e upgrade.',
+              icon: Icons.workspace_premium_rounded,
+              status: 'Base criada',
+              color: AppColors.success,
+            ),
+            _PremiumFoundationSection(
+              title: 'Aparencia',
+              subtitle: 'Dark, light, cores e layout compacto.',
+              icon: Icons.palette_rounded,
+              status: 'Ativo',
+              color: AppColors.success,
+            ),
+            _PremiumFoundationSection(
+              title: 'Notificacoes',
+              subtitle: 'Email, WhatsApp, push e alertas de cobranca.',
+              icon: Icons.notifications_active_rounded,
+              status: 'Preparado',
+              color: AppColors.warning,
+            ),
+            _PremiumFoundationSection(
+              title: 'Auditoria',
+              subtitle: 'Logs de acessos, alteracoes e acoes criticas.',
+              icon: Icons.fact_check_rounded,
+              status: 'Base criada',
+              color: AppColors.success,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _SettingsCard(
+          icon: Icons.support_agent_rounded,
+          title: 'Suporte integrado',
+          subtitle:
+              'Chat interno com historico por conta, pronto para sincronizar WhatsApp do admin.',
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _StatusPill(text: 'Chat no banco', color: AppColors.success),
+              _StatusPill(text: 'Painel admin preparado', color: AppColors.success),
+              _StatusPill(text: 'WhatsApp API futuro', color: AppColors.warning),
+              _StatusPill(text: 'Anexos futuro', color: AppColors.warning),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         _SettingsCard(
           icon: Icons.account_circle_rounded,
           title: 'Perfil no menu',
@@ -17650,6 +17825,206 @@ class _ActionChip extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PremiumFoundationSection {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String status;
+  final Color color;
+
+  const _PremiumFoundationSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.status,
+    required this.color,
+  });
+}
+
+class _PremiumFoundationCard extends StatelessWidget {
+  final List<_PremiumFoundationSection> sections;
+
+  const _PremiumFoundationCard({required this.sections});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : AppColors.textStrong;
+    final bodyColor = isDark ? const Color(0xFFD6E0EC) : AppColors.textMuted;
+    final panelColor = isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF0B2137) : const Color(0xFFF8FBFF);
+    final borderColor = isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? const LinearGradient(
+                colors: [Color(0xFF102A43), Color(0xFF061C3D)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Colors.white, Color(0xFFF1FFF7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 50,
+                width: 50,
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Feronix Premium',
+                      style: TextStyle(
+                        color: titleColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Fundacao SaaS para configuracoes, suporte, auditoria, Pix, automacoes e paineis financeiros.',
+                      style: TextStyle(color: bodyColor, height: 1.45),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth > 980
+                  ? 3
+                  : constraints.maxWidth > 620
+                      ? 2
+                      : 1;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: sections.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: columns == 1 ? 4.1 : 3.1,
+                ),
+                itemBuilder: (context, index) {
+                  final section = sections[index];
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: tileColor,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: section.color.withOpacity(0.13),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(section.icon, color: section.color, size: 21),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                section.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                section.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: bodyColor,
+                                  fontSize: 12,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _StatusPill(text: section.status, color: section.color),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: panelColor.withOpacity(isDark ? 0.72 : 0.88),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.security_rounded, color: AppColors.success),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'A base nova respeita JWT, roles ADMIN/CLIENT e isolamento por accountId.',
+                    style: TextStyle(
+                      color: titleColor,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
