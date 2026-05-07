@@ -6655,6 +6655,60 @@ class _SupportCenterTabState extends State<_SupportCenterTab> {
     }
   }
 
+  Future<void> _updateStatus(Map<String, dynamic> conversation, String status) async {
+    final token = await _readToken();
+    final id = (conversation['id'] as num?)?.toInt();
+    if (token == null || id == null) {
+      widget.showPortalSnack('Nao foi possivel identificar a conversa.', isError: true);
+      return;
+    }
+
+    try {
+      setState(() => _isSending = true);
+      await ApiService.updateSupportStatus(
+        token: token,
+        conversationId: id,
+        status: status,
+      );
+      await widget.onRefresh();
+      widget.showPortalSnack('Status do suporte atualizado.');
+    } catch (e) {
+      widget.showPortalSnack(
+        e is ApiException ? e.message : 'Nao foi possivel atualizar o status.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _notifyAdmin(Map<String, dynamic> conversation) async {
+    final notification =
+        (conversation['adminNotification'] as Map<String, dynamic>?) ?? const {};
+    final message = notification['message']?.toString() ?? '';
+    final link = notification['whatsappLink']?.toString() ?? '';
+
+    if (message.trim().isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: message));
+    }
+
+    if (link.trim().isEmpty) {
+      widget.showPortalSnack(
+        'Notificacao copiada. Cadastre o telefone do admin nas configuracoes para abrir WhatsApp.',
+        isError: false,
+      );
+      return;
+    }
+
+    final uri = Uri.parse(link);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      widget.showPortalSnack('Notificacao copiada e WhatsApp aberto.');
+    } else {
+      widget.showPortalSnack('Notificacao copiada, mas nao consegui abrir o WhatsApp.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -6717,6 +6771,9 @@ class _SupportCenterTabState extends State<_SupportCenterTab> {
             _SupportConversationCard(
               conversation: conversation,
               onReply: () => _reply(conversation),
+              onNotifyAdmin: widget.adminMode ? () => _notifyAdmin(conversation) : null,
+              onStatusChanged:
+                  widget.adminMode ? (status) => _updateStatus(conversation, status) : null,
             ),
             const SizedBox(height: 10),
           ],
@@ -6728,10 +6785,14 @@ class _SupportCenterTabState extends State<_SupportCenterTab> {
 class _SupportConversationCard extends StatelessWidget {
   final Map<String, dynamic> conversation;
   final VoidCallback onReply;
+  final VoidCallback? onNotifyAdmin;
+  final ValueChanged<String>? onStatusChanged;
 
   const _SupportConversationCard({
     required this.conversation,
     required this.onReply,
+    this.onNotifyAdmin,
+    this.onStatusChanged,
   });
 
   @override
@@ -6744,6 +6805,8 @@ class _SupportConversationCard extends StatelessWidget {
         ? conversation['subject'].toString()
         : 'Atendimento';
     final status = conversation['status']?.toString() ?? 'OPEN';
+    final needsAdminReply = conversation['needsAdminReply'] == true;
+    final lastMessageAt = DateTime.tryParse(conversation['lastMessageAt']?.toString() ?? '');
 
     return Card(
       child: Padding(
@@ -6760,16 +6823,31 @@ class _SupportConversationCard extends StatelessWidget {
                   ),
                 ),
                 _StatusPill(
-                  text: status,
-                  color: status == 'OPEN' ? AppColors.success : AppColors.warning,
+                  text: needsAdminReply ? 'Responder' : status,
+                  color: needsAdminReply
+                      ? AppColors.danger
+                      : status == 'OPEN'
+                          ? AppColors.success
+                          : AppColors.warning,
                 ),
               ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              [
+                if (client?['phone']?.toString().trim().isNotEmpty == true)
+                  client!['phone']?.toString(),
+                if (client?['email']?.toString().trim().isNotEmpty == true)
+                  client!['email']?.toString(),
+                if (lastMessageAt != null) DateFormat('dd/MM/yyyy HH:mm').format(lastMessageAt),
+              ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' | '),
+              style: const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 10),
             if (messages.isEmpty)
               const Text('Sem mensagens.', style: TextStyle(color: AppColors.textMuted))
             else
-              for (final message in messages.take(5)) ...[
+              for (final message in messages.reversed.take(5).toList().reversed) ...[
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 8),
@@ -6782,17 +6860,49 @@ class _SupportConversationCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    message['body']?.toString() ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    [
+                      message['direction']?.toString() == 'OUTBOUND' ? 'Admin' : 'Cliente',
+                      message['body']?.toString() ?? '',
+                    ].join(': '),
+                    style: const TextStyle(fontWeight: FontWeight.w600, height: 1.35),
                   ),
                 ),
               ],
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onReply,
-                icon: const Icon(Icons.reply_rounded),
-                label: const Text('Responder'),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (onNotifyAdmin != null && needsAdminReply)
+                    OutlinedButton.icon(
+                      onPressed: onNotifyAdmin,
+                      icon: const Icon(Icons.notifications_active_rounded),
+                      label: const Text('Notificar admin'),
+                    ),
+                  if (onStatusChanged != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'Alterar status',
+                      onSelected: onStatusChanged,
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: 'OPEN', child: Text('Aberto')),
+                        PopupMenuItem(value: 'PENDING', child: Text('Pendente')),
+                        PopupMenuItem(value: 'RESOLVED', child: Text('Resolvido')),
+                        PopupMenuItem(value: 'CLOSED', child: Text('Fechado')),
+                      ],
+                      child: OutlinedButton.icon(
+                        onPressed: null,
+                        icon: const Icon(Icons.tune_rounded),
+                        label: const Text('Status'),
+                      ),
+                    ),
+                  TextButton.icon(
+                    onPressed: onReply,
+                    icon: const Icon(Icons.reply_rounded),
+                    label: const Text('Responder'),
+                  ),
+                ],
               ),
             ),
           ],
@@ -9690,6 +9800,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final finance = (settings['finance'] as Map<String, dynamic>?) ?? const {};
     final notifications =
         (settings['notifications'] as Map<String, dynamic>?) ?? const {};
+    final whatsapp = (settings['whatsapp'] as Map<String, dynamic>?) ?? const {};
     final nameController = TextEditingController(
       text: company['name']?.toString() ?? widget.account.name,
     );
@@ -9703,6 +9814,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         TextEditingController(text: finance['dailyInterest']?.toString() ?? '0');
     final maxInstallmentsController =
         TextEditingController(text: finance['maxInstallments']?.toString() ?? '12');
+    final whatsappAdminPhoneController =
+        TextEditingController(text: whatsapp['adminPhone']?.toString() ?? '');
     var billingNotifications = notifications['billing'] != false;
     var whatsappNotifications = notifications['whatsapp'] != false;
 
@@ -9812,6 +9925,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       onChanged: (value) =>
                           setDialogState(() => whatsappNotifications = value),
                     ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: whatsappAdminPhoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Telefone WhatsApp do admin',
+                        hintText: 'Ex.: 5599999999999',
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -9863,6 +9984,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             'billing': billingNotifications,
             'whatsapp': whatsappNotifications,
           },
+          'whatsapp': {
+            'adminPhone': whatsappAdminPhoneController.text.trim(),
+          },
         },
       );
 
@@ -9885,6 +10009,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       monthlyController.dispose();
       dailyController.dispose();
       maxInstallmentsController.dispose();
+      whatsappAdminPhoneController.dispose();
     }
   }
 
