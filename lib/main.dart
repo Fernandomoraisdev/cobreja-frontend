@@ -21641,8 +21641,19 @@ class _AdminClientGroupProfilePageState
     final overdueCount = summaries.where((item) => item.isOverdue).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F7FF),
+      backgroundColor: const Color(0xFF071827),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF071827),
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+          height: 1.15,
+        ),
         title: Text(widget.displayName),
         actions: [
           IconButton(
@@ -21652,13 +21663,18 @@ class _AdminClientGroupProfilePageState
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: RefreshIndicator(
+        color: const Color(0xFF10B981),
+        backgroundColor: const Color(0xFF0F2238),
         onRefresh: _refresh,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
@@ -21672,13 +21688,13 @@ class _AdminClientGroupProfilePageState
                   value: _currency(totalDebt),
                   color: overdueCount > 0
                       ? const Color(0xFFDC2626)
-                      : const Color(0xFF061C3D),
+                      : const Color(0xFF10B981),
                   icon: Icons.assessment_rounded,
                 ),
                 _ProfileMetricCard(
                   title: 'Principal em aberto',
                   value: _currency(totalPrincipal),
-                  color: const Color(0xFF061C3D),
+                  color: const Color(0xFF38BDF8),
                   icon: Icons.account_balance_wallet_rounded,
                 ),
                 _ProfileMetricCard(
@@ -21737,7 +21753,7 @@ class _AdminClientGroupProfilePageState
             Text(
               'Mostrando ${visible.length} de ${_clients.length} registro(s).',
               style: const TextStyle(
-                color: Color(0xFF6B7280),
+                color: Color(0xFFC9D7E8),
                 fontWeight: FontWeight.w700,
               ),
             ),
