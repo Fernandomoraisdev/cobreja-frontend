@@ -8319,15 +8319,26 @@ class _FinancialAnalyticsStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF102A43) : AppColors.surface;
+    final borderColor =
+        isDark ? const Color(0xFF244462) : AppColors.borderSoft;
+    final titleColor = isDark ? Colors.white : AppColors.textStrong;
+    final subtitleColor =
+        isDark ? const Color(0xFFC9D7E8) : AppColors.textMuted;
+    final iconBg =
+        isDark ? const Color(0xFF063F46) : AppColors.primary.withOpacity(0.12);
+    final iconColor = isDark ? const Color(0xFF2DD4BF) : AppColors.primary;
+
     return InkWell(
       onTap: onOpen,
       borderRadius: BorderRadius.circular(18),
       child: Ink(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.borderSoft),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           children: [
@@ -8335,32 +8346,36 @@ class _FinancialAnalyticsStrip extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
+                color: iconBg,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.query_stats_rounded, color: AppColors.primary),
+              child: Icon(Icons.query_stats_rounded, color: iconColor),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Painel financeiro',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                    style: TextStyle(
+                      color: titleColor,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Caixa do mes ${_currency(_readDouble(kpis['monthlyCash']))} | Previsao 30 dias ${_currency(_readDouble(kpis['next30Forecast']))} | Inadimplencia ${(kpis['delinquencyRate'] as num?)?.toInt() ?? 0}%',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+                    style: TextStyle(
+                      color: subtitleColor,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+            Icon(Icons.chevron_right_rounded, color: iconColor),
           ],
         ),
       ),
@@ -14812,6 +14827,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         : _safeCustomReminders.first.description;
     final firstColor =
         hasSystemReminder ? _reminders.first.color : const Color(0xFF061C3D);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final subtitleColor =
+        isDark ? const Color(0xFFC9D7E8) : const Color(0xFF6B7280);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFFED7AA);
+    final chevronColor =
+        isDark ? const Color(0xFF2DD4BF) : const Color(0xFF92400E);
+    final alertIconColor =
+        isDark && firstColor == const Color(0xFF061C3D)
+            ? const Color(0xFF2DD4BF)
+            : firstColor;
+    final alertIconBg = isDark
+        ? alertIconColor.withOpacity(0.22)
+        : alertIconColor.withOpacity(0.12);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Tooltip(
@@ -14823,10 +14853,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFF7ED), Color(0xFFFFFBEB)],
+            gradient: LinearGradient(
+              colors: isDark
+                  ? const [Color(0xFF102A43), Color(0xFF0B2137)]
+                  : const [Color(0xFFFFF7ED), Color(0xFFFFFBEB)],
             ),
-            border: Border.all(color: const Color(0xFFFED7AA)),
+            border: Border.all(color: borderColor),
           ),
           child: Row(
             children: [
@@ -14834,10 +14866,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 height: 48,
                 width: 48,
                 decoration: BoxDecoration(
-                  color: firstColor.withOpacity(0.12),
+                  color: alertIconBg,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.alarm_rounded, color: firstColor),
+                child: Icon(Icons.alarm_rounded, color: alertIconColor),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -14846,9 +14878,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   children: [
                     Text(
                       firstTitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
+                        color: titleColor,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -14856,12 +14888,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       firstSubtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF6B7280)),
+                      style: TextStyle(color: subtitleColor),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded),
+              Icon(Icons.chevron_right_rounded, color: chevronColor),
             ],
           ),
         ),
@@ -22507,17 +22539,33 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor = isDark
+        ? const Color(0xFF102A43)
+        : Colors.white.withOpacity(0.96);
+    final borderColor = isDark
+        ? const Color(0xFF244462)
+        : const Color(0xFFDCE9FF);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final subtitleColor = isDark
+        ? const Color(0xFFC9D7E8)
+        : const Color(0xFF5B6474);
+    final iconBg = isDark ? const Color(0xFF063F46) : const Color(0xFFE8F1FF);
+    final iconColor = isDark
+        ? const Color(0xFF2DD4BF)
+        : const Color(0xFF061C3D);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.96),
+        color: panelColor,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDCE9FF)),
-        boxShadow: const [
+        border: Border.all(color: borderColor),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A0F172A),
+            color: isDark ? const Color(0x22000000) : const Color(0x0A0F172A),
             blurRadius: 18,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -22530,10 +22578,10 @@ class _SettingsCard extends StatelessWidget {
                 height: 46,
                 width: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FF),
+                  color: iconBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: const Color(0xFF061C3D)),
+                child: Icon(icon, color: iconColor),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -22542,17 +22590,17 @@ class _SettingsCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
+                        color: titleColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF5B6474),
+                      style: TextStyle(
+                        color: subtitleColor,
                         height: 1.45,
                       ),
                     ),
