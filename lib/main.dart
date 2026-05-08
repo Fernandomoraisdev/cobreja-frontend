@@ -11206,6 +11206,93 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return synced;
   }
 
+  Future<bool> _createDebtForExistingClient(Client client) async {
+    if (!_isExcludedClient(client)) {
+      if (client.remainingPrincipal <= 0.009) {
+        client.status = 'quitado';
+      } else if (client.status == 'quitado') {
+        client.status = 'devendo';
+      }
+    }
+
+    String? monthlyMode;
+    double? monthlyValue;
+    if (client.monthlyInterestType == InterestValueType.fixedAmount) {
+      if (client.monthlyInterestAmount > 0) {
+        monthlyMode = 'FIXED';
+        monthlyValue = client.monthlyInterestAmount;
+      }
+    } else if (client.monthlyInterestRate > 0) {
+      monthlyMode = 'PERCENTAGE';
+      monthlyValue = client.monthlyInterestRate;
+    }
+
+    String? dailyMode;
+    double? dailyValue;
+    if (client.dailyInterestType == InterestValueType.fixedAmount) {
+      if (client.dailyInterestAmount > 0) {
+        dailyMode = 'FIXED';
+        dailyValue = client.dailyInterestAmount;
+      }
+    } else if (client.dailyInterestRate > 0) {
+      dailyMode = 'PERCENTAGE';
+      dailyValue = client.dailyInterestRate;
+    }
+
+    try {
+      final token = await _readAuthToken();
+      final clientId = int.tryParse(client.id);
+      if (token == null || token.isEmpty || clientId == null) {
+        throw const ApiException(
+          statusCode: 0,
+          message: 'Sessao expirada ou cliente invalido.',
+        );
+      }
+
+      await ApiService.updateClient(
+        token: token,
+        clientId: clientId,
+        name: client.name,
+        phone: client.phone,
+        cpf: client.cpf,
+        address: client.address,
+        email: client.email,
+        avatarUrl: client.avatarUrl,
+      );
+
+      await ApiService.createDebt(
+        token: token,
+        clientId: clientId,
+        principalAmount: client.borrowedAmount,
+        borrowedAt: client.borrowedDate,
+        dueDate: client.dueDate,
+        monthlyInterestMode: monthlyMode,
+        monthlyInterestValue: monthlyValue,
+        dailyInterestMode: dailyMode,
+        dailyInterestValue: dailyValue,
+      );
+
+      await _refreshClientsFromBackend();
+      await fetchDashboard();
+      if (mounted) {
+        setState(() {});
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Falha ao duplicar divida no backend: $e');
+      if (mounted) {
+        _showSnack(
+          e is ApiException
+              ? e.message
+              : 'Nao foi possivel criar a nova divida no backend.',
+          tone: _FeedbackTone.error,
+          title: 'Falha ao salvar divida',
+        );
+      }
+      return false;
+    }
+  }
+
   void _deleteClient(String id) async {
     final index = _clients.indexWhere((item) => item.id == id);
     if (index == -1) return;
@@ -15917,6 +16004,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final client = Client(
                   id: isEditing
                       ? baseClient!.id
+                      : isDuplicating
+                          ? baseClient!.id
                       : DateTime.now().microsecondsSinceEpoch.toString(),
                   backendPrimaryDebtId:
                       isEditing ? baseClient!.backendPrimaryDebtId : null,
@@ -15981,7 +16070,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   isSaving = true;
                 });
 
-                final synced = await _syncClient(client, syncDebt: true);
+                final synced = isDuplicating
+                    ? await _createDebtForExistingClient(client)
+                    : await _syncClient(client, syncDebt: true);
 
                 if (!mounted) return;
 
