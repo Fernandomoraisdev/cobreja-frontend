@@ -5004,11 +5004,30 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
         ? user!['name'].toString()
         : (clientName.isNotEmpty ? clientName : widget.account.email);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final portalBackground =
+        isDark ? const Color(0xFF071827) : AppColors.background;
+    final portalHeaderColor =
+        isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
+    final portalMutedColor =
+        isDark ? const Color(0xFFC9D7E8) : AppColors.textMuted;
+    final portalDividerColor =
+        isDark ? const Color(0xFF244462) : AppColors.borderSoft;
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: portalBackground,
         appBar: AppBar(
+          backgroundColor: portalBackground,
+          foregroundColor: portalHeaderColor,
+          titleTextStyle: TextStyle(
+            color: portalHeaderColor,
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            height: 1.12,
+          ),
+          iconTheme: IconThemeData(color: portalHeaderColor),
           title: Text('COBREJÁ • $displayName'),
           actions: [
             IconButton(
@@ -5022,8 +5041,12 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
               icon: const Icon(Icons.logout_rounded),
             ),
           ],
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            indicatorColor: AppColors.primary,
+            labelColor: portalHeaderColor,
+            unselectedLabelColor: portalMutedColor,
+            dividerColor: portalDividerColor,
+            tabs: const [
               Tab(text: 'Perfil'),
               Tab(text: 'Dívidas'),
               Tab(text: 'Pagamentos'),
@@ -11248,17 +11271,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           message: 'Sessao expirada ou cliente invalido.',
         );
       }
-
-      await ApiService.updateClient(
-        token: token,
-        clientId: clientId,
-        name: client.name,
-        phone: client.phone,
-        cpf: client.cpf,
-        address: client.address,
-        email: client.email,
-        avatarUrl: client.avatarUrl,
-      );
 
       await ApiService.createDebt(
         token: token,
