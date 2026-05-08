@@ -8454,6 +8454,9 @@ class MainNavigationPage extends StatefulWidget {
 }
 
 class _MainNavigationPageState extends State<MainNavigationPage> {
+  static const String _navigationSectionKey = 'admin_selected_section';
+  static const String _openClientIdKey = 'admin_open_client_id';
+
   final List<Client> _clients = [];
   TextEditingController? _searchController;
   List<CustomReminder>? _customReminders;
@@ -8461,7 +8464,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? dashboardData;
   bool isLoadingDashboard = true;
   AppPlan? _selectedPlan;
-  _MainSection _selectedSection = _MainSection.metricas;
+  _MainSection _selectedSection = _MainSection.inicio;
   String? _searchQuery;
   _ClientQuickFilter? _activeQuickFilter;
   TextEditingController? _paymentHistorySearchController;
@@ -8506,6 +8509,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Map<String, dynamic>? _financialAnalytics;
   bool _isLoadingFinancialAnalytics = false;
   String? _financialAnalyticsError;
+  Timer? _autoRefreshTimer;
+  String? _pendingRestoredClientId;
+  bool _restoredClientSheetOpened = false;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -8523,6 +8529,44 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final accountName = widget.account.name.trim();
     if (accountName.isNotEmpty) return accountName;
     return 'Usuário COBREJÁ';
+  }
+
+  Future<void> _selectSection(_MainSection section) async {
+    if (mounted) {
+      setState(() {
+        _selectedSection = section;
+      });
+    } else {
+      _selectedSection = section;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_navigationSectionKey, section.name);
+  }
+
+  Future<void> _restoreOpenClientAfterReload() async {
+    final clientId = _pendingRestoredClientId;
+    if (clientId == null || _restoredClientSheetOpened || _isLoading) return;
+    final client = _clients.cast<Client?>().firstWhere(
+          (item) => item?.id == clientId,
+          orElse: () => null,
+        );
+    if (client == null || !mounted) return;
+    _restoredClientSheetOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _showClientDetails(client);
+      }
+    });
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+      if (!mounted || _isLoading) return;
+      await _refreshClientsFromBackend(updateLoading: false);
+      await fetchDashboard();
+      await _refreshNotificationSummary();
+    });
   }
 
   Future<String?> _readAuthToken() async {
@@ -8843,6 +8887,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _refreshSecurityOverview();
     _refreshFinancialAnalytics();
     fetchDashboard();
+    _startAutoRefresh();
   }
 
   Future<void> _refreshFinancialAnalytics({bool updateLoading = false}) async {
@@ -10320,6 +10365,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _searchController?.dispose();
     _paymentHistorySearchController?.dispose();
     super.dispose();
@@ -10605,6 +10651,22 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final profilePhotoOffsetX = prefs.getDouble('profile_photo_offset_x');
     final profilePhotoOffsetY = prefs.getDouble('profile_photo_offset_y');
     final profilePhotoScale = prefs.getDouble('profile_photo_scale');
+    final rawSelectedSection = prefs.getString(_navigationSectionKey);
+    final rawOpenClientId = prefs.getString(_openClientIdKey);
+
+    if (rawSelectedSection != null && rawSelectedSection.isNotEmpty) {
+      try {
+        _selectedSection = _MainSection.values.firstWhere(
+          (item) => item.name == rawSelectedSection,
+        );
+      } catch (_) {
+        _selectedSection = _MainSection.inicio;
+      }
+    }
+    _pendingRestoredClientId =
+        rawOpenClientId != null && rawOpenClientId.trim().isNotEmpty
+            ? rawOpenClientId.trim()
+            : null;
 
     if (remindersJson != null && remindersJson.isNotEmpty) {
       try {
@@ -10646,6 +10708,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     setState(() {
       _isLoading = false;
     });
+    await _restoreOpenClientAfterReload();
   }
 
   Future<void> _saveClients() async {
@@ -10810,8 +10873,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       _paymentHistoryFilter = _PaymentHistoryQuickFilter.todos;
       _bulkSelectionMode = false;
       _selectedClientIds.clear();
-      _selectedSection = _MainSection.inicio;
     });
+    await _selectSection(_MainSection.inicio);
 
     _showSnack(
       'Os filtros, buscas e seleções temporárias foram limpos.',
@@ -10936,8 +10999,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     setState(() {
       _bulkSelectionMode = false;
       _selectedClientIds.clear();
-      _selectedSection = _MainSection.inicio;
     });
+    await _selectSection(_MainSection.inicio);
 
     _showSnack(
       'Os dados da carteira foram apagados desta instalação.',
@@ -11338,12 +11401,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       await ApiService.restoreClient(token: token, clientId: clientId);
       await _refreshClientsFromBackend();
       await fetchDashboard();
-      if (!mounted) return;
-      setState(() {
-        if (showFeedback && _selectedSection == _MainSection.excluidos) {
-          _selectedSection = _MainSection.devendo;
-        }
-      });
+    if (!mounted) return;
+    if (showFeedback && _selectedSection == _MainSection.excluidos) {
+      await _selectSection(_MainSection.devendo);
+    }
       if (showFeedback) {
         _showSnack(
           'O registro foi removido da área de excluídos e voltou para a carteira.',
@@ -12100,9 +12161,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(18),
                     onTap: () {
-                      setState(() {
-                        _selectedSection = section;
-                      });
+                      _selectSection(section);
                       if (section == _MainSection.solicitacoes) {
                         _ensureCreditRequestsLoaded();
                       }
@@ -12440,29 +12499,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               runSpacing: 12,
               children: [
                 OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _selectedSection = _MainSection.devendo;
-                    });
-                  },
+                  onPressed: () => _selectSection(_MainSection.devendo),
                   icon: const Icon(Icons.account_balance_wallet_rounded),
                   label: const Text('Abrir Devendo'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _selectedSection = _MainSection.emAtraso;
-                    });
-                  },
+                  onPressed: () => _selectSection(_MainSection.emAtraso),
                   icon: const Icon(Icons.warning_amber_rounded),
                   label: const Text('Abrir Em atraso'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _selectedSection = _MainSection.juros;
-                    });
-                  },
+                  onPressed: () => _selectSection(_MainSection.juros),
                   icon: const Icon(Icons.percent_rounded),
                   label: const Text('Abrir Juros'),
                 ),
@@ -16513,8 +16560,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
-  Future<void> _showClientDetails(Client client) {
-    return showModalBottomSheet<void>(
+  Future<void> _showClientDetails(Client client) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_openClientIdKey, client.id);
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -16644,6 +16693,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         );
       },
     );
+    final currentPrefs = await SharedPreferences.getInstance();
+    if (currentPrefs.getString(_openClientIdKey) == client.id) {
+      await currentPrefs.remove(_openClientIdKey);
+    }
+    _pendingRestoredClientId = null;
+    _restoredClientSheetOpened = false;
   }
 
   Widget _buildSummaryGrid(Client client, DebtSummary debt) {
@@ -18849,7 +18904,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         await _openMercadoPagoPanel();
         break;
       case 'CREDIT_REQUESTS':
-        setState(() => _selectedSection = _MainSection.solicitacoes);
+        await _selectSection(_MainSection.solicitacoes);
         await _refreshCreditRequests(updateLoading: true);
         break;
       case 'SAAS':
