@@ -8580,6 +8580,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     required Map<String, dynamic> clientItem,
     required Map<String, dynamic> details,
     required Client? previous,
+    Map<String, dynamic>? selectedDebt,
   }) {
     String? _optionalString(dynamic value) {
       final text = value?.toString().trim() ?? '';
@@ -8610,9 +8611,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     // UI legacy: ainda usamos um "debt principal" para preencher o card.
     // Quando houver múltiplas dívidas, escolhemos a primeira ativa (ordenada pelo backend por dueDate asc).
-    final primaryDebt = activeDebts.isNotEmpty
-        ? activeDebts.first
-        : (debts.isNotEmpty ? debts.first : <String, dynamic>{});
+    final primaryDebt = selectedDebt ??
+        (activeDebts.isNotEmpty
+            ? activeDebts.first
+            : (debts.isNotEmpty ? debts.first : <String, dynamic>{}));
 
     final principalAmount = _readDouble(primaryDebt['principalAmount']);
     final principalOutstanding = _readDouble(primaryDebt['principalOutstanding']);
@@ -8667,7 +8669,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final payments = (details['payments'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
+    final selectedDebtId = _optionalInt(primaryDebt['id']);
     final paymentHistory = payments
+        .where((payment) {
+          if (selectedDebtId == null) return true;
+          final paymentDebtId = _optionalInt(payment['debtId']);
+          return paymentDebtId == null || paymentDebtId == selectedDebtId;
+        })
         .map((payment) {
           final rawType = payment['type']?.toString().toUpperCase() ?? '';
           final paidAt = DateTime.tryParse(payment['paidAt']?.toString() ?? '') ??
@@ -8699,8 +8707,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     final isExcludedBackend = (details['status']?.toString().toUpperCase() == 'EXCLUDED') ||
         (tabs['excluded'] == true);
-    final isQuitadoBackend = tabs['quitados'] == true;
-    final isDevendoBackend = tabs['devendo'] == true || activeDebts.isNotEmpty;
+    final selectedDebtStatus =
+        primaryDebt['status']?.toString().toUpperCase() ?? '';
+    final isQuitadoBackend =
+        selectedDebtStatus == 'SETTLED' ||
+        selectedDebtStatus == 'PAID' ||
+        (selectedDebt == null && tabs['quitados'] == true);
+    final isDevendoBackend =
+        selectedDebtStatus == 'ACTIVE' ||
+        (selectedDebt == null && (tabs['devendo'] == true || activeDebts.isNotEmpty));
 
     final status = isExcludedBackend
         ? 'excluído'
@@ -8744,8 +8759,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       statusBeforeDeletion: previous?.statusBeforeDeletion,
       status: status,
       pagouJuros: tabs['jurosPagos'] == true,
-      isNegotiated: tabs['renegociados'] == true ||
-          primaryDebt['kind']?.toString().toUpperCase() == 'RENEGOTIATED' ||
+      isNegotiated: primaryDebt['kind']?.toString().toUpperCase() == 'RENEGOTIATED' ||
+          (selectedDebt == null && tabs['renegociados'] == true) ||
           (previous?.isNegotiated ?? false),
       isMarkedAsLost: previous?.isMarkedAsLost ?? false,
       installmentCount: previous?.installmentCount ?? 0,
@@ -8774,21 +8789,44 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final localById = {for (final item in _clients) item.id: item};
 
       if (!mounted) return;
-      _clients
-        ..clear()
-        ..addAll(
-          list.map((item) {
-            final id = item['id']?.toString() ?? '';
-            return _clientFromBackendDetails(
+      final expandedClients = <Client>[];
+      for (final item in list) {
+        final id = item['id']?.toString() ?? '';
+        final debts = (item['debts'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final activeDebts = debts.where((debt) {
+          final status = debt['status']?.toString().toUpperCase();
+          final deletedAt = debt['deletedAt'];
+          return status == 'ACTIVE' &&
+              (deletedAt == null || deletedAt.toString().isEmpty);
+        }).toList();
+
+        if (activeDebts.length > 1) {
+          expandedClients.addAll(
+            activeDebts.map(
+              (debt) => _clientFromBackendDetails(
+                clientItem: item,
+                details: item,
+                previous: localById[id],
+                selectedDebt: debt,
+              ),
+            ),
+          );
+        } else {
+          expandedClients.add(
+            _clientFromBackendDetails(
               clientItem: item,
-              // O endpoint /clients ja traz debts/payments/tabs. Evitamos fazer N
-              // requests extras (um por cliente), o que quebrava atualizacoes e
-              // restauracoes quando alguma chamada falhava.
               details: item,
               previous: localById[id],
-            );
-          }),
-        );
+              selectedDebt: activeDebts.length == 1 ? activeDebts.first : null,
+            ),
+          );
+        }
+      }
+      _clients
+        ..clear()
+        ..addAll(expandedClients);
       setState(() {
         _isLoading = false;
       });
@@ -11351,6 +11389,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       await fetchDashboard();
       if (mounted) {
         setState(() {});
+        _showSnack(
+          'A nova divida foi criada para este cliente.',
+          tone: _FeedbackTone.success,
+          title: 'Divida criada',
+        );
       }
       return true;
     } catch (e) {
