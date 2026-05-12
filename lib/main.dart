@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -24,7 +24,7 @@ import 'package:http/http.dart' as http;
 
 void main() {
   Intl.defaultLocale = 'pt_BR';
-  runApp(const CobrejaApp());
+  runApp(const PegueiPagueiApp());
 }
 
 double _readDouble(dynamic value) {
@@ -1230,7 +1230,7 @@ const String _privacyPolicyUpdatedAt = '09 de abril de 2026';
 const String _privacyPolicyContact = '(21) 96568-0720';
 const String _accountDeletionPolicyUpdatedAt = '09 de abril de 2026';
 const List<String> _windowsLicenseSecretParts = [
-  'COBREJA',
+  'PEGUEI&PAGUEI',
   '_WIN',
   '_LIC',
   '_2026',
@@ -1267,9 +1267,9 @@ class WindowsLicenseInfo {
   String get typeLabel {
     switch (type) {
       case WindowsLicenseType.lifetime:
-        return 'Vitalícia';
+        return 'VitalÃ­cia';
       case WindowsLicenseType.singleUse:
-        return 'Uso único';
+        return 'Uso Ãºnico';
       case WindowsLicenseType.subscription:
         return 'Assinatura';
     }
@@ -1304,7 +1304,7 @@ WindowsLicenseInfo? _parseWindowsLicense(
     final payloadJson = utf8.decode(base64Url.decode(base64Url.normalize(payloadBase64)));
     final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
 
-    if (payload['product']?.toString() != 'COBREJA_WINDOWS') return null;
+    if (payload['product']?.toString() != 'PEGUEI&PAGUEI_WINDOWS') return null;
     if (payload['machineCode']?.toString() != machineCode) return null;
 
     final type = _licenseTypeFromRaw(payload['type']?.toString() ?? '');
@@ -1343,52 +1343,52 @@ class _PrivacyPolicySectionData {
 
 const List<_PrivacyPolicySectionData> _privacyPolicySections = [
   _PrivacyPolicySectionData(
-    title: '1. Sobre esta política',
+    title: '1. Sobre esta polÃ­tica',
     paragraphs: [
-      'A COBREJÁ é um aplicativo de gestão local de cobranças, clientes, juros, renegociações, lembretes e recebimentos.',
-      'Esta política explica quais dados podem ser armazenados pelo app, para quais finalidades eles são usados e quais ações dependem diretamente do usuário.',
+      'A Peguei & Paguei Ã© um aplicativo de gestÃ£o local de cobranÃ§as, clientes, juros, renegociaÃ§Ãµes, lembretes e recebimentos.',
+      'Esta polÃ­tica explica quais dados podem ser armazenados pelo app, para quais finalidades eles sÃ£o usados e quais aÃ§Ãµes dependem diretamente do usuÃ¡rio.',
     ],
   ),
   _PrivacyPolicySectionData(
     title: '2. Dados tratados pelo aplicativo',
     paragraphs: [
-      'O aplicativo pode armazenar no aparelho dados informados pelo próprio usuário, como nome, email, hash da senha, telefone, cadastro de clientes, valores emprestados, juros, vencimentos, pagamentos, renegociações, relatórios e lembretes personalizados.',
-      'Também podem ser gerados dados derivados para funcionamento do app, como total em aberto, lucro gerado, prejuízo estimado, histórico financeiro e QR Code PIX para cobrança.',
+      'O aplicativo pode armazenar no aparelho dados informados pelo prÃ³prio usuÃ¡rio, como nome, email, hash da senha, telefone, cadastro de clientes, valores emprestados, juros, vencimentos, pagamentos, renegociaÃ§Ãµes, relatÃ³rios e lembretes personalizados.',
+      'TambÃ©m podem ser gerados dados derivados para funcionamento do app, como total em aberto, lucro gerado, prejuÃ­zo estimado, histÃ³rico financeiro e QR Code PIX para cobranÃ§a.',
     ],
   ),
   _PrivacyPolicySectionData(
-    title: '3. Como esses dados são usados',
+    title: '3. Como esses dados sÃ£o usados',
     paragraphs: [
-      'Os dados são usados para autenticação local, organização da carteira, cálculo de juros, controle de pagamentos, renegociação de dívidas, backup, exportação de relatórios e geração de mensagens de cobrança iniciadas pelo usuário.',
-      'A COBREJÁ não usa esses dados para publicidade comportamental nem para venda de informações.',
+      'Os dados sÃ£o usados para autenticaÃ§Ã£o local, organizaÃ§Ã£o da carteira, cÃ¡lculo de juros, controle de pagamentos, renegociaÃ§Ã£o de dÃ­vidas, backup, exportaÃ§Ã£o de relatÃ³rios e geraÃ§Ã£o de mensagens de cobranÃ§a iniciadas pelo usuÃ¡rio.',
+      'A Peguei & Paguei nÃ£o usa esses dados para publicidade comportamental nem para venda de informaÃ§Ãµes.',
     ],
   ),
   _PrivacyPolicySectionData(
     title: '4. Armazenamento e compartilhamento',
     paragraphs: [
-      'Pela implementação atual, os dados são armazenados localmente no dispositivo do usuário.',
-      'O aplicativo não envia os dados para servidor próprio. As informações só saem do aparelho quando o usuário escolhe exportar backup/relatórios, copiar conteúdo ou abrir uma cobrança em aplicativos externos, como o WhatsApp.',
+      'Pela implementaÃ§Ã£o atual, os dados sÃ£o armazenados localmente no dispositivo do usuÃ¡rio.',
+      'O aplicativo nÃ£o envia os dados para servidor prÃ³prio. As informaÃ§Ãµes sÃ³ saem do aparelho quando o usuÃ¡rio escolhe exportar backup/relatÃ³rios, copiar conteÃºdo ou abrir uma cobranÃ§a em aplicativos externos, como o WhatsApp.',
     ],
   ),
   _PrivacyPolicySectionData(
-    title: '5. Exclusão e retenção',
+    title: '5. ExclusÃ£o e retenÃ§Ã£o',
     paragraphs: [
-      'Clientes marcados como excluídos permanecem temporariamente na área de excluídos e são removidos automaticamente após 24 horas, salvo se forem eliminados definitivamente antes disso.',
-      'Backups, PDFs, CSVs e comprovantes exportados passam a ficar sob responsabilidade do usuário no local onde forem salvos.',
+      'Clientes marcados como excluÃ­dos permanecem temporariamente na Ã¡rea de excluÃ­dos e sÃ£o removidos automaticamente apÃ³s 24 horas, salvo se forem eliminados definitivamente antes disso.',
+      'Backups, PDFs, CSVs e comprovantes exportados passam a ficar sob responsabilidade do usuÃ¡rio no local onde forem salvos.',
     ],
   ),
   _PrivacyPolicySectionData(
-    title: '6. Segurança',
+    title: '6. SeguranÃ§a',
     paragraphs: [
-      'As senhas cadastradas no app são protegidas com hash forte e salt individual por conta.',
-      'Mesmo assim, por se tratar de um aplicativo local, o usuário deve manter o aparelho protegido por senha, biometria e boas práticas de segurança.',
+      'As senhas cadastradas no app sÃ£o protegidas com hash forte e salt individual por conta.',
+      'Mesmo assim, por se tratar de um aplicativo local, o usuÃ¡rio deve manter o aparelho protegido por senha, biometria e boas prÃ¡ticas de seguranÃ§a.',
     ],
   ),
   _PrivacyPolicySectionData(
     title: '7. Contato',
     paragraphs: [
-      'Para dúvidas sobre privacidade e uso do aplicativo, o contato atualmente informado para a COBREJÁ é $_privacyPolicyContact.',
-      'Antes da publicação definitiva na Play Store, este contato pode ser substituído por um email oficial da marca, se desejado.',
+      'Para dÃºvidas sobre privacidade e uso do aplicativo, o contato atualmente informado para a Peguei & Paguei Ã© $_privacyPolicyContact.',
+      'Antes da publicaÃ§Ã£o definitiva na Play Store, este contato pode ser substituÃ­do por um email oficial da marca, se desejado.',
     ],
   ),
 ];
@@ -1409,7 +1409,7 @@ Future<void> showPrivacyPolicyDialog(BuildContext context) async {
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text('Política de privacidade'),
+            child: Text('PolÃ­tica de privacidade'),
           ),
         ],
       ),
@@ -1421,7 +1421,7 @@ Future<void> showPrivacyPolicyDialog(BuildContext context) async {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Última atualização: $_privacyPolicyUpdatedAt',
+                'Ãšltima atualizaÃ§Ã£o: $_privacyPolicyUpdatedAt',
                 style: const TextStyle(
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w600,
@@ -1429,7 +1429,7 @@ Future<void> showPrivacyPolicyDialog(BuildContext context) async {
               ),
               const SizedBox(height: 14),
               const Text(
-                'A COBREJÁ foi pensada para operar de forma local no aparelho, mantendo a carteira e os registros financeiros sob controle do próprio usuário.',
+                'A Peguei & Paguei foi pensada para operar de forma local no aparelho, mantendo a carteira e os registros financeiros sob controle do prÃ³prio usuÃ¡rio.',
                 style: TextStyle(
                   color: AppColors.textBody,
                   height: 1.5,
@@ -1468,7 +1468,7 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text('Exclusão de conta'),
+            child: Text('ExclusÃ£o de conta'),
           ),
         ],
       ),
@@ -1480,7 +1480,7 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Última atualização: $_accountDeletionPolicyUpdatedAt',
+                'Ãšltima atualizaÃ§Ã£o: $_accountDeletionPolicyUpdatedAt',
                 style: TextStyle(
                   color: AppColors.textMuted,
                   fontWeight: FontWeight.w600,
@@ -1488,22 +1488,22 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
               ),
               const SizedBox(height: 14),
               const Text(
-                'A COBREJÁ permite excluir a conta local diretamente dentro do aplicativo.',
+                'A Peguei & Paguei permite excluir a conta local diretamente dentro do aplicativo.',
                 style: TextStyle(color: AppColors.textBody, height: 1.5),
               ),
               const SizedBox(height: 14),
               const Text(
-                'Ao excluir a conta, o app remove desta instalação os dados locais vinculados ao uso atual, incluindo sessão, clientes, pagamentos, renegociações e lembretes salvos no aparelho.',
+                'Ao excluir a conta, o app remove desta instalaÃ§Ã£o os dados locais vinculados ao uso atual, incluindo sessÃ£o, clientes, pagamentos, renegociaÃ§Ãµes e lembretes salvos no aparelho.',
                 style: TextStyle(color: AppColors.textBody, height: 1.5),
               ),
               const SizedBox(height: 14),
               const Text(
-                'Para excluir a conta dentro do app: abra o painel principal, toque no ícone de backup e escolha "Excluir conta local".',
+                'Para excluir a conta dentro do app: abra o painel principal, toque no Ã­cone de backup e escolha "Excluir conta local".',
                 style: TextStyle(color: AppColors.textBody, height: 1.5),
               ),
               const SizedBox(height: 14),
               const Text(
-                'Se você exportou backups, PDFs, CSVs ou comprovantes para fora do app, esses arquivos permanecem onde foram salvos e precisam ser apagados manualmente pelo usuário.',
+                'Se vocÃª exportou backups, PDFs, CSVs ou comprovantes para fora do app, esses arquivos permanecem onde foram salvos e precisam ser apagados manualmente pelo usuÃ¡rio.',
                 style: TextStyle(color: AppColors.textBody, height: 1.5),
               ),
             ],
@@ -1522,24 +1522,24 @@ Future<void> showAccountDeletionInfoDialog(BuildContext context) async {
 
 
 class AppColors {
-  static const primary = Color(0xFF082B54);
-  static const secondary = Color(0xFF16A34A);
-  static const accent = Color(0xFF7C3AED);
-  static const success = Color(0xFF16A34A);
+  static const primary = Color(0xFF061926);
+  static const secondary = Color(0xFF22F58C);
+  static const accent = Color(0xFF14B8A6);
+  static const success = Color(0xFF22C55E);
   static const warning = Color(0xFFF59E0B);
-  static const danger = Color(0xFFDC2626);
-  static const textStrong = Color(0xFF061C3D);
-  static const textBody = Color(0xFF253A57);
-  static const textMuted = Color(0xFF64748B);
-  static const border = Color(0xFFC8D3E2);
-  static const borderSoft = Color(0xFFD7E0EC);
-  static const surface = Colors.white;
-  static const surfaceSoft = Color(0xFFF3F7FB);
-  static const surfaceTint = Color(0xFFEAF1F8);
-  static const background = Color(0xFFF3F7FB);
-  static const backgroundTop = Color(0xFFEAF2FA);
-  static const backgroundMid = Color(0xFFF8FAFC);
-  static const backgroundBottom = Color(0xFFECFDF5);
+  static const danger = Color(0xFFE5484D);
+  static const textStrong = Color(0xFFF8FAFC);
+  static const textBody = Color(0xFFD6E0EC);
+  static const textMuted = Color(0xFFA9B7C8);
+  static const border = Color(0xFF2A4963);
+  static const borderSoft = Color(0xFF244462);
+  static const surface = Color(0xFF102A43);
+  static const surfaceSoft = Color(0xFF0B2137);
+  static const surfaceTint = Color(0xFF063F46);
+  static const background = Color(0xFF07111D);
+  static const backgroundTop = Color(0xFF061926);
+  static const backgroundMid = Color(0xFF07111D);
+  static const backgroundBottom = Color(0xFF031F1A);
 }
 
 class AppRadii {
@@ -1647,7 +1647,7 @@ const int _currentPasswordKeyLength = 32;
 const Duration _splashAnimationDuration = Duration(milliseconds: 650);
 const String _pixPrimaryKey = '12704258708';
 const String _pixFallbackPhoneKey = '21965680720';
-const String _pixMerchantName = 'COBREJA';
+const String _pixMerchantName = 'PEGUEI&PAGUEI';
 const String _pixMerchantCity = 'RIO DE JANEIRO';
 
 String _generateSalt() {
@@ -2132,7 +2132,7 @@ extension AppThemePreferenceExtension on AppThemePreference {
 
 extension AppAccentPresetExtension on AppAccentPreset {
   String get label => switch (this) {
-    AppAccentPreset.cobreja => 'COBREJÁ',
+    AppAccentPreset.cobreja => 'Peguei & Paguei',
     AppAccentPreset.esmeralda => 'Esmeralda',
     AppAccentPreset.oceano => 'Oceano',
     AppAccentPreset.sunset => 'Sunset',
@@ -2157,15 +2157,15 @@ enum AppPlan { basic, professional, premium }
 
 extension AppPlanExtension on AppPlan {
   String get label => switch (this) {
-    AppPlan.basic => 'Básico',
+    AppPlan.basic => 'BÃ¡sico',
     AppPlan.professional => 'Profissional',
     AppPlan.premium => 'Premium',
   };
 
   String get subtitle => switch (this) {
-    AppPlan.basic => 'Operação essencial da carteira',
-    AppPlan.professional => 'Mais controle, cobrança e produtividade',
-    AppPlan.premium => 'Visão avançada e recursos completos',
+    AppPlan.basic => 'OperaÃ§Ã£o essencial da carteira',
+    AppPlan.professional => 'Mais controle, cobranÃ§a e produtividade',
+    AppPlan.premium => 'VisÃ£o avanÃ§ada e recursos completos',
   };
 
   String get priceLabel => switch (this) {
@@ -2182,20 +2182,20 @@ extension AppPlanExtension on AppPlan {
 
   List<String> get highlights => switch (this) {
     AppPlan.basic => const [
-      'Clientes e dívidas',
-      'Pagamentos e histórico',
-      'Cobrança simples no WhatsApp',
+      'Clientes e dÃ­vidas',
+      'Pagamentos e histÃ³rico',
+      'CobranÃ§a simples no WhatsApp',
     ],
     AppPlan.professional => const [
-      'Tudo do Básico',
+      'Tudo do BÃ¡sico',
       'Lembretes personalizados',
-      'Backup e exportações',
-      'Renegociação e PIX',
+      'Backup e exportaÃ§Ãµes',
+      'RenegociaÃ§Ã£o e PIX',
     ],
     AppPlan.premium => const [
       'Tudo do Profissional',
-      'Relatórios completos',
-      'Visão mensal de recebimentos',
+      'RelatÃ³rios completos',
+      'VisÃ£o mensal de recebimentos',
       'Comprovante em PDF',
     ],
   };
@@ -2409,8 +2409,8 @@ class FinanceService {
         reference.isAfter(dueDate) ? reference.difference(dueDate).inDays : 0;
 
     // Juros mensal representa apenas o ciclo atual.
-    // Se houver atraso, a diária deve incidir sobre o total em aberto do ciclo
-    // (principal + juros do ciclo), para não subestimar a mora.
+    // Se houver atraso, a diÃ¡ria deve incidir sobre o total em aberto do ciclo
+    // (principal + juros do ciclo), para nÃ£o subestimar a mora.
     final monthlyInterestAmount =
         _resolveMonthlyInterestAmount(client, remainingPrincipal);
     final cycleInterest = math.max(
@@ -2496,7 +2496,7 @@ class FinanceService {
           ReminderItem(
             title: '${client.name} esta em atraso',
             subtitle:
-                '${debt.overdueDays} dia(s) • total ${_currency(debt.totalDebt)}',
+                '${debt.overdueDays} dia(s) â€¢ total ${_currency(debt.totalDebt)}',
             client: client,
             color: const Color(0xFFDC2626),
           ),
@@ -2513,8 +2513,8 @@ class FinanceService {
       } else if (client.dueDate.difference(DateTime.now()).inDays == 1) {
         items.add(
           ReminderItem(
-            title: '${client.name} vence amanhã',
-            subtitle: 'Prepare a cobrança de ${_currency(debt.totalDebt)}',
+            title: '${client.name} vence amanhÃ£',
+            subtitle: 'Prepare a cobranÃ§a de ${_currency(debt.totalDebt)}',
             client: client,
             color: const Color(0xFF061C3D),
           ),
@@ -2530,14 +2530,14 @@ class FinanceService {
   }
 }
 
-class CobrejaApp extends StatefulWidget {
-  const CobrejaApp({super.key});
+class PegueiPagueiApp extends StatefulWidget {
+  const PegueiPagueiApp({super.key});
 
   @override
-  State<CobrejaApp> createState() => _CobrejaAppState();
+  State<PegueiPagueiApp> createState() => _PegueiPagueiAppState();
 }
 
-class _CobrejaAppState extends State<CobrejaApp> {
+class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   UserAccount? _account;
   List<UserAccount> _accounts = [];
   bool _isLoading = true;
@@ -2602,8 +2602,8 @@ class _CobrejaAppState extends State<CobrejaApp> {
         sessionAccount != null && token != null && token.isNotEmpty;
     var sessionRole = savedRole;
 
-    // Confirma o token no backend para evitar "sessÃ£o zera no F5" quando o token
-    // expira/Ã© invÃ¡lido ou quando mudou a estrutura do JWT.
+    // Confirma o token no backend para evitar "sessÃƒÂ£o zera no F5" quando o token
+    // expira/ÃƒÂ© invÃƒÂ¡lido ou quando mudou a estrutura do JWT.
     if (sessionAuthenticated) {
       try {
         final me = await ApiService.fetchMe(token: token!);
@@ -2817,7 +2817,7 @@ class _CobrejaAppState extends State<CobrejaApp> {
     final accentSecondary = _accentPreset.secondaryColor;
 
     return MaterialApp(
-      title: 'COBREJA',
+      title: 'Peguei & Paguei',
 
        // routes: {
         //'/home': (context) => HomePage(),
@@ -3226,7 +3226,7 @@ class _SplashPageState extends State<SplashPage>
                                 ],
                               ),
                               child: SvgPicture.asset(
-                                'assets/branding/cobreja_mark.svg',
+                                'assets/branding/peguei_paguei_mark.svg',
                                 fit: BoxFit.contain,
                               ),
                             ),
@@ -3238,7 +3238,7 @@ class _SplashPageState extends State<SplashPage>
                           child: SlideTransition(
                             position: _slideAnimation,
                             child: SvgPicture.asset(
-                              'assets/branding/cobreja_logo.svg',
+                              'assets/branding/peguei_paguei_logo.svg',
                               height: isCompact ? 42 : 52,
                               fit: BoxFit.fitHeight,
                             ),
@@ -3250,7 +3250,7 @@ class _SplashPageState extends State<SplashPage>
                           child: SlideTransition(
                             position: _slideAnimation,
                             child: Text(
-                              'Cobrança inteligente, recebimento garantido.',
+                              'Crédito simples, cobrança inteligente.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: const Color(0xFF4B5563),
@@ -3304,11 +3304,11 @@ class _SplashPageState extends State<SplashPage>
   }
 }
 
-class _CobrejaLoading extends StatelessWidget {
+class _PegueiPagueiLoading extends StatelessWidget {
   final String label;
 
-  const _CobrejaLoading({
-    this.label = 'Carregando COBREJÁ',
+  const _PegueiPagueiLoading({
+    this.label = 'Carregando Peguei & Paguei',
   });
 
   @override
@@ -3320,7 +3320,7 @@ class _CobrejaLoading extends StatelessWidget {
           SizedBox(
             width: 180,
             child: SvgPicture.asset(
-              'assets/branding/cobreja_logo.svg',
+              'assets/branding/peguei_paguei_logo.svg',
               fit: BoxFit.contain,
             ),
           ),
@@ -3373,7 +3373,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
     final key = _licenseController.text.trim();
     if (key.isEmpty) {
       setState(() {
-        _error = 'Digite a licença para liberar o sistema neste computador.';
+        _error = 'Digite a licenÃ§a para liberar o sistema neste computador.';
       });
       return;
     }
@@ -3390,7 +3390,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
       _isSubmitting = false;
       if (!success) {
         _error =
-            'Licença inválida para este computador. Confira o código da máquina e tente novamente.';
+            'LicenÃ§a invÃ¡lida para este computador. Confira o cÃ³digo da mÃ¡quina e tente novamente.';
       }
     });
   }
@@ -3448,7 +3448,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                           child: Padding(
                             padding: const EdgeInsets.all(12),
                             child: SvgPicture.asset(
-                              'assets/branding/cobreja_mark.svg',
+                              'assets/branding/peguei_paguei_mark.svg',
                             ),
                           ),
                         ),
@@ -3458,7 +3458,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Ativação do COBREJÁ',
+                                'Ativação do Peguei & Paguei',
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineMedium
@@ -3466,7 +3466,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                               ),
                               const SizedBox(height: 6),
                               const Text(
-                                'Digite a licença do Windows para liberar o sistema neste computador.',
+                                'Digite a licenÃ§a do Windows para liberar o sistema neste computador.',
                                 style: TextStyle(
                                   color: AppColors.textMuted,
                                   height: 1.45,
@@ -3490,7 +3490,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Código da máquina',
+                            'CÃ³digo da mÃ¡quina',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               color: AppColors.textStrong,
@@ -3498,7 +3498,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                           ),
                           const SizedBox(height: 10),
                           SelectableText(
-                            machineCode ?? 'Não foi possível gerar o código da máquina.',
+                            machineCode ?? 'NÃ£o foi possÃ­vel gerar o cÃ³digo da mÃ¡quina.',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -3522,16 +3522,16 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              'Código da máquina copiado.',
+                                              'CÃ³digo da mÃ¡quina copiado.',
                                             ),
                                           ),
                                         );
                                       },
                                 icon: const Icon(Icons.copy_rounded),
-                                label: const Text('Copiar código'),
+                                label: const Text('Copiar cÃ³digo'),
                               ),
                               const Chip(
-                                label: Text('Licenças: Vitalícia e Uso único'),
+                                label: Text('LicenÃ§as: VitalÃ­cia e Uso Ãºnico'),
                               ),
                             ],
                           ),
@@ -3544,9 +3544,9 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                       minLines: 3,
                       maxLines: 6,
                       decoration: const InputDecoration(
-                        labelText: 'Licença do sistema',
+                        labelText: 'LicenÃ§a do sistema',
                         hintText:
-                            'Cole aqui a licença gerada para este computador.',
+                            'Cole aqui a licenÃ§a gerada para este computador.',
                       ),
                     ),
                     if (_error != null) ...[
@@ -3577,7 +3577,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                               )
                             : const Icon(Icons.verified_rounded),
                         label: Text(
-                          _isSubmitting ? 'Validando licença...' : 'Ativar sistema',
+                          _isSubmitting ? 'Validando licenÃ§a...' : 'Ativar sistema',
                         ),
                       ),
                     ),
@@ -3598,7 +3598,7 @@ class _WindowsLicensePageState extends State<WindowsLicensePage> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '1. Copie o código da máquina.\n2. Gere a licença no seu gerador privado.\n3. Cole a licença aqui para liberar o uso no Windows.',
+                            '1. Copie o cÃ³digo da mÃ¡quina.\n2. Gere a licenÃ§a no seu gerador privado.\n3. Cole a licenÃ§a aqui para liberar o uso no Windows.',
                             style: TextStyle(
                               color: AppColors.textMuted,
                               height: 1.5,
@@ -3708,7 +3708,7 @@ void _showError(String msg) {
     }
   }
 
-// 👇 AGORA SIM FORA DO LOGIN
+// ðŸ‘‡ AGORA SIM FORA DO LOGIN
 Future<bool> register(String name, String email, String password) async {
   try {
     await ApiService.register(name: name, email: email, password: password);
@@ -3782,8 +3782,8 @@ Future<bool> login(String identifier, String password) async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
 
-      // Guarda a role do usuario para escolher a experiÃªncia (ADMIN x CLIENT)
-      // mesmo apÃ³s recarregar a pÃ¡gina (F5) ou reiniciar o app.
+      // Guarda a role do usuario para escolher a experiÃƒÂªncia (ADMIN x CLIENT)
+      // mesmo apÃƒÂ³s recarregar a pÃƒÂ¡gina (F5) ou reiniciar o app.
       try {
         final me = await ApiService.fetchMe(token: token);
         final user = me['user'] as Map<String, dynamic>?;
@@ -3794,7 +3794,7 @@ Future<bool> login(String identifier, String password) async {
           await prefs.remove('session_role');
         }
       } catch (_) {
-        // Se falhar, mantÃ©m a sessÃ£o e usa a role salva anteriormente (se houver).
+        // Se falhar, mantÃƒÂ©m a sessÃƒÂ£o e usa a role salva anteriormente (se houver).
       }
     }
 
@@ -3862,7 +3862,7 @@ Future<bool> login(String identifier, String password) async {
     if (licenseKey.isEmpty) {
       setState(() {
         _windowsLicenseError =
-            'Cole a licença enviada pelo distribuidor para liberar o sistema.';
+            'Cole a licenÃ§a enviada pelo distribuidor para liberar o sistema.';
       });
       return;
     }
@@ -3879,13 +3879,13 @@ Future<bool> login(String identifier, String password) async {
       _isActivatingWindowsLicense = false;
       if (!success) {
         _windowsLicenseError =
-            'Licença inválida para este computador. Confira o código da máquina e tente novamente.';
+            'LicenÃ§a invÃ¡lida para este computador. Confira o cÃ³digo da mÃ¡quina e tente novamente.';
       }
     });
 
     if (success) {
       _showAuthMessage(
-        'Licença ativada',
+        'LicenÃ§a ativada',
         'O sistema foi liberado com sucesso neste computador.',
         success: true,
       );
@@ -3897,8 +3897,8 @@ Future<bool> login(String identifier, String password) async {
 
   if (!_hasWindowsLicense) {
     _showAuthMessage(
-      'Licença necessária',
-      'Peça ao distribuidor do seu sistema para enviar a licença antes de continuar.',
+      'LicenÃ§a necessÃ¡ria',
+      'PeÃ§a ao distribuidor do seu sistema para enviar a licenÃ§a antes de continuar.',
     );
     return;
   }
@@ -3916,8 +3916,8 @@ Future<bool> login(String identifier, String password) async {
 
   if (_isRegisterMode && !_isValidEmail(email)) {
     _showAuthMessage(
-      'Email inválido',
-      'Informe um email válido, por exemplo: nome@dominio.com.',
+      'Email invÃ¡lido',
+      'Informe um email vÃ¡lido, por exemplo: nome@dominio.com.',
     );
     return;
   }
@@ -3926,15 +3926,15 @@ Future<bool> login(String identifier, String password) async {
       !_isValidEmail(rawIdentifier) &&
       !_isValidCpf(rawIdentifier)) {
     _showAuthMessage(
-      'Acesso inválido',
-      'Use um email válido ou um CPF com 11 dígitos para entrar.',
+      'Acesso invÃ¡lido',
+      'Use um email vÃ¡lido ou um CPF com 11 dÃ­gitos para entrar.',
     );
     return;
   }
 
   if (_isRegisterMode) {
     if (_nameController.text.trim().isEmpty) {
-      _showAuthMessage('Campo obrigatório', 'Informe um nome para cadastro.');
+      _showAuthMessage('Campo obrigatÃ³rio', 'Informe um nome para cadastro.');
       return;
     }
     if (_registerAsClient) {
@@ -3999,10 +3999,10 @@ Future<bool> login(String identifier, String password) async {
   }
 
   _showAuthMessage(
-    _isRegisterMode ? 'Cadastro não concluído' : 'Acesso negado',
+    _isRegisterMode ? 'Cadastro nÃ£o concluÃ­do' : 'Acesso negado',
     _isRegisterMode
-        ? 'Nao foi possível concluir o cadastro no servidor. Verifique os dados e tente novamente.'
-        : 'Email ou senha inválidos. Verifique seus dados e tente novamente.',
+        ? 'Nao foi possÃ­vel concluir o cadastro no servidor. Verifique os dados e tente novamente.'
+        : 'Email ou senha invÃ¡lidos. Verifique seus dados e tente novamente.',
   );
   return;
  }
@@ -4092,14 +4092,14 @@ Future<bool> login(String identifier, String password) async {
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: SvgPicture.asset(
-                        'assets/branding/cobreja_mark.svg',
+                        'assets/branding/peguei_paguei_mark.svg',
                         fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: SvgPicture.asset(
-                        'assets/branding/cobreja_logo_white.svg',
+                        'assets/branding/peguei_paguei_logo_white.svg',
                         height: 34,
                         fit: BoxFit.fitHeight,
                       ),
@@ -4108,7 +4108,7 @@ Future<bool> login(String identifier, String password) async {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Cobrança inteligente, recebimento garantido.',
+                  'Crédito simples, cobrança inteligente.',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -4119,8 +4119,8 @@ Future<bool> login(String identifier, String password) async {
                 const SizedBox(height: 14),
                 Text(
                   _isRegisterMode
-                      ? 'Crie sua conta local para começar a organizar clientes, juros, renegociações e recebimentos com a identidade da COBREJA.'
-                      : 'Entre para continuar gerenciando sua carteira, lembretes, cobranças e acordos em um so lugar.',
+                      ? 'Crie sua conta local para comeÃ§ar a organizar clientes, juros, renegociaÃ§Ãµes e recebimentos com a identidade da PEGUEI&PAGUEI.'
+                      : 'Entre para continuar gerenciando sua carteira, lembretes, cobranÃ§as e acordos em um so lugar.',
                   style: const TextStyle(
                     color: Color(0xFFE8FFFB),
                     fontSize: 15,
@@ -4133,9 +4133,9 @@ Future<bool> login(String identifier, String password) async {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _AuthFeatureChip(icon: Icons.bolt_rounded, label: 'Cobrança rápida'),
-                    _AuthFeatureChip(icon: Icons.receipt_long_rounded, label: 'Histórico seguro'),
-                    _AuthFeatureChip(icon: Icons.calendar_month_rounded, label: 'Lembretes úteis'),
+                    _AuthFeatureChip(icon: Icons.bolt_rounded, label: 'CobranÃ§a rÃ¡pida'),
+                    _AuthFeatureChip(icon: Icons.receipt_long_rounded, label: 'HistÃ³rico seguro'),
+                    _AuthFeatureChip(icon: Icons.calendar_month_rounded, label: 'Lembretes Ãºteis'),
                   ],
                 ),
                 const SizedBox(height: 22),
@@ -4243,14 +4243,14 @@ Future<bool> login(String identifier, String password) async {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: SvgPicture.asset(
-                      'assets/branding/cobreja_mark.svg',
+                      'assets/branding/peguei_paguei_mark.svg',
                       fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: SvgPicture.asset(
-                      'assets/branding/cobreja_logo_white.svg',
+                      'assets/branding/peguei_paguei_logo_white.svg',
                       height: 40,
                       fit: BoxFit.fitHeight,
                     ),
@@ -4259,7 +4259,7 @@ Future<bool> login(String identifier, String password) async {
               ),
               const SizedBox(height: 28),
               const Text(
-                'Cobrança inteligente, recebimento garantido.',
+                'Crédito simples, cobrança inteligente.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 34,
@@ -4270,8 +4270,8 @@ Future<bool> login(String identifier, String password) async {
               const SizedBox(height: 16),
               Text(
                 _isRegisterMode
-                    ? 'Crie sua conta local para começar a organizar clientes, juros, renegociações e recebimentos com a identidade da COBREJA.'
-                    : 'Entre para continuar gerenciando sua carteira, lembretes, cobranças e acordos em um so lugar.',
+                    ? 'Crie sua conta local para comeÃ§ar a organizar clientes, juros, renegociaÃ§Ãµes e recebimentos com a identidade da PEGUEI&PAGUEI.'
+                    : 'Entre para continuar gerenciando sua carteira, lembretes, cobranÃ§as e acordos em um so lugar.',
                 style: const TextStyle(
                   color: Color(0xFFE8FFFB),
                   fontSize: 16,
@@ -4287,15 +4287,15 @@ Future<bool> login(String identifier, String password) async {
             children: [
               _AuthFeatureChip(
                 icon: Icons.bolt_rounded,
-                label: 'Cobrança rápida',
+                label: 'CobranÃ§a rÃ¡pida',
               ),
               _AuthFeatureChip(
                 icon: Icons.receipt_long_rounded,
-                label: 'Histórico seguro',
+                label: 'HistÃ³rico seguro',
               ),
               _AuthFeatureChip(
                 icon: Icons.calendar_month_rounded,
-                label: 'Lembretes úteis',
+                label: 'Lembretes Ãºteis',
               ),
             ],
           ),
@@ -4326,7 +4326,7 @@ Future<bool> login(String identifier, String password) async {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: SvgPicture.asset(
-                        'assets/branding/cobreja_logo.svg',
+                        'assets/branding/peguei_paguei_logo.svg',
                         height: 46,
                         fit: BoxFit.fitHeight,
                       ),
@@ -4382,7 +4382,7 @@ Future<bool> login(String identifier, String password) async {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: SvgPicture.asset(
-                    'assets/branding/cobreja_mark.svg',
+                    'assets/branding/peguei_paguei_mark.svg',
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -4402,8 +4402,8 @@ Future<bool> login(String identifier, String password) async {
                       const SizedBox(height: 4),
                       Text(
                         _isRegisterMode
-                            ? 'Abra sua conta local da COBREJA e comece a organizar suas cobranças.'
-                            : 'Acesse sua conta para continuar no painel da COBREJÁ.',
+                            ? 'Abra sua conta local da PEGUEI&PAGUEI e comece a organizar suas cobranÃ§as.'
+                            : 'Acesse sua conta para continuar no painel da Peguei & Paguei.',
                         style: const TextStyle(
                           color: Color(0xFF5B6474),
                           height: 1.45,
@@ -4429,7 +4429,7 @@ Future<bool> login(String identifier, String password) async {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Licença do sistema',
+                    'LicenÃ§a do sistema',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -4438,7 +4438,7 @@ Future<bool> login(String identifier, String password) async {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Peça ao distribuidor do seu sistema para enviar a licença.',
+                    'PeÃ§a ao distribuidor do seu sistema para enviar a licenÃ§a.',
                     style: TextStyle(
                       color: Color(0xFF5B6474),
                       height: 1.45,
@@ -4458,7 +4458,7 @@ Future<bool> login(String identifier, String password) async {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Código da máquina',
+                          'CÃ³digo da mÃ¡quina',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF111827),
@@ -4467,7 +4467,7 @@ Future<bool> login(String identifier, String password) async {
                         const SizedBox(height: 8),
                         SelectableText(
                           widget.windowsMachineCode ??
-                              'Não foi possível gerar o código da máquina.',
+                              'NÃ£o foi possÃ­vel gerar o cÃ³digo da mÃ¡quina.',
                           style: const TextStyle(
                             color: Color(0xFF061C3D),
                             fontWeight: FontWeight.w800,
@@ -4486,13 +4486,13 @@ Future<bool> login(String identifier, String password) async {
                                   );
                                   if (!mounted) return;
                                   _showAuthMessage(
-                                    'Código copiado',
-                                    'O código da máquina foi copiado para você enviar ao distribuidor.',
+                                    'CÃ³digo copiado',
+                                    'O cÃ³digo da mÃ¡quina foi copiado para vocÃª enviar ao distribuidor.',
                                     success: true,
                                   );
                                 },
                           icon: const Icon(Icons.copy_rounded),
-                          label: const Text('Copiar código'),
+                          label: const Text('Copiar cÃ³digo'),
                         ),
                       ],
                     ),
@@ -4503,8 +4503,8 @@ Future<bool> login(String identifier, String password) async {
                     minLines: 2,
                     maxLines: 4,
                     decoration: const InputDecoration(
-                      labelText: 'Licença',
-                      hintText: 'Cole aqui a licença recebida para este computador.',
+                      labelText: 'LicenÃ§a',
+                      hintText: 'Cole aqui a licenÃ§a recebida para este computador.',
                     ),
                   ),
                   if (_windowsLicenseError != null) ...[
@@ -4536,8 +4536,8 @@ Future<bool> login(String identifier, String password) async {
                           : const Icon(Icons.verified_rounded),
                       label: Text(
                         _isActivatingWindowsLicense
-                            ? 'Validando licença...'
-                            : 'Ativar licença',
+                            ? 'Validando licenÃ§a...'
+                            : 'Ativar licenÃ§a',
                       ),
                     ),
                   ),
@@ -4564,7 +4564,7 @@ Future<bool> login(String identifier, String password) async {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Licença ${widget.windowsLicense!.typeLabel.toLowerCase()} ativa neste computador.',
+                      'LicenÃ§a ${widget.windowsLicense!.typeLabel.toLowerCase()} ativa neste computador.',
                       style: const TextStyle(
                         color: Color(0xFF166534),
                         fontWeight: FontWeight.w700,
@@ -4741,7 +4741,7 @@ Future<bool> login(String identifier, String password) async {
             child: TextButton.icon(
               onPressed: () => showPrivacyPolicyDialog(context),
               icon: const Icon(Icons.privacy_tip_rounded, size: 18),
-              label: const Text('Política de privacidade'),
+              label: const Text('PolÃ­tica de privacidade'),
             ),
           ),
           const SizedBox(height: 20),
@@ -4769,7 +4769,7 @@ Future<bool> login(String identifier, String password) async {
               });
             },
             child: Text(
-              _isRegisterMode ? 'Já tenho cadastro' : 'Não tenho cadastro',
+              _isRegisterMode ? 'JÃ¡ tenho cadastro' : 'NÃ£o tenho cadastro',
             ),
           ),
         ],
@@ -4977,13 +4977,13 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
 
       if (!mounted) return;
       _showPortalSnack(
-        'Solicitação enviada. Assim que for analisada, você verá o status aqui.',
+        'SolicitaÃ§Ã£o enviada. Assim que for analisada, vocÃª verÃ¡ o status aqui.',
       );
       await _loadClientPortal();
     } catch (e) {
       if (!mounted) return;
       _showPortalSnack(
-        e is ApiException ? e.message : 'Não foi possível enviar sua solicitação agora.',
+        e is ApiException ? e.message : 'NÃ£o foi possÃ­vel enviar sua solicitaÃ§Ã£o agora.',
         isError: true,
       );
     } finally {
@@ -5028,7 +5028,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
             height: 1.12,
           ),
           iconTheme: IconThemeData(color: portalHeaderColor),
-          title: Text('COBREJÁ • $displayName'),
+          title: Text('Peguei & Paguei â€¢ $displayName'),
           actions: [
             IconButton(
               tooltip: 'Atualizar',
@@ -5048,14 +5048,14 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
             dividerColor: portalDividerColor,
             tabs: const [
               Tab(text: 'Perfil'),
-              Tab(text: 'Dívidas'),
+              Tab(text: 'DÃ­vidas'),
               Tab(text: 'Pagamentos'),
               Tab(text: 'Suporte'),
             ],
           ),
         ),
         body: _isLoading
-            ? const _CobrejaLoading(label: 'Carregando portal do cliente')
+            ? const _PegueiPagueiLoading(label: 'Carregando portal do cliente')
             : (_error != null
                 ? Center(
                     child: Padding(
@@ -5143,7 +5143,7 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
   void _submit() {
     final amount = _parseAmount(widget.amountController.text);
     if (amount == null || amount <= 0) {
-      setState(() => _error = 'Informe um valor válido para a solicitação.');
+      setState(() => _error = 'Informe um valor vÃ¡lido para a solicitaÃ§Ã£o.');
       return;
     }
 
@@ -5173,7 +5173,7 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Solicitar empréstimo'),
+      title: const Text('Solicitar emprÃ©stimo'),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -5181,7 +5181,7 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Envie o valor desejado e uma observação opcional. A solicitação ficará pendente até aprovação do administrador.',
+              'Envie o valor desejado e uma observaÃ§Ã£o opcional. A solicitaÃ§Ã£o ficarÃ¡ pendente atÃ© aprovaÃ§Ã£o do administrador.',
               style: TextStyle(color: AppColors.textMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -5224,7 +5224,7 @@ class _CreditRequestDialogState extends State<_CreditRequestDialog> {
               controller: widget.descriptionController,
               maxLines: 3,
               decoration: const InputDecoration(
-                labelText: 'Motivo da solicitação',
+                labelText: 'Motivo da solicitaÃ§Ã£o',
                 prefixIcon: Icon(Icons.notes_rounded),
               ),
             ),
@@ -5280,7 +5280,7 @@ class _ClientProfileTab extends StatelessWidget {
 
     String _valueOrDash(String? value) {
       final text = value?.trim() ?? '';
-      return text.isEmpty ? '—' : text;
+      return text.isEmpty ? 'â€”' : text;
     }
 
     final name = (client?['name']?.toString() ?? user?['name']?.toString() ?? '')
@@ -5500,7 +5500,7 @@ class _ClientProfileTab extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 _infoRow(Icons.phone_rounded, 'Telefone', _valueOrDash(phone)),
                 const SizedBox(height: AppSpacing.sm),
-                _infoRow(Icons.home_rounded, 'Endereço', _valueOrDash(address)),
+                _infoRow(Icons.home_rounded, 'EndereÃ§o', _valueOrDash(address)),
               ],
             ),
           ),
@@ -5511,7 +5511,7 @@ class _ClientProfileTab extends StatelessWidget {
           runSpacing: AppSpacing.md,
           children: [
             _ClientProfileMetricChip(
-              title: 'Dívidas ativas',
+              title: 'DÃ­vidas ativas',
               value: '$activeCount',
               color: const Color(0xFF061C3D),
               icon: Icons.account_balance_wallet_rounded,
@@ -5538,7 +5538,7 @@ class _ClientProfileTab extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         const Text(
-          'Minhas solicitações',
+          'Minhas solicitaÃ§Ãµes',
           style: TextStyle(
             fontWeight: FontWeight.w900,
             color: AppColors.textStrong,
@@ -5551,7 +5551,7 @@ class _ClientProfileTab extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(AppSpacing.lg),
               child: Text(
-                'Você ainda não fez nenhuma solicitação. Quando precisar de crédito, toque em “Solicitar”.',
+                'VocÃª ainda nÃ£o fez nenhuma solicitaÃ§Ã£o. Quando precisar de crÃ©dito, toque em â€œSolicitarâ€.',
                 style: TextStyle(color: AppColors.textMuted, height: 1.4),
               ),
             ),
@@ -5589,7 +5589,7 @@ class _ClientProfileTab extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  '${_currency(amount)} • ${_statusLabel(status)}',
+                  '${_currency(amount)} â€¢ ${_statusLabel(status)}',
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 subtitle: Column(
@@ -5612,7 +5612,7 @@ class _ClientProfileTab extends StatelessWidget {
                             'Prazo: $desiredTermDays dias',
                           if (requestedInstallments != null)
                             'Parcelas: $requestedInstallments',
-                        ].join(' • '),
+                        ].join(' â€¢ '),
                         style: const TextStyle(color: AppColors.textMuted),
                       ),
                     if (description.isNotEmpty)
@@ -5666,7 +5666,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
     final compact = MediaQuery.of(context).size.width < 620;
     final nextDueLabel = nextDueDate == null
         ? 'Sem parcelas pendentes'
-        : '${DateFormat('dd/MM/yyyy').format(nextDueDate!)} • ${_currency(math.max(0, nextDueAmount))}';
+        : '${DateFormat('dd/MM/yyyy').format(nextDueDate!)} â€¢ ${_currency(math.max(0, nextDueAmount))}';
 
     return Container(
       padding: EdgeInsets.all(compact ? 18 : 22),
@@ -5695,7 +5695,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Olá, $displayName',
+                      'OlÃ¡, $displayName',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -5706,7 +5706,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Saldo operacional interno. Não representa saldo bancário real.',
+                      'Saldo operacional interno. NÃ£o representa saldo bancÃ¡rio real.',
                       style: TextStyle(
                         color: Color(0xFFD8FFF0),
                         fontWeight: FontWeight.w600,
@@ -5752,7 +5752,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
             runSpacing: 10,
             children: [
               _ClientBankMetricTile(
-                title: 'Limite disponível',
+                title: 'Limite disponÃ­vel',
                 value: _currency(availableLimit),
                 icon: Icons.credit_score_rounded,
               ),
@@ -5767,7 +5767,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
                 icon: Icons.payments_rounded,
               ),
               _ClientBankMetricTile(
-                title: 'Próxima parcela',
+                title: 'PrÃ³xima parcela',
                 value: nextDueLabel,
                 icon: Icons.event_available_rounded,
               ),
@@ -5778,7 +5778,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '$activeDebts dívida(s) ativa(s) • $overdueDebts em atraso',
+                  '$activeDebts dÃ­vida(s) ativa(s) â€¢ $overdueDebts em atraso',
                   style: const TextStyle(
                     color: Color(0xFFE8FFF7),
                     fontWeight: FontWeight.w800,
@@ -5792,7 +5792,7 @@ class _ClientBankDashboardCard extends StatelessWidget {
                   foregroundColor: AppColors.primary,
                 ),
                 icon: const Icon(Icons.add_card_rounded),
-                label: const Text('Pedir crédito'),
+                label: const Text('Pedir crÃ©dito'),
               ),
             ],
           ),
@@ -6152,7 +6152,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Mostrando ${visibleDebts.length} de ${allDebts.length} dívidas.',
+                  'Mostrando ${visibleDebts.length} de ${allDebts.length} dÃ­vidas.',
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     fontWeight: FontWeight.w600,
@@ -6168,7 +6168,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
             padding: EdgeInsets.only(top: AppSpacing.xl),
             child: Center(
               child: Text(
-                'Nenhuma dívida encontrada neste filtro.',
+                'Nenhuma dÃ­vida encontrada neste filtro.',
                 style: TextStyle(color: AppColors.textMuted),
               ),
             ),
@@ -6211,7 +6211,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                       child: Text(
                         debt['title']?.toString().trim().isNotEmpty == true
                             ? debt['title'].toString()
-                            : 'Dívida #${debt['id']}',
+                            : 'DÃ­vida #${debt['id']}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -6238,7 +6238,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                 const SizedBox(height: AppSpacing.sm),
                 if (borrowedAt != null)
                   Text(
-                    'Empréstimo: ${DateFormat('dd/MM/yyyy').format(borrowedAt)}',
+                    'EmprÃ©stimo: ${DateFormat('dd/MM/yyyy').format(borrowedAt)}',
                     style: const TextStyle(color: AppColors.textMuted),
                   ),
                 if (dueDate != null)
@@ -6260,7 +6260,7 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                   children: [
                     Text('Principal: ${_currency(principalOutstanding)}'),
                     Text('Juros: ${_currency(interestOutstanding)}'),
-                    Text('Diária: ${_currency(dailyAccrued)}'),
+                    Text('DiÃ¡ria: ${_currency(dailyAccrued)}'),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -6319,12 +6319,12 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Parcela ${installment['installmentNumber']} • ${installmentDueDate == null ? 'sem vencimento' : DateFormat('dd/MM/yyyy').format(installmentDueDate)}',
+                              'Parcela ${installment['installmentNumber']} â€¢ ${installmentDueDate == null ? 'sem vencimento' : DateFormat('dd/MM/yyyy').format(installmentDueDate)}',
                               style: const TextStyle(color: AppColors.textMuted),
                             ),
                           ),
                           Text(
-                            '${_currency(remaining)} • $statusLabel',
+                            '${_currency(remaining)} â€¢ $statusLabel',
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
                           if (canPay) ...[
@@ -7021,7 +7021,7 @@ class _AuditLogList extends StatelessWidget {
                 if (user != null) user['email']?.toString() ?? user['name']?.toString(),
                 if (createdAt != null) DateFormat('dd/MM/yyyy HH:mm').format(createdAt),
                 if (log['entity'] != null) log['entity'].toString(),
-              ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+              ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' â€¢ '),
               style: const TextStyle(color: AppColors.textMuted),
             ),
             trailing: _StatusPill(text: severity, color: color),
@@ -7193,7 +7193,7 @@ class _MercadoPagoAdminPanel extends StatelessWidget {
                       'Parcela ${(intent['installment'] as Map<String, dynamic>?)?['installmentNumber'] ?? '-'}',
                       intent['status']?.toString() ?? 'UNKNOWN',
                       intent['mercadoPagoPaymentId']?.toString(),
-                    ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                    ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' â€¢ '),
                   ),
                   trailing: Text(
                     _currency(_readDouble(intent['amount'])),
@@ -7221,7 +7221,7 @@ class _MercadoPagoAdminPanel extends StatelessWidget {
                         payment['status']?.toString(),
                         payment['paymentMethodId']?.toString(),
                         payment['externalReference']?.toString(),
-                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' â€¢ '),
                     ),
                     trailing: Text(
                       _currency(_readDouble(payment['amount'])),
@@ -7250,7 +7250,7 @@ class _MercadoPagoAdminPanel extends StatelessWidget {
                         log['resourceId']?.toString(),
                         log['processed'] == true ? 'processado' : 'pendente',
                         log['processingError']?.toString(),
-                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' • '),
+                      ].whereType<String>().where((item) => item.trim().isNotEmpty).join(' â€¢ '),
                     ),
                     trailing: Icon(
                       log['signatureValid'] == true
@@ -8408,7 +8408,7 @@ class _ClientPaymentsList extends StatelessWidget {
         final type = switch (rawType.toUpperCase()) {
           'JUROS' => 'Pagamento de juros',
           'PARCIAL' => 'Pagamento parcial',
-          'TOTAL' => 'Quitação',
+          'TOTAL' => 'QuitaÃ§Ã£o',
           'PARCELA' => 'Parcela paga',
           _ => rawType,
         };
@@ -8543,7 +8543,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (localName.isNotEmpty) return localName;
     final accountName = widget.account.name.trim();
     if (accountName.isNotEmpty) return accountName;
-    return 'Usuário COBREJÁ';
+    return 'Usuário Peguei & Paguei';
   }
 
   Future<void> _selectSection(_MainSection section) async {
@@ -8625,7 +8625,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }).toList();
 
     // UI legacy: ainda usamos um "debt principal" para preencher o card.
-    // Quando houver múltiplas dívidas, escolhemos a primeira ativa (ordenada pelo backend por dueDate asc).
+    // Quando houver mÃºltiplas dÃ­vidas, escolhemos a primeira ativa (ordenada pelo backend por dueDate asc).
     final primaryDebt = selectedDebt ??
         (activeDebts.isNotEmpty
             ? activeDebts.first
@@ -8673,7 +8673,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case 'PARCIAL':
           return 'Pagamento parcial';
         case 'TOTAL':
-          return 'QuitaÃ§Ã£o';
+          return 'QuitaÃƒÂ§ÃƒÂ£o';
         case 'PARCELA':
           return 'Pagamento de parcela';
         default:
@@ -8733,7 +8733,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (selectedDebt == null && (tabs['devendo'] == true || activeDebts.isNotEmpty));
 
     final status = isExcludedBackend
-        ? 'excluído'
+        ? 'excluÃ­do'
         : (isQuitadoBackend ? 'quitado' : (isDevendoBackend ? 'devendo' : (details.isEmpty ? (previous?.status ?? 'devendo') : 'ativo')));
 
     final backendUserId =
@@ -8901,11 +8901,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         _isLoadingCreditRequests = false;
       });
     } catch (e) {
-      debugPrint('Erro ao buscar solicitações: $e');
+      debugPrint('Erro ao buscar solicitaÃ§Ãµes: $e');
       if (!mounted) return;
       setState(() {
         _creditRequestsError =
-            e is ApiException ? e.message : 'Não foi possível carregar as solicitações.';
+            e is ApiException ? e.message : 'NÃ£o foi possÃ­vel carregar as solicitaÃ§Ãµes.';
         _isLoadingCreditRequests = false;
       });
     }
@@ -9003,7 +9003,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingFinancialAnalytics)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando financeiro'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando financeiro'))
               else if (_financialAnalyticsError != null)
                 Expanded(
                   child: Center(
@@ -9117,7 +9117,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingSecurity)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando seguranca'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando seguranca'))
               else if (_securityError != null)
                 Expanded(
                   child: Center(
@@ -9235,7 +9235,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingSaas)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando plano'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando plano'))
               else if (_saasError != null)
                 Expanded(
                   child: Center(
@@ -9574,7 +9574,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingCollections)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando cobrancas'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando cobrancas'))
               else if (_collectionAutomationError != null)
                 Expanded(
                   child: Center(
@@ -9665,7 +9665,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingMercadoPago)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando Mercado Pago'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando Mercado Pago'))
               else if (_mercadoPagoError != null)
                 Expanded(
                   child: Center(
@@ -9919,7 +9919,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingAudit)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando auditoria'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando auditoria'))
               else if (_auditError != null)
                 Expanded(
                   child: Center(
@@ -9990,7 +9990,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (dialogContext, setDialogState) => AlertDialog(
-            title: const Text('Configurações premium'),
+            title: const Text('ConfiguraÃ§Ãµes premium'),
             content: SizedBox(
               width: 620,
               child: SingleChildScrollView(
@@ -10038,11 +10038,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     const SizedBox(height: 10),
                     TextField(
                       controller: addressController,
-                      decoration: const InputDecoration(labelText: 'Endereço'),
+                      decoration: const InputDecoration(labelText: 'EndereÃ§o'),
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'Financeiro padrão',
+                      'Financeiro padrÃ£o',
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 10),
@@ -10063,7 +10063,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           child: TextField(
                             controller: dailyController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Juros diário'),
+                            decoration: const InputDecoration(labelText: 'Juros diÃ¡rio'),
                           ),
                         ),
                         SizedBox(
@@ -10071,7 +10071,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           child: TextField(
                             controller: maxInstallmentsController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Parcelas máximas'),
+                            decoration: const InputDecoration(labelText: 'Parcelas mÃ¡ximas'),
                           ),
                         ),
                       ],
@@ -10080,42 +10080,42 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: billingNotifications,
-                      title: const Text('Notificações de cobrança'),
+                      title: const Text('NotificaÃ§Ãµes de cobranÃ§a'),
                       onChanged: (value) =>
                           setDialogState(() => billingNotifications = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: supportNotifications,
-                      title: const Text('Notificações de suporte'),
+                      title: const Text('NotificaÃ§Ãµes de suporte'),
                       onChanged: (value) =>
                           setDialogState(() => supportNotifications = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: pixNotifications,
-                      title: const Text('Notificações Pix'),
+                      title: const Text('NotificaÃ§Ãµes Pix'),
                       onChanged: (value) =>
                           setDialogState(() => pixNotifications = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: creditNotifications,
-                      title: const Text('Notificações de solicitações'),
+                      title: const Text('NotificaÃ§Ãµes de solicitaÃ§Ãµes'),
                       onChanged: (value) =>
                           setDialogState(() => creditNotifications = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: saasNotifications,
-                      title: const Text('Notificações SaaS'),
+                      title: const Text('NotificaÃ§Ãµes SaaS'),
                       onChanged: (value) =>
                           setDialogState(() => saasNotifications = value),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: whatsappNotifications,
-                      title: const Text('Notificações WhatsApp'),
+                      title: const Text('NotificaÃ§Ãµes WhatsApp'),
                       onChanged: (value) =>
                           setDialogState(() => whatsappNotifications = value),
                     ),
@@ -10312,7 +10312,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
               ),
               if (_isLoadingSupport)
-                const Expanded(child: _CobrejaLoading(label: 'Carregando suporte'))
+                const Expanded(child: _PegueiPagueiLoading(label: 'Carregando suporte'))
               else if (_supportError != null)
                 Expanded(
                   child: Center(
@@ -10433,7 +10433,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   bool _isExcludedClient(Client client) =>
-      client.status == 'excluído' || client.status == 'excluido';
+      client.status == 'excluÃ­do' || client.status == 'excluido';
 
   bool _isQuitadoClient(Client client) =>
       !_isExcludedClient(client) &&
@@ -10507,7 +10507,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case 'quitado':
           filteredClients = _clients.where(_isQuitadoClient).toList();
           break;
-        case 'excluído':
+        case 'excluÃ­do':
         case 'excluido':
           filteredClients = _clients.where(_isExcludedClient).toList();
           break;
@@ -10565,7 +10565,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case _MainSection.quitados:
         return _clientsForSection('quitado');
       case _MainSection.excluidos:
-        return _clientsForSection('excluído');
+        return _clientsForSection('excluÃ­do');
       case _MainSection.emAtraso:
         return _clientsForSection(
           'devendo',
@@ -10610,7 +10610,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final confirmed = await _confirmDestructiveAction(
       title: 'Eliminar selecionados',
       message:
-          'Essa ação remove definitivamente os registros selecionados da área de excluídos. Eles deixam de existir no sistema e não poderão ser restaurados depois. Deseja continuar?',
+          'Essa aÃ§Ã£o remove definitivamente os registros selecionados da Ã¡rea de excluÃ­dos. Eles deixam de existir no sistema e nÃ£o poderÃ£o ser restaurados depois. Deseja continuar?',
       confirmLabel: 'Eliminar',
     );
     if (!confirmed) return;
@@ -10647,7 +10647,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Licença do Windows'),
+        title: const Text('LicenÃ§a do Windows'),
         content: SizedBox(
           width: 480,
           child: Column(
@@ -10665,9 +10665,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildReceiptLine('Tipo da licença', license.typeLabel),
+                    _buildReceiptLine('Tipo da licenÃ§a', license.typeLabel),
                     _buildReceiptLine('Cliente', license.customerName),
-                    _buildReceiptLine('Licença', license.licenseId),
+                    _buildReceiptLine('LicenÃ§a', license.licenseId),
                     _buildReceiptLine(
                       'Emitida em',
                       DateFormat('dd/MM/yyyy HH:mm').format(license.issuedAt.toLocal()),
@@ -10911,7 +10911,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final confirmed = await _confirmDestructiveAction(
       title: 'Limpar cache da interface',
       message:
-          'Isso remove apenas dados temporários desta instalação, como buscas, seleções e filtros atuais. Seus clientes, pagamentos e lembretes não serão apagados. Deseja continuar?',
+          'Isso remove apenas dados temporÃ¡rios desta instalaÃ§Ã£o, como buscas, seleÃ§Ãµes e filtros atuais. Seus clientes, pagamentos e lembretes nÃ£o serÃ£o apagados. Deseja continuar?',
       confirmLabel: 'Limpar cache',
     );
     if (!confirmed) return;
@@ -10930,7 +10930,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     await _selectSection(_MainSection.inicio);
 
     _showSnack(
-      'Os filtros, buscas e seleções temporárias foram limpos.',
+      'Os filtros, buscas e seleÃ§Ãµes temporÃ¡rias foram limpos.',
       tone: _FeedbackTone.success,
       title: 'Cache limpo',
     );
@@ -11040,7 +11040,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final confirmed = await _confirmDestructiveAction(
       title: 'Apagar todos os dados da carteira',
       message:
-          'Isso vai apagar clientes, pagamentos, renegociações, lembretes e registros desta instalação. Sua conta de acesso continuará existindo, mas a carteira será zerada. Deseja continuar?',
+          'Isso vai apagar clientes, pagamentos, renegociaÃ§Ãµes, lembretes e registros desta instalaÃ§Ã£o. Sua conta de acesso continuarÃ¡ existindo, mas a carteira serÃ¡ zerada. Deseja continuar?',
       confirmLabel: 'Apagar dados',
     );
     if (!confirmed) return;
@@ -11056,7 +11056,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     await _selectSection(_MainSection.inicio);
 
     _showSnack(
-      'Os dados da carteira foram apagados desta instalação.',
+      'Os dados da carteira foram apagados desta instalaÃ§Ã£o.',
       tone: _FeedbackTone.warning,
       title: 'Carteira zerada',
     );
@@ -11092,7 +11092,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        title: const Text('Planos da COBREJÁ'),
+        title: const Text('Planos da Peguei & Paguei'),
         content: SizedBox(
           width: 700,
           child: Column(
@@ -11100,7 +11100,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Essa tela já prepara a experiência comercial do app. Por enquanto, a ativação é local para testes. Depois nós conectamos isso à assinatura real da Play Store.',
+                'Essa tela jÃ¡ prepara a experiÃªncia comercial do app. Por enquanto, a ativaÃ§Ã£o Ã© local para testes. Depois nÃ³s conectamos isso Ã  assinatura real da Play Store.',
                 style: TextStyle(
                   color: AppColors.textBody,
                   height: 1.5,
@@ -11150,7 +11150,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
         title: const Text('Excluir conta local'),
         content: Text(
-          'Essa ação remove a conta ${widget.account.email} desta instalação e apaga os dados locais salvos no aparelho, incluindo clientes, pagamentos, renegociações e lembretes. Deseja continuar?',
+          'Essa aÃ§Ã£o remove a conta ${widget.account.email} desta instalaÃ§Ã£o e apaga os dados locais salvos no aparelho, incluindo clientes, pagamentos, renegociaÃ§Ãµes e lembretes. Deseja continuar?',
         ),
         actions: [
           TextButton(
@@ -11176,7 +11176,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _showSnack(
       'A conta local e os dados salvos neste aparelho foram removidos.',
       tone: _FeedbackTone.success,
-      title: 'Conta excluída',
+      title: 'Conta excluÃ­da',
     );
   }
 
@@ -11253,7 +11253,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             avatarUrl: client.avatarUrl,
           );
           // ApiService.createClient retorna diretamente o payload `data` do backend.
-          // Por compatibilidade, aceitamos também o formato antigo { client: { id } }.
+          // Por compatibilidade, aceitamos tambÃ©m o formato antigo { client: { id } }.
           final backendClientId = (created['id'] as num?)?.toInt() ??
               (created['client']?['id'] as num?)?.toInt();
           if (backendClientId != null) {
@@ -11333,9 +11333,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       debugPrint('Falha ao sincronizar cliente no backend: $e');
       if (showPendingFeedback && mounted) {
         _showSnack(
-          'Não foi possível sincronizar este cliente com o backend.',
+          'NÃ£o foi possÃ­vel sincronizar este cliente com o backend.',
           tone: _FeedbackTone.warning,
-          title: 'Sincronização pendente',
+          title: 'SincronizaÃ§Ã£o pendente',
         );
       }
     }
@@ -11443,7 +11443,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     } catch (e) {
       debugPrint('Falha ao remover cliente no backend: $e');
       _showSnack(
-        'Nao foi possível remover o cliente no backend.',
+        'Nao foi possÃ­vel remover o cliente no backend.',
         tone: _FeedbackTone.error,
         title: 'Falha ao remover',
       );
@@ -11465,16 +11465,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
       if (showFeedback) {
         _showSnack(
-          'O registro foi removido da área de excluídos e voltou para a carteira.',
+          'O registro foi removido da Ã¡rea de excluÃ­dos e voltou para a carteira.',
           tone: _FeedbackTone.success,
-          title: 'Cliente removido dos excluídos',
+          title: 'Cliente removido dos excluÃ­dos',
         );
       }
     } catch (e) {
       debugPrint('Falha ao restaurar cliente no backend: $e');
       if (!mounted) return;
       _showSnack(
-        'Não foi possível restaurar o cliente no backend.',
+        'NÃ£o foi possÃ­vel restaurar o cliente no backend.',
         tone: _FeedbackTone.error,
         title: 'Falha ao restaurar',
       );
@@ -11504,7 +11504,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       debugPrint('Falha ao eliminar cliente no backend: $e');
       if (!mounted) return;
       _showSnack(
-        'Não foi possível eliminar o cliente definitivamente no backend.',
+        'NÃ£o foi possÃ­vel eliminar o cliente definitivamente no backend.',
         tone: _FeedbackTone.error,
         title: 'Falha ao eliminar',
       );
@@ -11551,7 +11551,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final sortedHistory = [...updatedHistory]
       ..sort((a, b) => a.date.compareTo(b.date));
     final wasExcluded =
-        client.status == 'excluído' || client.status == 'excluido';
+        client.status == 'excluÃ­do' || client.status == 'excluido';
 
     client.paymentHistory = [...sortedHistory.reversed];
     client.activePrincipalCollected = 0;
@@ -11629,7 +11629,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         client.installmentsPaid = client.installmentCount;
       }
     } else if (wasExcluded) {
-      client.status = 'excluído';
+      client.status = 'excluÃ­do';
     } else {
       client.status = 'devendo';
     }
@@ -11641,16 +11641,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final token = await _readAuthToken();
     if (token == null || token.isEmpty) {
       _showSnack(
-        'Sua sessão expirou. Entre novamente para continuar.',
+        'Sua sessÃ£o expirou. Entre novamente para continuar.',
         tone: _FeedbackTone.error,
-        title: 'Sessão expirada',
+        title: 'SessÃ£o expirada',
       );
       return;
     }
 
     final paymentId = int.tryParse(payment.id);
     if (paymentId == null) {
-      // Pagamento local/legado (sem id numérico do backend): remove apenas da memória.
+      // Pagamento local/legado (sem id numÃ©rico do backend): remove apenas da memÃ³ria.
       final updatedHistory = client.paymentHistory
           .where((item) => item.id != payment.id)
           .toList();
@@ -11666,19 +11666,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     try {
       await ApiService.deletePayment(token: token, paymentId: paymentId);
 
-      // Fonte de verdade: backend. Recarrega tudo para refletir o recálculo do Prisma.
+      // Fonte de verdade: backend. Recarrega tudo para refletir o recÃ¡lculo do Prisma.
       await _refreshClientsFromBackend();
       await fetchDashboard();
 
       _showSnack(
-        'O pagamento foi removido do histórico e o saldo do cliente foi recalculado.',
+        'O pagamento foi removido do histÃ³rico e o saldo do cliente foi recalculado.',
         tone: _FeedbackTone.success,
-        title: 'Pagamento excluído',
+        title: 'Pagamento excluÃ­do',
       );
     } catch (e) {
       debugPrint('Falha ao excluir pagamento no backend: $e');
       _showSnack(
-        'Não foi possível excluir o pagamento no servidor. Tente novamente.',
+        'NÃ£o foi possÃ­vel excluir o pagamento no servidor. Tente novamente.',
         tone: _FeedbackTone.error,
         title: 'Falha ao excluir',
       );
@@ -11757,7 +11757,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   controller: noteController,
                   minLines: 2,
                   maxLines: 4,
-                  decoration: const InputDecoration(labelText: 'Observação'),
+                  decoration: const InputDecoration(labelText: 'ObservaÃ§Ã£o'),
                 ),
               ],
             ),
@@ -11775,7 +11775,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   _showSnack(
                     'Os valores do pagamento nao podem ser negativos.',
                     tone: _FeedbackTone.warning,
-                    title: 'Valores inválidos',
+                    title: 'Valores invÃ¡lidos',
                   );
                   return;
                 }
@@ -11807,7 +11807,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   } catch (e) {
                     debugPrint('Falha ao atualizar pagamento no backend: $e');
                     _showSnack(
-                      'Não foi possível atualizar o pagamento no servidor. Tente novamente.',
+                      'NÃ£o foi possÃ­vel atualizar o pagamento no servidor. Tente novamente.',
                       tone: _FeedbackTone.error,
                       title: 'Falha ao atualizar',
                     );
@@ -11917,7 +11917,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             ),
             child: SafeArea(
               child: _isLoading
-                  ? const _CobrejaLoading(label: 'Carregando dashboard')
+                  ? const _PegueiPagueiLoading(label: 'Carregando dashboard')
                   : Row(
                       children: [
                         if (!isCompact)
@@ -11958,7 +11958,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Text(
-        '© COBREJÁ • Fernando Morais • 2026',
+        '© Peguei & Paguei • Fernando Morais • 2026',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
@@ -11991,7 +11991,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   const SizedBox(width: 10),
                   if (isWindowsDesktopPlatform && widget.windowsLicense != null) ...[
                     Tooltip(
-                      message: 'Ver detalhes da licença do Windows',
+                      message: 'Ver detalhes da licenÃ§a do Windows',
                       child: InkWell(
                         onTap: _showWindowsLicenseDetails,
                         borderRadius: BorderRadius.circular(999),
@@ -12079,18 +12079,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Widget _buildNavigationRailContent({required bool compact}) {
     final items = [
-      (_MainSection.inicio, 'Início', Icons.home_rounded),
+      (_MainSection.inicio, 'InÃ­cio', Icons.home_rounded),
       (_MainSection.devendo, 'Devendo', Icons.account_balance_wallet_rounded),
       (_MainSection.juros, 'Juros', Icons.percent_rounded),
       (_MainSection.parcelasPagas, 'Parcelas pagas', Icons.receipt_long_rounded),
       (_MainSection.quitados, 'Quitados', Icons.check_circle_rounded),
-      (_MainSection.excluidos, 'Excluídos', Icons.delete_outline_rounded),
+      (_MainSection.excluidos, 'ExcluÃ­dos', Icons.delete_outline_rounded),
       (_MainSection.emAtraso, 'Em atraso', Icons.warning_amber_rounded),
       (_MainSection.venceHoje, 'Vence hoje', Icons.today_rounded),
       (_MainSection.renegociados, 'Renegociados', Icons.currency_exchange_rounded),
-      (_MainSection.solicitacoes, 'Solicitações', Icons.inbox_rounded),
-      (_MainSection.metricas, 'Métricas', Icons.bar_chart_rounded),
-      (_MainSection.configuracoes, 'Configurações', Icons.settings_rounded),
+      (_MainSection.solicitacoes, 'SolicitaÃ§Ãµes', Icons.inbox_rounded),
+      (_MainSection.metricas, 'MÃ©tricas', Icons.bar_chart_rounded),
+      (_MainSection.configuracoes, 'ConfiguraÃ§Ãµes', Icons.settings_rounded),
     ];
     final accentPrimary = _shellSelectedNavColor;
 
@@ -12116,7 +12116,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Navegação',
+                  'NavegaÃ§Ã£o',
                   style: TextStyle(
                     fontSize: compact ? 15 : 16,
                     fontWeight: FontWeight.w800,
@@ -12128,15 +12128,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   height: compact ? 48 : 54,
                   child: SvgPicture.asset(
                     _isDarkTheme
-                        ? 'assets/branding/cobreja_logo_white.svg'
-                        : 'assets/branding/cobreja_logo.svg',
+                        ? 'assets/branding/peguei_paguei_logo_white.svg'
+                        : 'assets/branding/peguei_paguei_logo.svg',
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Cobrança inteligente, recebimento garantido.',
+                  'Crédito simples, cobrança inteligente.',
                   style: TextStyle(
                     color: _shellMutedTextColor,
                     fontSize: 12,
@@ -12347,8 +12347,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                           label: Text(
                             _bulkSelectionMode
-                                ? 'Cancelar seleção'
-                                : 'Selecionar vários',
+                                ? 'Cancelar seleÃ§Ã£o'
+                                : 'Selecionar vÃ¡rios',
                           ),
                         ),
                         if (_bulkSelectionMode && visibleSelectionCount > 0)
@@ -12408,7 +12408,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final confirmed = await _confirmDestructiveAction(
       title: 'Excluir selecionados',
       message:
-          'Os registros selecionados serão movidos para a área de excluídos.',
+          'Os registros selecionados serÃ£o movidos para a Ã¡rea de excluÃ­dos.',
       confirmLabel: 'Excluir',
     );
     if (!confirmed) return;
@@ -12421,9 +12421,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Future<void> _restoreSelectedClients() async {
     final confirmed = await _confirmDestructiveAction(
-      title: 'Remover selecionados dos excluídos',
+      title: 'Remover selecionados dos excluÃ­dos',
       message:
-          'Os registros selecionados sairão da área de excluídos e voltarão para a carteira.',
+          'Os registros selecionados sairÃ£o da Ã¡rea de excluÃ­dos e voltarÃ£o para a carteira.',
       confirmLabel: 'Remover',
     );
     if (!confirmed) return;
@@ -12433,9 +12433,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
     _clearBulkSelection();
     _showSnack(
-      'Os registros selecionados foram removidos da área de excluídos e voltaram para a carteira.',
+      'Os registros selecionados foram removidos da Ã¡rea de excluÃ­dos e voltaram para a carteira.',
       tone: _FeedbackTone.success,
-      title: 'Clientes removidos dos excluídos',
+      title: 'Clientes removidos dos excluÃ­dos',
     );
   }
 
@@ -12452,7 +12452,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case _MainSection.quitados:
         return _buildClientList('quitado');
       case _MainSection.excluidos:
-        return _buildClientList('excluído');
+        return _buildClientList('excluÃ­do');
       case _MainSection.emAtraso:
         return _buildClientList(
           'devendo',
@@ -12497,14 +12497,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     _MetricsActionCard(
                       icon: Icons.show_chart_rounded,
                       title: 'Recebimentos mensais',
-                      subtitle: 'Abrir visão dos últimos 6 meses em uma tela própria.',
+                      subtitle: 'Abrir visÃ£o dos Ãºltimos 6 meses em uma tela prÃ³pria.',
                       onTap: _showMonthlyReceiptsOverviewDialog,
                     ),
                     const SizedBox(height: 12),
                     _MetricsActionCard(
                       icon: Icons.description_rounded,
-                      title: 'Relatórios completos',
-                      subtitle: 'Exportar CSV e PDF detalhados por cliente e período.',
+                      title: 'RelatÃ³rios completos',
+                      subtitle: 'Exportar CSV e PDF detalhados por cliente e perÃ­odo.',
                       onTap: _showDetailedReportsDialog,
                     ),
                   ],
@@ -12517,7 +12517,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     child: _MetricsActionCard(
                       icon: Icons.show_chart_rounded,
                       title: 'Recebimentos mensais',
-                      subtitle: 'Abrir visão dos últimos 6 meses em uma tela própria.',
+                      subtitle: 'Abrir visÃ£o dos Ãºltimos 6 meses em uma tela prÃ³pria.',
                       onTap: _showMonthlyReceiptsOverviewDialog,
                     ),
                   ),
@@ -12525,8 +12525,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   Expanded(
                     child: _MetricsActionCard(
                       icon: Icons.description_rounded,
-                      title: 'Relatórios completos',
-                      subtitle: 'Exportar CSV e PDF detalhados por cliente e período.',
+                      title: 'RelatÃ³rios completos',
+                      subtitle: 'Exportar CSV e PDF detalhados por cliente e perÃ­odo.',
                       onTap: _showDetailedReportsDialog,
                     ),
                   ),
@@ -12549,9 +12549,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
           child: _SettingsCard(
             icon: Icons.space_dashboard_rounded,
-            title: 'Resumo da operação',
+            title: 'Resumo da operaÃ§Ã£o',
             subtitle:
-                'A tela inicial agora mostra só o panorama da carteira. As listas completas ficam organizadas nas abas Devendo, Em atraso, Juros, Renegociados e Quitados.',
+                'A tela inicial agora mostra sÃ³ o panorama da carteira. As listas completas ficam organizadas nas abas Devendo, Em atraso, Juros, Renegociados e Quitados.',
             child: Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -12601,23 +12601,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return _buildGlobalPaymentHistoryPage(
       entries: entries,
       accentColor: const Color(0xFFF59E0B),
-      heroTitle: 'Renovações com juros pagos',
+      heroTitle: 'RenovaÃ§Ãµes com juros pagos',
       heroSubtitle:
-          'Cada vez que um cliente paga só os juros, o lançamento fica salvo aqui para consulta futura.',
+          'Cada vez que um cliente paga sÃ³ os juros, o lanÃ§amento fica salvo aqui para consulta futura.',
       emptyIcon: Icons.percent_rounded,
       emptyTitle: 'Nenhum juros pago ainda.',
       emptySubtitle:
-          'Cada renovação paga entra aqui como histórico, mesmo que o cliente depois quite a dívida.',
+          'Cada renovaÃ§Ã£o paga entra aqui como histÃ³rico, mesmo que o cliente depois quite a dÃ­vida.',
       lineBuilder: (entry) {
         final payment = entry.payment;
         final dailyPaid = payment.dailyPaid;
         final monthlyPaid = math.max(0, payment.interestPaid - dailyPaid).toDouble();
 
         if (dailyPaid > 0.009) {
-          return 'Juros ${_currency(monthlyPaid)} • Diária ${_currency(dailyPaid)} • Principal ${_currency(payment.principalPaid)}';
+          return 'Juros ${_currency(monthlyPaid)} â€¢ DiÃ¡ria ${_currency(dailyPaid)} â€¢ Principal ${_currency(payment.principalPaid)}';
         }
 
-        return 'Juros ${_currency(payment.interestPaid)} • Principal ${_currency(payment.principalPaid)}';
+        return 'Juros ${_currency(payment.interestPaid)} â€¢ Principal ${_currency(payment.principalPaid)}';
       },
       badgeBuilder: (entry) => _StatusPill(
         text: 'Juros pago',
@@ -12636,11 +12636,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       accentColor: const Color(0xFF16A34A),
       heroTitle: 'Parcelas recebidas dos acordos',
       heroSubtitle:
-          'Aqui você acompanha a sequência das parcelas pagas nos clientes renegociados, com histórico de cada recebimento.',
+          'Aqui vocÃª acompanha a sequÃªncia das parcelas pagas nos clientes renegociados, com histÃ³rico de cada recebimento.',
       emptyIcon: Icons.receipt_long_rounded,
       emptyTitle: 'Nenhuma parcela paga ainda.',
       emptySubtitle:
-          'Quando clientes renegociados pagarem parcelas em dia, cada parcela ficará registrada aqui para consulta.',
+          'Quando clientes renegociados pagarem parcelas em dia, cada parcela ficarÃ¡ registrada aqui para consulta.',
       lineBuilder: (entry) {
         final installmentNumber = entry.client.installmentAmount > 0
             ? math.max(
@@ -12649,7 +12649,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     .round(),
               )
             : 1;
-        return 'Parcela registrada • ${_currency(entry.payment.principalPaid)} • referência ${installmentNumber}/${entry.client.installmentCount}';
+        return 'Parcela registrada â€¢ ${_currency(entry.payment.principalPaid)} â€¢ referÃªncia ${installmentNumber}/${entry.client.installmentCount}';
       },
       badgeBuilder: (entry) => _StatusPill(
         text: 'Parcela paga',
@@ -12725,9 +12725,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     Future<void> rejectRequest(Map<String, dynamic> request) async {
       final confirmed = await _confirmDestructiveAction(
-        title: 'Recusar solicitação',
+        title: 'Recusar solicitaÃ§Ã£o',
         message:
-            'Esse pedido será marcado como recusado. O cliente continuará com o histórico de solicitações.',
+            'Esse pedido serÃ¡ marcado como recusado. O cliente continuarÃ¡ com o histÃ³rico de solicitaÃ§Ãµes.',
         confirmLabel: 'Recusar',
       );
       if (!confirmed) return;
@@ -12739,16 +12739,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         final requestId = (request['id'] as num?)?.toInt();
         if (requestId == null) {
           _showSnack(
-            'Não foi possível identificar a solicitação.',
+            'NÃ£o foi possÃ­vel identificar a solicitaÃ§Ã£o.',
             tone: _FeedbackTone.error,
-            title: 'ID inválido',
+            title: 'ID invÃ¡lido',
           );
           return;
         }
         await ApiService.rejectCreditRequest(token: token, requestId: requestId);
         if (!mounted) return;
         _showSnack(
-          'Solicitação recusada.',
+          'SolicitaÃ§Ã£o recusada.',
           tone: _FeedbackTone.success,
           title: 'Atualizado',
         );
@@ -12756,7 +12756,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       } catch (e) {
         if (!mounted) return;
         _showSnack(
-          e is ApiException ? e.message : 'Não foi possível recusar agora.',
+          e is ApiException ? e.message : 'NÃ£o foi possÃ­vel recusar agora.',
           tone: _FeedbackTone.error,
           title: 'Falha',
         );
@@ -12770,9 +12770,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final requestId = (request['id'] as num?)?.toInt();
       if (requestId == null) {
         _showSnack(
-          'Não foi possível identificar a solicitação.',
+          'NÃ£o foi possÃ­vel identificar a solicitaÃ§Ã£o.',
           tone: _FeedbackTone.error,
-          title: 'ID inválido',
+          title: 'ID invÃ¡lido',
         );
         return;
       }
@@ -12863,21 +12863,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   submitting = false;
                   error = e is ApiException
                       ? e.message
-                      : 'Não foi possível aprovar agora.';
+                      : 'NÃ£o foi possÃ­vel aprovar agora.';
                 });
               }
             }
 
             return StatefulBuilder(
               builder: (context, setDialog) => AlertDialog(
-                title: const Text('Aprovar solicitação'),
+                title: const Text('Aprovar solicitaÃ§Ã£o'),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Você vai criar uma nova dívida para o cliente com o valor solicitado.',
+                        'VocÃª vai criar uma nova dÃ­vida para o cliente com o valor solicitado.',
                         style: const TextStyle(
                           color: Color(0xFF5B6474),
                           height: 1.4,
@@ -12911,7 +12911,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         controller: dailyFeeController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Juros diário por atraso (R\$) (opcional)',
+                          labelText: 'Juros diÃ¡rio por atraso (R\$) (opcional)',
                           prefixIcon: Icon(Icons.warning_amber_rounded),
                         ),
                       ),
@@ -12971,9 +12971,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         if (approved != true) return;
         if (!mounted) return;
         _showSnack(
-          'Solicitação aprovada e dívida criada.',
+          'SolicitaÃ§Ã£o aprovada e dÃ­vida criada.',
           tone: _FeedbackTone.success,
-          title: 'Concluído',
+          title: 'ConcluÃ­do',
         );
         await refreshAll();
       } finally {
@@ -13064,7 +13064,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     if (desiredTermDays != null) 'Prazo: $desiredTermDays dias',
                     if (requestedInstallments != null)
                       'Parcelas solicitadas: $requestedInstallments',
-                  ].join(' • '),
+                  ].join(' â€¢ '),
                   style: TextStyle(
                     color: bodyColor,
                     fontWeight: FontWeight.w800,
@@ -13164,7 +13164,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Painel de solicitações',
+                        'Painel de solicitaÃ§Ãµes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -13173,7 +13173,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Pendentes: ${pending.length} • Aprovadas: ${approved.length} • Recusadas: ${rejected.length}',
+                        'Pendentes: ${pending.length} â€¢ Aprovadas: ${approved.length} â€¢ Recusadas: ${rejected.length}',
                         style: TextStyle(color: mutedColor, height: 1.35),
                       ),
                       if (_creditRequestsError != null) ...[
@@ -13222,7 +13222,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Text(
-                'Nenhuma solicitação enviada pelos clientes ainda.',
+                'Nenhuma solicitaÃ§Ã£o enviada pelos clientes ainda.',
                 style: TextStyle(color: mutedColor, height: 1.35),
               ),
             ),
@@ -13375,7 +13375,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   final compact = constraints.maxWidth < 720;
                   final cards = [
                     _HistorySummaryCardData(
-                      label: 'Lançamentos',
+                      label: 'LanÃ§amentos',
                       value: '${filteredEntries.length}',
                       accentColor: accentColor,
                     ),
@@ -13390,7 +13390,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       accentColor: accentColor,
                     ),
                     _HistorySummaryCardData(
-                      label: 'Último registro',
+                      label: 'Ãšltimo registro',
                       value: latestPayment == null
                           ? 'Nenhum'
                           : DateFormat('dd/MM/yyyy').format(latestPayment.date),
@@ -13434,12 +13434,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         TextField(
           controller: _safePaymentHistorySearchController,
           decoration: InputDecoration(
-            hintText: 'Buscar no histórico',
+            hintText: 'Buscar no histÃ³rico',
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: _safePaymentHistoryQuery.isEmpty
                 ? null
                 : IconButton(
-                    tooltip: 'Limpar busca do histórico',
+                    tooltip: 'Limpar busca do histÃ³rico',
                     onPressed: () {
                       _safePaymentHistorySearchController.clear();
                       setState(() {
@@ -13611,7 +13611,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                       ),
                       PopupMenuButton<String>(
-                        tooltip: 'Ações do pagamento',
+                        tooltip: 'AÃ§Ãµes do pagamento',
                         onSelected: (value) {
                           if (value == 'edit') {
                             _showEditPaymentDialog(entry.client, entry.payment);
@@ -13619,7 +13619,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             _confirmDestructiveAction(
                               title: 'Excluir pagamento',
                               message:
-                                  'Esse registro será removido do histórico e o saldo do cliente será recalculado.',
+                                  'Esse registro serÃ¡ removido do histÃ³rico e o saldo do cliente serÃ¡ recalculado.',
                               confirmLabel: 'Excluir',
                             ).then((confirmed) {
                               if (!confirmed) return;
@@ -13746,10 +13746,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final notificationSettings =
         ((_premiumSettings?['notifications'] as Map<String, dynamic>?) ?? const {});
     final activeNotificationTypes = [
-      if (notificationSettings['billing'] != false) 'cobrança',
+      if (notificationSettings['billing'] != false) 'cobranÃ§a',
       if (notificationSettings['support'] != false) 'suporte',
       if (notificationSettings['pix'] != false) 'Pix',
-      if (notificationSettings['credit'] != false) 'solicitações',
+      if (notificationSettings['credit'] != false) 'solicitaÃ§Ãµes',
       if (notificationSettings['saas'] != false) 'SaaS',
     ];
 
@@ -14249,7 +14249,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         const SizedBox(height: 14),
         _SettingsCard(
           icon: Icons.palette_rounded,
-          title: 'Aparência',
+          title: 'AparÃªncia',
           subtitle:
               'Brinque com as cores e a escala da fonte sem mexer nos seus dados.',
           child: Column(
@@ -14351,7 +14351,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 child: TextButton.icon(
                   onPressed: widget.onResetVisualPreferences,
                   icon: const Icon(Icons.restart_alt_rounded),
-                  label: const Text('Voltar ao visual padrão'),
+                  label: const Text('Voltar ao visual padrÃ£o'),
                 ),
               ),
             ],
@@ -14362,7 +14362,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           icon: Icons.storage_rounded,
           title: 'Cache e dados locais',
           subtitle:
-              'Limpe apenas o cache da interface ou apague toda a carteira desta instalação.',
+              'Limpe apenas o cache da interface ou apague toda a carteira desta instalaÃ§Ã£o.',
           child: Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -14405,25 +14405,25 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case _MainSection.devendo:
         return 'Clientes devendo';
       case _MainSection.juros:
-        return 'Histórico de juros pagos';
+        return 'HistÃ³rico de juros pagos';
       case _MainSection.parcelasPagas:
         return 'Parcelas pagas';
       case _MainSection.quitados:
         return 'Clientes quitados';
       case _MainSection.excluidos:
-        return 'Clientes excluídos';
+        return 'Clientes excluÃ­dos';
       case _MainSection.emAtraso:
-        return 'Cobranças em atraso';
+        return 'CobranÃ§as em atraso';
       case _MainSection.venceHoje:
         return 'Vencimentos de hoje';
       case _MainSection.renegociados:
         return 'Renegociados';
       case _MainSection.solicitacoes:
-        return 'Solicitações de crédito';
+        return 'SolicitaÃ§Ãµes de crÃ©dito';
       case _MainSection.metricas:
-        return 'Métricas da carteira';
+        return 'MÃ©tricas da carteira';
       case _MainSection.configuracoes:
-        return 'Configurações do sistema';
+        return 'ConfiguraÃ§Ãµes do sistema';
     }
   }
 
@@ -14432,27 +14432,27 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case _MainSection.inicio:
         return null;
       case _MainSection.devendo:
-        return 'Veja quem ainda está em aberto e acompanhe a carteira ativa.';
+        return 'Veja quem ainda estÃ¡ em aberto e acompanhe a carteira ativa.';
       case _MainSection.juros:
-        return 'Histórico permanente de cada renovação com juros paga pelos clientes.';
+        return 'HistÃ³rico permanente de cada renovaÃ§Ã£o com juros paga pelos clientes.';
       case _MainSection.parcelasPagas:
         return 'Acompanhe cada parcela paga nos acordos renegociados, mantendo a linha do tempo dos pagamentos em dia.';
       case _MainSection.quitados:
-        return 'Histórico dos clientes que já quitaram a dívida.';
+        return 'HistÃ³rico dos clientes que jÃ¡ quitaram a dÃ­vida.';
       case _MainSection.excluidos:
-        return 'Área de arquivamento para registros removidos da visão principal, com opção de restauração.';
+        return 'Ãrea de arquivamento para registros removidos da visÃ£o principal, com opÃ§Ã£o de restauraÃ§Ã£o.';
       case _MainSection.emAtraso:
-        return 'Cobranças que já passaram do vencimento e exigem atenção.';
+        return 'CobranÃ§as que jÃ¡ passaram do vencimento e exigem atenÃ§Ã£o.';
       case _MainSection.venceHoje:
         return 'Clientes com vencimento marcado para hoje.';
       case _MainSection.renegociados:
         return 'Acordos parcelados e clientes que foram renegociados.';
       case _MainSection.solicitacoes:
-        return 'Pedidos de empréstimo enviados pelos clientes para você aprovar ou recusar.';
+        return 'Pedidos de emprÃ©stimo enviados pelos clientes para vocÃª aprovar ou recusar.';
       case _MainSection.metricas:
-        return 'Acompanhe indicadores, relatórios e evolução mensal dos recebimentos.';
+        return 'Acompanhe indicadores, relatÃ³rios e evoluÃ§Ã£o mensal dos recebimentos.';
       case _MainSection.configuracoes:
-        return 'Personalize a aparência, atualize seu perfil no menu e gerencie cache e dados locais.';
+        return 'Personalize a aparÃªncia, atualize seu perfil no menu e gerencie cache e dados locais.';
     }
   }
 
@@ -14469,8 +14469,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildBrandLockup({required bool compact}) {
     return SvgPicture.asset(
       _isDarkTheme
-          ? 'assets/branding/cobreja_logo_white.svg'
-          : 'assets/branding/cobreja_logo.svg',
+          ? 'assets/branding/peguei_paguei_logo_white.svg'
+          : 'assets/branding/peguei_paguei_logo.svg',
       height: compact ? 52 : 60,
       fit: BoxFit.fitHeight,
       alignment: Alignment.centerLeft,
@@ -14764,7 +14764,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         value: _currency(
         totalOverdue
       ),
-        subtitle: 'Cobrança urgente',
+        subtitle: 'CobranÃ§a urgente',
         color: const Color(0xFFEF4444),
         icon: Icons.warning_amber_rounded,
         kind: _MetricCardKind.totalOverdue,
@@ -14796,7 +14796,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         kind: _MetricCardKind.totalLent,
       ),
       _MetricCardData(
-        title: 'Prejuízo estimado',
+        title: 'PrejuÃ­zo estimado',
         value: _currency(totalLoss),
         subtitle: 'Perdidos e atrasos +90 dias',
         color: const Color(0xFFB91C1C),
@@ -14903,7 +14903,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
       child: Tooltip(
-        message: 'Abrir lembretes e cobrar clientes rápidamente',
+        message: 'Abrir lembretes e cobrar clientes rÃ¡pidamente',
         child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: _showNotificationCenter,
@@ -15328,7 +15328,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Visão dos últimos 6 meses, com destaque para juros e principal recebidos.',
+                      'VisÃ£o dos Ãºltimos 6 meses, com destaque para juros e principal recebidos.',
                       style: TextStyle(
                         color: Color(0xFF5B6474),
                         height: 1.4,
@@ -15458,9 +15458,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (!_hasPlanAccess(AppPlan.premium)) {
       _ensurePlanAccess(
         requiredPlan: AppPlan.premium,
-        featureTitle: 'Visão mensal de recebimentos',
+        featureTitle: 'VisÃ£o mensal de recebimentos',
         description:
-            'Esse painel mostra a evolução mensal dos recebimentos e fica disponível no plano Premium.',
+            'Esse painel mostra a evoluÃ§Ã£o mensal dos recebimentos e fica disponÃ­vel no plano Premium.',
       );
       return;
     }
@@ -15526,26 +15526,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         isDark ? const Color(0xFFA9B7C8) : const Color(0xFF667085);
     final titles = {
       'todos': 'Nenhum cliente encontrado.',
-      'devendo': 'Nenhuma cobrança ativa por enquanto.',
+      'devendo': 'Nenhuma cobranÃ§a ativa por enquanto.',
       'juros': 'Nenhum cliente renovado com juros pagos.',
       'quitado': 'Nenhum cliente quitado ainda.',
-      'excluido': 'Nenhum cliente excluído.',
-      'excluído': 'Nenhum cliente excluído.',
-      'atrasados': 'Nenhuma cobrança em atraso no momento.',
+      'excluido': 'Nenhum cliente excluÃ­do.',
+      'excluÃ­do': 'Nenhum cliente excluÃ­do.',
+      'atrasados': 'Nenhuma cobranÃ§a em atraso no momento.',
       'venceHoje': 'Nenhum vencimento para hoje.',
       'renegociados': 'Nenhum acordo renegociado encontrado.',
     };
 
     final subtitles = {
-      'todos': 'Assim que houver clientes cadastrados, eles aparecerão aqui agrupados por nome para facilitar a consulta da carteira.',
-      'devendo': 'Cadastre seu primeiro cliente para acompanhar valores, vencimentos, juros e renegociações com mais clareza.',
-      'juros': 'Quando algum cliente renovar a dívida pagando juros, ele aparecerá aqui em destaque para facilitar o acompanhamento.',
-      'quitado': 'As cobranças encerradas ficam salvas aqui para consulta futura, histórico e conferência da carteira.',
-      'excluido': 'Os registros removidos da visão principal continuam disponíveis aqui, de forma organizada.',
-      'excluído': 'Os registros removidos da visão principal continuam disponíveis aqui, de forma organizada.',
-      'atrasados': 'As cobranças que passarem do vencimento aparecerão aqui para você agir mais rápido.',
-      'venceHoje': 'Quando houver clientes vencendo hoje, eles aparecerão aqui para facilitar sua rotina de cobrança.',
-      'renegociados': 'As renegociações parceladas e os acordos ativos aparecerão aqui de forma separada.',
+      'todos': 'Assim que houver clientes cadastrados, eles aparecerÃ£o aqui agrupados por nome para facilitar a consulta da carteira.',
+      'devendo': 'Cadastre seu primeiro cliente para acompanhar valores, vencimentos, juros e renegociaÃ§Ãµes com mais clareza.',
+      'juros': 'Quando algum cliente renovar a dÃ­vida pagando juros, ele aparecerÃ¡ aqui em destaque para facilitar o acompanhamento.',
+      'quitado': 'As cobranÃ§as encerradas ficam salvas aqui para consulta futura, histÃ³rico e conferÃªncia da carteira.',
+      'excluido': 'Os registros removidos da visÃ£o principal continuam disponÃ­veis aqui, de forma organizada.',
+      'excluÃ­do': 'Os registros removidos da visÃ£o principal continuam disponÃ­veis aqui, de forma organizada.',
+      'atrasados': 'As cobranÃ§as que passarem do vencimento aparecerÃ£o aqui para vocÃª agir mais rÃ¡pido.',
+      'venceHoje': 'Quando houver clientes vencendo hoje, eles aparecerÃ£o aqui para facilitar sua rotina de cobranÃ§a.',
+      'renegociados': 'As renegociaÃ§Ãµes parceladas e os acordos ativos aparecerÃ£o aqui de forma separada.',
     };
 
     final icons = {
@@ -15554,7 +15554,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       'juros': Icons.sync_alt_rounded,
       'quitado': Icons.verified_rounded,
       'excluido': Icons.archive_outlined,
-      'excluído': Icons.archive_outlined,
+      'excluÃ­do': Icons.archive_outlined,
       'atrasados': Icons.warning_amber_rounded,
       'venceHoje': Icons.today_rounded,
       'renegociados': Icons.currency_exchange_rounded,
@@ -15628,7 +15628,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      subtitles[tabType] ?? 'Assim que houver movimentações, elas aparecerão aqui.',
+                      subtitles[tabType] ?? 'Assim que houver movimentaÃ§Ãµes, elas aparecerÃ£o aqui.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,
@@ -15722,9 +15722,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     bool isSaving = false;
 
     final dialogTitle = isEditing
-        ? 'Editar dívida'
+        ? 'Editar dÃ­vida'
         : isDuplicating
-            ? 'Duplicar e editar dívida'
+            ? 'Duplicar e editar dÃ­vida'
             : 'Novo cliente';
     final actionLabel = isEditing ? 'Atualizar' : 'Salvar';
 
@@ -15768,7 +15768,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 TextField(
                   controller: addressController,
                   decoration: const InputDecoration(
-                    labelText: 'Endereço (opcional)',
+                    labelText: 'EndereÃ§o (opcional)',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -15831,7 +15831,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Juros diário por atraso',
+                    'Juros diÃ¡rio por atraso',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -15864,8 +15864,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: dailyInterestType == InterestValueType.fixedAmount
-                        ? 'Juros diário (R\$)'
-                        : 'Juros diário (%)',
+                        ? 'Juros diÃ¡rio (R\$)'
+                        : 'Juros diÃ¡rio (%)',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -15897,7 +15897,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     },
                     icon: const Icon(Icons.history_rounded),
                     label: Text(
-                      'Empréstimo: ${DateFormat('dd/MM/yyyy').format(selectedBorrowedDate)}',
+                      'EmprÃ©stimo: ${DateFormat('dd/MM/yyyy').format(selectedBorrowedDate)}',
                     ),
                   ),
                 ),
@@ -15927,8 +15927,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     icon: const Icon(Icons.paid_rounded),
                     label: Text(
                       selectedLastInterestPaidAt == null
-                          ? 'Último juros pago (opcional)'
-                          : 'Último juros pago: ${DateFormat('dd/MM/yyyy').format(selectedLastInterestPaidAt!)}',
+                          ? 'Ãšltimo juros pago (opcional)'
+                          : 'Ãšltimo juros pago: ${DateFormat('dd/MM/yyyy').format(selectedLastInterestPaidAt!)}',
                     ),
                   ),
                 ),
@@ -15939,8 +15939,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       onPressed: isRemovingLastInterestPayment
                           ? null
                           : () async {
-                              // Se ainda não existe cliente no backend (novo/duplicado),
-                              // esse campo é apenas visual, então basta limpar.
+                              // Se ainda nÃ£o existe cliente no backend (novo/duplicado),
+                              // esse campo Ã© apenas visual, entÃ£o basta limpar.
                               if (!isEditing ||
                                   baseClient == null ||
                                   baseClient.backendPrimaryDebtId == null) {
@@ -15969,9 +15969,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     borderRadius: BorderRadius.circular(26),
                                   ),
                                   title:
-                                      const Text('Remover último juros pago?'),
+                                      const Text('Remover Ãºltimo juros pago?'),
                                   content: const Text(
-                                    'Isso vai excluir o último pagamento de juros do histórico e recalcular a dívida deste cliente.',
+                                    'Isso vai excluir o Ãºltimo pagamento de juros do histÃ³rico e recalcular a dÃ­vida deste cliente.',
                                   ),
                                   actions: [
                                     TextButton(
@@ -16002,9 +16002,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               if (token == null || token.isEmpty) {
                                 if (!mounted) return;
                                 _showSnack(
-                                  'Você precisa estar logado para remover o pagamento.',
+                                  'VocÃª precisa estar logado para remover o pagamento.',
                                   tone: _FeedbackTone.warning,
-                                  title: 'Sessão expirada',
+                                  title: 'SessÃ£o expirada',
                                 );
                                 return;
                               }
@@ -16062,7 +16062,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                   });
                                   if (!mounted) return;
                                   _showSnack(
-                                    'Nenhum pagamento de juros foi encontrado para esta dívida.',
+                                    'Nenhum pagamento de juros foi encontrado para esta dÃ­vida.',
                                     tone: _FeedbackTone.info,
                                   );
                                   return;
@@ -16079,7 +16079,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                 if (paymentId == null) {
                                   throw const ApiException(
                                     statusCode: 0,
-                                    message: 'ID do pagamento inválido.',
+                                    message: 'ID do pagamento invÃ¡lido.',
                                   );
                                 }
 
@@ -16131,13 +16131,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
                                 if (!mounted) return;
                                 _showSnack(
-                                  'Último pagamento de juros removido e dívida recalculada.',
+                                  'Ãšltimo pagamento de juros removido e dÃ­vida recalculada.',
                                   tone: _FeedbackTone.success,
                                   title: 'Juros removido',
                                 );
                               } catch (e) {
                                 debugPrint(
-                                  'Falha ao remover último juros pago: $e',
+                                  'Falha ao remover Ãºltimo juros pago: $e',
                                 );
                                 setDialog(() {
                                   isRemovingLastInterestPayment = false;
@@ -16145,7 +16145,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                 if (!mounted) return;
                                 final message = e is ApiException
                                     ? e.message
-                                    : 'Não foi possível remover o último juros pago.';
+                                    : 'NÃ£o foi possÃ­vel remover o Ãºltimo juros pago.';
                                 _showSnack(
                                   message,
                                   tone: _FeedbackTone.error,
@@ -16160,7 +16160,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.close_rounded, size: 18),
-                      label: const Text('Remover último juros pago'),
+                      label: const Text('Remover Ãºltimo juros pago'),
                     ),
                   ),
                 const SizedBox(height: 12),
@@ -16268,7 +16268,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 );
 
                 if (client.name.isEmpty || client.borrowedAmount <= 0) {
-                  _showSnack('Informe nome e valor válido.');
+                  _showSnack('Informe nome e valor vÃ¡lido.');
                   return;
                 }
 
@@ -16339,7 +16339,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Este cliente já possui um login vinculado.',
+              'Este cliente jÃ¡ possui um login vinculado.',
               style: TextStyle(
                 color: Color(0xFF5B6474),
                 height: 1.4,
@@ -16349,14 +16349,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             if (hasEmail)
               SelectableText('Email: $email')
             else
-              const Text('Email: (não informado)'),
+              const Text('Email: (nÃ£o informado)'),
             if (hasCpf)
               SelectableText('CPF: $cpf')
             else
-              const Text('CPF: (não informado)'),
+              const Text('CPF: (nÃ£o informado)'),
             const SizedBox(height: 12),
             const Text(
-              'O cliente pode entrar usando Email ou CPF e verá apenas os próprios dados.',
+              'O cliente pode entrar usando Email ou CPF e verÃ¡ apenas os prÃ³prios dados.',
               style: TextStyle(
                 color: Color(0xFF5B6474),
                 height: 1.4,
@@ -16376,17 +16376,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               if (token == null || token.isEmpty || clientId == null) {
                 if (!mounted) return;
                 _showSnack(
-                  'NÃ£o foi possÃ­vel autenticar para unificar agora.',
+                  'NÃƒÂ£o foi possÃƒÂ­vel autenticar para unificar agora.',
                   tone: _FeedbackTone.error,
-                  title: 'SessÃ£o invÃ¡lida',
+                  title: 'SessÃƒÂ£o invÃƒÂ¡lida',
                 );
                 return;
               }
 
               final confirmed = await _confirmDestructiveAction(
-                title: 'Unificar dÃ­vidas',
+                title: 'Unificar dÃƒÂ­vidas',
                 message:
-                    'Isso vai consolidar todos os registros com o nome \"${client.name}\" em um Ãºnico perfil (os duplicados vÃ£o para ExcluÃ­dos). Use apenas se vocÃª tem vÃ¡rios cadastros da mesma pessoa.',
+                    'Isso vai consolidar todos os registros com o nome \"${client.name}\" em um ÃƒÂºnico perfil (os duplicados vÃƒÂ£o para ExcluÃƒÂ­dos). Use apenas se vocÃƒÂª tem vÃƒÂ¡rios cadastros da mesma pessoa.',
                 confirmLabel: 'Unificar',
               );
               if (!confirmed) return;
@@ -16406,24 +16406,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final mergedDebts = (payload['mergedDebts'] as num?)?.toInt() ?? 0;
                 _showSnack(
                   mergedClients > 0
-                      ? 'Unificado: $mergedClients registro(s) e $mergedDebts dÃ­vida(s).'
+                      ? 'Unificado: $mergedClients registro(s) e $mergedDebts dÃƒÂ­vida(s).'
                       : 'Nenhum duplicado encontrado para este nome.',
                   tone: _FeedbackTone.success,
-                  title: 'ConcluÃ­do',
+                  title: 'ConcluÃƒÂ­do',
                 );
               } catch (e) {
                 if (!mounted) return;
                 _showSnack(
                   e is ApiException
                       ? e.message
-                      : 'NÃ£o foi possÃ­vel unificar agora.',
+                      : 'NÃƒÂ£o foi possÃƒÂ­vel unificar agora.',
                   tone: _FeedbackTone.error,
                   title: 'Falha',
                 );
               }
             },
             icon: const Icon(Icons.merge_type_rounded, size: 18),
-            label: const Text('Unificar dÃ­vidas'),
+            label: const Text('Unificar dÃƒÂ­vidas'),
           ),
           if (hasEmail)
             FilledButton.icon(
@@ -16445,9 +16445,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (token == null || token.isEmpty) {
       if (!mounted) return;
       _showSnack(
-        'Sua sessão expirou. Faça login novamente.',
+        'Sua sessÃ£o expirou. FaÃ§a login novamente.',
         tone: _FeedbackTone.warning,
-        title: 'Sessão expirada',
+        title: 'SessÃ£o expirada',
       );
       return;
     }
@@ -16456,9 +16456,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (clientId == null) {
       if (!mounted) return;
       _showSnack(
-        'Não foi possível identificar o cliente no servidor.',
+        'NÃ£o foi possÃ­vel identificar o cliente no servidor.',
         tone: _FeedbackTone.error,
-        title: 'ID inválido',
+        title: 'ID invÃ¡lido',
       );
       return;
     }
@@ -16489,7 +16489,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               return;
             }
             if (confirm != password) {
-              setDialog(() => errorText = 'As senhas não conferem.');
+              setDialog(() => errorText = 'As senhas nÃ£o conferem.');
               return;
             }
 
@@ -16500,9 +16500,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               return;
             }
 
-            // Validação simples de email (o backend ainda valida de verdade)
+            // ValidaÃ§Ã£o simples de email (o backend ainda valida de verdade)
             if (hasEmail && (!emailInput.contains('@') || !emailInput.contains('.'))) {
-              setDialog(() => errorText = 'Informe um email válido.');
+              setDialog(() => errorText = 'Informe um email vÃ¡lido.');
               return;
             }
 
@@ -16529,7 +16529,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             } catch (e) {
               final message = e is ApiException
                   ? e.message
-                  : 'Não foi possível criar o acesso agora.';
+                  : 'NÃ£o foi possÃ­vel criar o acesso agora.';
               setDialog(() {
                 errorText = message;
                 isSubmitting = false;
@@ -16606,11 +16606,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ? null
                           : (value) => setDialog(() => mergeByName = value ?? true),
                       title: const Text(
-                        'Unificar dÃ­vidas com o mesmo nome',
+                        'Unificar dÃƒÂ­vidas com o mesmo nome',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: const Text(
-                        'Se vocÃª tiver vÃ¡rios registros deste cliente (ex.: um por emprÃ©stimo), o sistema consolida tudo em um Ãºnico perfil para o cliente ver todas as dÃ­vidas.',
+                        'Se vocÃƒÂª tiver vÃƒÂ¡rios registros deste cliente (ex.: um por emprÃƒÂ©stimo), o sistema consolida tudo em um ÃƒÂºnico perfil para o cliente ver todas as dÃƒÂ­vidas.',
                         style: TextStyle(color: Color(0xFF5B6474), height: 1.35),
                       ),
                       controlAffinity: ListTileControlAffinity.leading,
@@ -16851,7 +16851,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildSummaryGrid(Client client, DebtSummary debt) {
       final items = [
         _SummaryItem(
-          debt.isNegotiated ? 'Empréstimo original' : 'Empréstimo',
+          debt.isNegotiated ? 'EmprÃ©stimo original' : 'EmprÃ©stimo',
           DateFormat('dd/MM/yyyy').format(client.borrowedDate),
         ),
         _SummaryItem('Principal em aberto', _currency(debt.remainingPrincipal)),
@@ -16870,7 +16870,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             ),
           ),
         _SummaryItem(
-          'Juros diário',
+          'Juros diÃ¡rio',
           _formatInterestRule(
             type: client.dailyInterestType,
             percentageValue: client.dailyInterestRate,
@@ -16883,7 +16883,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         if (debt.isNegotiated)
           _SummaryItem(
             'Parcelas',
-            '${debt.installmentsPaid}/${debt.installmentCount} • ${_currency(debt.installmentAmount)}',
+            '${debt.installmentsPaid}/${debt.installmentCount} â€¢ ${_currency(debt.installmentAmount)}',
           ),
         if (debt.isNegotiated)
           _SummaryItem(
@@ -16897,7 +16897,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ),
         if (debt.isNegotiated && client.renegotiatedAt != null)
           _SummaryItem(
-            'Início da renegociação',
+            'InÃ­cio da renegociaÃ§Ã£o',
             DateFormat('dd/MM/yyyy').format(client.renegotiatedAt!),
           ),
       _SummaryItem(
@@ -16966,7 +16966,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text(
-        'Ações rápidas',
+        'AÃ§Ãµes rÃ¡pidas',
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 12),
@@ -16976,7 +16976,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         children: [
           _ActionChip(
             icon: Icons.edit_rounded,
-            label: 'Editar dívida',
+            label: 'Editar dÃ­vida',
             color: const Color(0xFF061C3D),
             onTap: () {
               Navigator.pop(context);
@@ -17057,7 +17057,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
           _ActionChip(
             icon: Icons.message_rounded,
-            label: 'Cobrar automático',
+            label: 'Cobrar automÃ¡tico',
             color: const Color(0xFF22C55E),
             onTap: () => _launchWhatsApp(client, debt, automatic: true),
           ),
@@ -17067,8 +17067,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ? Icons.heart_broken_rounded
                 : Icons.money_off_csred_rounded,
             label: client.isMarkedAsLostSafe
-                ? 'Remover prejuízo'
-                : 'Marcar prejuízo',
+                ? 'Remover prejuÃ­zo'
+                : 'Marcar prejuÃ­zo',
             color: const Color(0xFFB91C1C),
             onTap: () {
               Navigator.pop(context);
@@ -17084,20 +17084,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               final confirmed = await _confirmDestructiveAction(
                 title: 'Excluir cliente',
                 message:
-                    'Esse cliente vai para a lista de excluídos.',
+                    'Esse cliente vai para a lista de excluÃ­dos.',
                 confirmLabel: 'Excluir',
               );
               if (!confirmed) return;
               _deleteClient(client.id);
 
-              setState(() {}); // 🔥 força atualizar lista
+              setState(() {}); // ðŸ”¥ forÃ§a atualizar lista
 
               Navigator.pop(context);
             },
           ),
 
           if (client.status == 'excluido' ||
-              client.status == 'excluído') ...[
+              client.status == 'excluÃ­do') ...[
             _ActionChip(
               icon: Icons.restore_from_trash_rounded,
               label: 'Restaurar',
@@ -17106,7 +17106,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final confirmed = await _confirmDestructiveAction(
                   title: 'Restaurar cliente',
                   message:
-                      'Esse registro voltará para a carteira.',
+                      'Esse registro voltarÃ¡ para a carteira.',
                   confirmLabel: 'Restaurar',
                 );
 
@@ -17125,7 +17125,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final confirmed = await _confirmDestructiveAction(
                   title: 'Eliminar cliente',
                   message:
-                      'Esse registro será apagado definitivamente.',
+                      'Esse registro serÃ¡ apagado definitivamente.',
                   confirmLabel: 'Eliminar',
                 );
 
@@ -17181,19 +17181,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Histórico de pagamentos',
+          'HistÃ³rico de pagamentos',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _safePaymentHistorySearchController,
           decoration: InputDecoration(
-            hintText: 'Buscar no histórico',
+            hintText: 'Buscar no histÃ³rico',
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: _safePaymentHistoryQuery.isEmpty
                 ? null
                 : IconButton(
-                    tooltip: 'Limpar busca do histórico',
+                    tooltip: 'Limpar busca do histÃ³rico',
                     onPressed: () {
                       _safePaymentHistorySearchController.clear();
                       setState(() {
@@ -17235,7 +17235,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 filter: _PaymentHistoryQuickFilter.principal,
               ),
               _buildPaymentHistoryChip(
-                label: 'Quitação',
+                label: 'QuitaÃ§Ã£o',
                 filter: _PaymentHistoryQuickFilter.quitacao,
               ),
             ],
@@ -17291,8 +17291,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${DateFormat('dd/MM/yyyy HH:mm').format(payment.date)} • '
-                          'Juros ${_currency(payment.interestPaid)} • '
+                          '${DateFormat('dd/MM/yyyy HH:mm').format(payment.date)} â€¢ '
+                          'Juros ${_currency(payment.interestPaid)} â€¢ '
                           'Principal ${_currency(payment.principalPaid)}',
                           style: const TextStyle(
                             color: Color(0xFF6B7280),
@@ -17338,7 +17338,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       ),
                       if (payment.amount > 0.009)
                         PopupMenuButton<String>(
-                          tooltip: 'Ações do pagamento',
+                          tooltip: 'AÃ§Ãµes do pagamento',
                           onSelected: (value) {
                             if (value == 'edit') {
                               _showEditPaymentDialog(client, payment);
@@ -17346,7 +17346,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               _confirmDestructiveAction(
                                 title: 'Excluir pagamento',
                                 message:
-                                    'Esse pagamento será removido do histórico e o saldo do cliente será recalculado.',
+                                    'Esse pagamento serÃ¡ removido do histÃ³rico e o saldo do cliente serÃ¡ recalculado.',
                                 confirmLabel: 'Excluir',
                               ).then((confirmed) {
                                 if (!confirmed) return;
@@ -17398,7 +17398,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   String _buildBackupPayload() {
     final payload = {
-      'app': 'COBREJA',
+      'app': 'PEGUEI&PAGUEI',
       'schema': 1,
       'exportedAt': DateTime.now().toIso8601String(),
       'clients': _clients.map((client) => client.toMap()).toList(),
@@ -17467,7 +17467,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
 
     final payload = {
-      'app': 'COBREJA',
+      'app': 'PEGUEI&PAGUEI',
       'schema': 1,
       'source': 'legacy_local_shared_preferences_scan',
       'sourceKey': sourceKey,
@@ -17527,7 +17527,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   String _buildPaymentReceiptText(Client client, PaymentRecord payment) {
     final buffer = StringBuffer();
-    buffer.writeln('COBREJA - Comprovante de pagamento');
+    buffer.writeln('PEGUEI&PAGUEI - Comprovante de pagamento');
     buffer.writeln(
       'Gerado em ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
     );
@@ -17543,13 +17543,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       buffer.writeln(
         'Valor em juros: ${_currency(math.max(0, payment.interestPaid - payment.dailyPaid))}',
       );
-      buffer.writeln('Valor em diÃ¡ria: ${_currency(payment.dailyPaid)}');
+      buffer.writeln('Valor em diÃƒÂ¡ria: ${_currency(payment.dailyPaid)}');
     } else {
       buffer.writeln('Valor em juros: ${_currency(payment.interestPaid)}');
     }
     buffer.writeln('Valor em principal: ${_currency(payment.principalPaid)}');
     if (payment.note.trim().isNotEmpty) {
-      buffer.writeln('Observação: ${payment.note.trim()}');
+      buffer.writeln('ObservaÃ§Ã£o: ${payment.note.trim()}');
     }
     return buffer.toString().trim();
   }
@@ -17570,7 +17570,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              'COBREJA - Comprovante de pagamento',
+              'PEGUEI&PAGUEI - Comprovante de pagamento',
               style: pw.TextStyle(
                 fontSize: 22,
                 fontWeight: pw.FontWeight.bold,
@@ -17622,13 +17622,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     pw.Text(
                       'Juros: ${_currency(math.max(0, payment.interestPaid - payment.dailyPaid))}',
                     ),
-                    pw.Text('DiÃ¡ria: ${_currency(payment.dailyPaid)}'),
+                    pw.Text('DiÃƒÂ¡ria: ${_currency(payment.dailyPaid)}'),
                   ] else
                     pw.Text('Juros: ${_currency(payment.interestPaid)}'),
                   pw.Text('Principal: ${_currency(payment.principalPaid)}'),
                   if (payment.note.trim().isNotEmpty) ...[
                     pw.SizedBox(height: 8),
-                    pw.Text('Observação: ${payment.note.trim()}'),
+                    pw.Text('ObservaÃ§Ã£o: ${payment.note.trim()}'),
                   ],
                 ],
               ),
@@ -17701,7 +17701,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           _currency(math.max(0, payment.interestPaid - payment.dailyPaid)),
                         ),
                         _buildReceiptLine(
-                          'Valor em diÃ¡ria',
+                          'Valor em diÃƒÂ¡ria',
                           _currency(payment.dailyPaid),
                         ),
                       ] else
@@ -17714,7 +17714,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         _currency(payment.principalPaid),
                       ),
                       if (payment.note.trim().isNotEmpty)
-                        _buildReceiptLine('Observação', payment.note.trim()),
+                        _buildReceiptLine('ObservaÃ§Ã£o', payment.note.trim()),
                     ],
                   ),
                 ),
@@ -17913,7 +17913,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         margin: const pw.EdgeInsets.all(24),
         build: (context) => [
           pw.Text(
-            'COBREJA - Relatorio da carteira',
+            'PEGUEI&PAGUEI - Relatorio da carteira',
             style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 6),
@@ -17984,7 +17984,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         return const _ResolvedReportPeriod(
           startDate: null,
           endDate: null,
-          label: 'Todo o período',
+          label: 'Todo o perÃ­odo',
         );
       case _ReportPeriodPreset.hoje:
         return _ResolvedReportPeriod(
@@ -17996,26 +17996,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         return _ResolvedReportPeriod(
           startDate: today.subtract(const Duration(days: 6)),
           endDate: today,
-          label: 'Últimos 7 dias',
+          label: 'Ãšltimos 7 dias',
         );
       case _ReportPeriodPreset.ultimos30Dias:
         return _ResolvedReportPeriod(
           startDate: today.subtract(const Duration(days: 29)),
           endDate: today,
-          label: 'Últimos 30 dias',
+          label: 'Ãšltimos 30 dias',
         );
       case _ReportPeriodPreset.esteMes:
         return _ResolvedReportPeriod(
           startDate: DateTime(today.year, today.month, 1),
           endDate: today,
-          label: 'Este mês',
+          label: 'Este mÃªs',
         );
       case _ReportPeriodPreset.personalizado:
         if (customStart == null || customEnd == null) {
           return const _ResolvedReportPeriod(
             startDate: null,
             endDate: null,
-            label: 'Período personalizado',
+            label: 'PerÃ­odo personalizado',
           );
         }
         final start = _dateOnly(customStart);
@@ -18023,7 +18023,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         return _ResolvedReportPeriod(
           startDate: start.isBefore(end) ? start : end,
           endDate: start.isBefore(end) ? end : start,
-          label: 'Período personalizado',
+          label: 'PerÃ­odo personalizado',
         );
     }
   }
@@ -18086,7 +18086,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       orElse: () => null,
     );
     if (client == null) return 'Cliente selecionado';
-    return '${client.name} • ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}';
+    return '${client.name} â€¢ ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}';
   }
 
   String _buildDetailedCsvPayload({
@@ -18115,7 +18115,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
 
     final buffer = StringBuffer();
-    buffer.writeln('Relatorio,COBREJA');
+    buffer.writeln('Relatorio,PEGUEI&PAGUEI');
     buffer.writeln('Cliente,${_escapeCsvField(_reportClientLabel(clientId))}');
     buffer.writeln('Periodo,${_escapeCsvField(periodLabel)}');
     buffer.writeln('Data de emissao,${_escapeCsvField(DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()))}');
@@ -18231,7 +18231,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         margin: const pw.EdgeInsets.all(24),
         build: (context) => [
           pw.Text(
-            'COBREJA - Relatorio detalhado',
+            'PEGUEI&PAGUEI - Relatorio detalhado',
             style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 6),
@@ -18320,9 +18320,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (!_hasPlanAccess(AppPlan.premium)) {
       _ensurePlanAccess(
         requiredPlan: AppPlan.premium,
-        featureTitle: 'Relatórios completos',
+        featureTitle: 'RelatÃ³rios completos',
         description:
-            'Os relatórios detalhados por cliente e período ajudam a vender mais valor para quem precisa de visão gerencial da carteira.',
+            'Os relatÃ³rios detalhados por cliente e perÃ­odo ajudam a vender mais valor para quem precisa de visÃ£o gerencial da carteira.',
       );
       return;
     }
@@ -18394,7 +18394,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           (client) => DropdownMenuItem<String?>(
                             value: client.id,
                             child: Text(
-                              '${client.name} • ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
+                              '${client.name} â€¢ ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -18407,11 +18407,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<_ReportPeriodPreset>(
                       initialValue: selectedPreset,
-                      decoration: const InputDecoration(labelText: 'Período'),
+                      decoration: const InputDecoration(labelText: 'PerÃ­odo'),
                       items: const [
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.todoPeriodo,
-                          child: Text('Todo o período'),
+                          child: Text('Todo o perÃ­odo'),
                         ),
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.hoje,
@@ -18419,15 +18419,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.ultimos7Dias,
-                          child: Text('Últimos 7 dias'),
+                          child: Text('Ãšltimos 7 dias'),
                         ),
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.ultimos30Dias,
-                          child: Text('Últimos 30 dias'),
+                          child: Text('Ãšltimos 30 dias'),
                         ),
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.esteMes,
-                          child: Text('Este mês'),
+                          child: Text('Este mÃªs'),
                         ),
                         DropdownMenuItem(
                           value: _ReportPeriodPreset.personalizado,
@@ -18495,7 +18495,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            '${selectedClients.length} cliente(s) • ${selectedPayments.length} pagamento(s) no período',
+                            '${selectedClients.length} cliente(s) â€¢ ${selectedPayments.length} pagamento(s) no perÃ­odo',
                             style: const TextStyle(
                               color: Color(0xFF111827),
                               fontWeight: FontWeight.w600,
@@ -18663,7 +18663,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       requiredPlan: AppPlan.professional,
                       featureTitle: 'Exportar CSV simples',
                       description:
-                          'A exportação simples em CSV é um recurso do Profissional para levar sua carteira ao Excel ou Google Sheets.',
+                          'A exportaÃ§Ã£o simples em CSV Ã© um recurso do Profissional para levar sua carteira ao Excel ou Google Sheets.',
                     );
                     if (!allowed || !context.mounted) return;
                     Navigator.pop(context);
@@ -18682,7 +18682,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       requiredPlan: AppPlan.professional,
                       featureTitle: 'Exportar PDF simples',
                       description:
-                          'A exportação em PDF ajuda a apresentar a carteira com aparência mais profissional para consulta e impressão.',
+                          'A exportaÃ§Ã£o em PDF ajuda a apresentar a carteira com aparÃªncia mais profissional para consulta e impressÃ£o.',
                     );
                     if (!allowed || !context.mounted) return;
                     Navigator.pop(context);
@@ -18701,7 +18701,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       requiredPlan: AppPlan.professional,
                       featureTitle: 'Restaurar backup',
                       description:
-                          'A restauração de backup fica liberada no Profissional para recuperar dados e trocar de aparelho com mais segurança.',
+                          'A restauraÃ§Ã£o de backup fica liberada no Profissional para recuperar dados e trocar de aparelho com mais seguranÃ§a.',
                     );
                     if (!allowed || !context.mounted) return;
                     Navigator.pop(context);
@@ -18720,7 +18720,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     showPrivacyPolicyDialog(this.context);
                   },
                   icon: const Icon(Icons.privacy_tip_rounded),
-                  label: const Text('Política de privacidade'),
+                  label: const Text('PolÃ­tica de privacidade'),
                 ),
               ),
               const SizedBox(height: 10),
@@ -18848,7 +18848,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Selecione um arquivo .json exportado pela COBREJA ou cole o conteúdo manualmente. Os dados atuais serão substituídos pelos dados do backup.',
+                'Selecione um arquivo .json exportado pela PEGUEI&PAGUEI ou cole o conteÃºdo manualmente. Os dados atuais serÃ£o substituÃ­dos pelos dados do backup.',
                 style: TextStyle(
                   color: Color(0xFF5B6474),
                   height: 1.45,
@@ -18883,9 +18883,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     final clipboardText = data?.text?.trim() ?? '';
                     if (clipboardText.isEmpty) {
                       _showSnack(
-                        'Não encontrei conteúdo na área de transferência.',
+                        'NÃ£o encontrei conteÃºdo na Ã¡rea de transferÃªncia.',
                         tone: _FeedbackTone.warning,
-                        title: 'Área de transferência vazia',
+                        title: 'Ãrea de transferÃªncia vazia',
                       );
                       return;
                     }
@@ -18894,13 +18894,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       TextPosition(offset: controller.text.length),
                     );
                     _showSnack(
-                      'O conteúdo copiado foi colado no campo de backup.',
+                      'O conteÃºdo copiado foi colado no campo de backup.',
                       tone: _FeedbackTone.success,
-                      title: 'Conteúdo colado',
+                      title: 'ConteÃºdo colado',
                     );
                   },
                   icon: const Icon(Icons.content_paste_rounded),
-                  label: const Text('Colar da área de transferência'),
+                  label: const Text('Colar da Ã¡rea de transferÃªncia'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -18951,9 +18951,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
       if (content == null || content.trim().isEmpty) {
         _showSnack(
-          'Não foi possível ler esse arquivo de backup.',
+          'NÃ£o foi possÃ­vel ler esse arquivo de backup.',
           tone: _FeedbackTone.error,
-          title: 'Arquivo inválido',
+          title: 'Arquivo invÃ¡lido',
         );
         return;
       }
@@ -18961,7 +18961,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       await _restoreBackup(content);
     } catch (_) {
       _showSnack(
-        'Não foi possível abrir esse arquivo agora. Tente novamente ou use a opção de colar o backup.',
+        'NÃ£o foi possÃ­vel abrir esse arquivo agora. Tente novamente ou use a opÃ§Ã£o de colar o backup.',
         tone: _FeedbackTone.error,
         title: 'Falha ao selecionar arquivo',
       );
@@ -19086,7 +19086,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   requiredPlan: AppPlan.professional,
                   featureTitle: 'Lembretes personalizados',
                   description:
-                      'O plano Profissional libera a criação de lembretes próprios além dos alertas automáticos da carteira.',
+                      'O plano Profissional libera a criaÃ§Ã£o de lembretes prÃ³prios alÃ©m dos alertas automÃ¡ticos da carteira.',
                 );
                 if (!allowed || !context.mounted) return;
                 Navigator.pop(context);
@@ -19111,7 +19111,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           requiredPlan: AppPlan.professional,
                           featureTitle: 'Lembretes personalizados',
                           description:
-                              'Esse recurso pertence ao plano Profissional e ajuda a organizar cobranças e tarefas fora do fluxo automático.',
+                              'Esse recurso pertence ao plano Profissional e ajuda a organizar cobranÃ§as e tarefas fora do fluxo automÃ¡tico.',
                         );
                         if (!allowed || !context.mounted) return;
                         Navigator.pop(context);
@@ -19197,7 +19197,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     requiredPlan: AppPlan.professional,
                                     featureTitle: 'Editar lembretes',
                                     description:
-                                        'A edição de lembretes personalizados faz parte do plano Profissional.',
+                                        'A ediÃ§Ã£o de lembretes personalizados faz parte do plano Profissional.',
                                   );
                                   if (!allowed || !context.mounted) return;
                                   Navigator.pop(context);
@@ -19221,7 +19221,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       const Divider(height: 24),
                     if (reminders.isNotEmpty) ...[
                       const Text(
-                        'Alertas automáticos',
+                        'Alertas automÃ¡ticos',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 10),
@@ -19259,7 +19259,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 requiredPlan: AppPlan.professional,
                 featureTitle: 'Novo lembrete',
                 description:
-                    'A criação de lembretes personalizados está disponível a partir do plano Profissional.',
+                    'A criaÃ§Ã£o de lembretes personalizados estÃ¡ disponÃ­vel a partir do plano Profissional.',
               );
               if (!allowed || !context.mounted) return;
               Navigator.pop(context);
@@ -19296,14 +19296,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             children: [
               TextField(
                 controller: titleController,
-                decoration: const InputDecoration(labelText: 'Título'),
+                decoration: const InputDecoration(labelText: 'TÃ­tulo'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descriptionController,
                 minLines: 3,
                 maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Descrição'),
+                decoration: const InputDecoration(labelText: 'DescriÃ§Ã£o'),
               ),
             ],
           ),
@@ -19368,7 +19368,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         requiredPlan: AppPlan.professional,
         featureTitle: 'Lembretes personalizados',
         description:
-            'O plano Profissional libera lembretes manuais para complementar os alertas automáticos.',
+            'O plano Profissional libera lembretes manuais para complementar os alertas automÃ¡ticos.',
       );
       return;
     }
@@ -19390,7 +19390,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   void _toggleLossFlag(Client client) {
     final debt = FinanceService.calculateDebt(client);
     if (client.status != 'devendo' || debt.totalDebt <= 0.009) {
-      _showSnack('Esse cliente não possui saldo em aberto para entrar no prejuízo.', tone: _FeedbackTone.info, title: 'Nada para marcar');
+      _showSnack('Esse cliente nÃ£o possui saldo em aberto para entrar no prejuÃ­zo.', tone: _FeedbackTone.info, title: 'Nada para marcar');
       return;
     }
 
@@ -19398,9 +19398,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _syncClient(client);
 
     if (client.isMarkedAsLostSafe) {
-      _showSnack('O cliente foi incluído no prejuízo estimado e sai automaticamente se o saldo cair.', tone: _FeedbackTone.warning, title: 'Prejuízo marcado');
+      _showSnack('O cliente foi incluÃ­do no prejuÃ­zo estimado e sai automaticamente se o saldo cair.', tone: _FeedbackTone.warning, title: 'PrejuÃ­zo marcado');
     } else {
-      _showSnack('O cliente foi removido do prejuízo manual.', tone: _FeedbackTone.success, title: 'Prejuízo removido');
+      _showSnack('O cliente foi removido do prejuÃ­zo manual.', tone: _FeedbackTone.success, title: 'PrejuÃ­zo removido');
     }
   }
 
@@ -19499,7 +19499,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     final debt = FinanceService.calculateDebt(client);
     // "Pagou juros" registra apenas o juro mensal do ciclo atual.
-    // A diÃ¡ria (mora) pode ser cobrada separadamente via pagamento parcial.
+    // A diÃƒÂ¡ria (mora) pode ser cobrada separadamente via pagamento parcial.
     if (debt.cycleInterest <= 0) {
       _showSnack('No momento nao ha juros pendentes para este cliente.', tone: _FeedbackTone.info, title: 'Nada pendente');
       return;
@@ -19521,7 +19521,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   void _settleClient(Client client) {
     final debt = FinanceService.calculateDebt(client);
     if (debt.totalDebt <= 0) {
-      _showSnack('Este cliente ja esta quitado e nao possui saldo em aberto.', tone: _FeedbackTone.info, title: 'Dívida encerrada');
+      _showSnack('Este cliente ja esta quitado e nao possui saldo em aberto.', tone: _FeedbackTone.info, title: 'DÃ­vida encerrada');
       return;
     }
 
@@ -19529,9 +19529,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       client: client,
       amount: debt.totalDebt,
       mode: PaymentMode.settlement,
-      note: 'Quitação total da dívida.',
+      note: 'QuitaÃ§Ã£o total da dÃ­vida.',
     );
-    _showSnack('A dívida foi quitada com sucesso e saiu da carteira ativa.', tone: _FeedbackTone.success, title: 'Cliente quitado');
+    _showSnack('A dÃ­vida foi quitada com sucesso e saiu da carteira ativa.', tone: _FeedbackTone.success, title: 'Cliente quitado');
     if (receipt != null) {
       _showPaymentReceiptDialog(client, receipt);
     }
@@ -19559,7 +19559,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Apenas juros: ${_currency(debt.totalInterestDue)} • '
+                  'Apenas juros: ${_currency(debt.totalInterestDue)} â€¢ '
                   'Principal: ${_currency(debt.remainingPrincipal)}',
                   style: const TextStyle(color: Color(0xFF6B7280)),
                 ),
@@ -19575,7 +19575,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   runSpacing: 8,
                   children: [
                     _buildModeChip(
-                      label: 'Automático',
+                      label: 'AutomÃ¡tico',
                       selected: mode == PaymentMode.automatic,
                       onTap: () => setDialog(() => mode = PaymentMode.automatic),
                     ),
@@ -19596,7 +19596,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: noteController,
-                  decoration: const InputDecoration(labelText: 'Observação'),
+                  decoration: const InputDecoration(labelText: 'ObservaÃ§Ã£o'),
                 ),
               ],
             ),
@@ -19610,7 +19610,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               onPressed: () {
                 final amount = _readDouble(amountController.text);
                 if (amount <= 0) {
-                  _showSnack('Digite um valor maior que zero para registrar o pagamento.', tone: _FeedbackTone.warning, title: 'Valor inválido');
+                  _showSnack('Digite um valor maior que zero para registrar o pagamento.', tone: _FeedbackTone.warning, title: 'Valor invÃ¡lido');
                   return;
                 }
 
@@ -19621,7 +19621,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   note: noteController.text.trim(),
                 );
                 Navigator.pop(context);
-                _showSnack('O pagamento foi registrado com sucesso no histórico do cliente.', tone: _FeedbackTone.success, title: 'Pagamento salvo');
+                _showSnack('O pagamento foi registrado com sucesso no histÃ³rico do cliente.', tone: _FeedbackTone.success, title: 'Pagamento salvo');
                 if (receipt != null) {
                   _showPaymentReceiptDialog(client, receipt);
                 }
@@ -19638,9 +19638,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (!_hasPlanAccess(AppPlan.professional)) {
       _ensurePlanAccess(
         requiredPlan: AppPlan.professional,
-        featureTitle: 'Renegociação de dívida',
+        featureTitle: 'RenegociaÃ§Ã£o de dÃ­vida',
         description:
-            'A renegociação parcelada é um recurso do plano Profissional pensado para quem precisa reorganizar dívidas complicadas.',
+            'A renegociaÃ§Ã£o parcelada Ã© um recurso do plano Profissional pensado para quem precisa reorganizar dÃ­vidas complicadas.',
       );
       return;
     }
@@ -19662,14 +19662,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
-          title: const Text('Renegociar dívida'),
+          title: const Text('Renegociar dÃ­vida'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dívida atual: ${_currency(debt.totalDebt)}',
+                  'DÃ­vida atual: ${_currency(debt.totalDebt)}',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 16),
@@ -19678,7 +19678,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setDialog(() {}),
                   decoration: const InputDecoration(
-                    labelText: 'Multiplicador da dívida',
+                    labelText: 'Multiplicador da dÃ­vida',
                     hintText: 'Ex.: 2 ou 3',
                   ),
                 ),
@@ -19698,7 +19698,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setDialog(() {}),
                   decoration: const InputDecoration(
-                    labelText: 'Valor final da dívida (opcional)',
+                    labelText: 'Valor final da dÃ­vida (opcional)',
                     hintText: 'Se preencher, ele substitui o multiplicador',
                   ),
                 ),
@@ -19730,19 +19730,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Prévia da renegociação',
+                            'PrÃ©via da renegociaÃ§Ã£o',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF111827),
                             ),
                           ),
                           const SizedBox(height: 10),
-                          Text('Dívida atual: ${_currency(debt.totalDebt)}'),
+                          Text('DÃ­vida atual: ${_currency(debt.totalDebt)}'),
                           const SizedBox(height: 6),
                           Text(
                             customTotal > 0
                                 ? 'Valor final manual: ${_currency(customTotal)}'
-                                : 'Multiplicador aplicado: ${multiplier > 0 ? multiplier.toStringAsFixed(multiplier.truncateToDouble() == multiplier ? 0 : 2) : 'Não definido'}x',
+                                : 'Multiplicador aplicado: ${multiplier > 0 ? multiplier.toStringAsFixed(multiplier.truncateToDouble() == multiplier ? 0 : 2) : 'NÃ£o definido'}x',
                           ),
                           const SizedBox(height: 6),
                           Text('Novo total: ${_currency(negotiatedTotal)}'),
@@ -19752,11 +19752,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Empréstimo original: ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
+                            'EmprÃ©stimo original: ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Início da renegociação: ${DateFormat('dd/MM/yyyy').format(renegotiationDate)}',
+                            'InÃ­cio da renegociaÃ§Ã£o: ${DateFormat('dd/MM/yyyy').format(renegotiationDate)}',
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -19764,7 +19764,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Atraso por dia: ${dailyLateValue > 0 ? _formatInterestRule(type: dailyLateType, percentageValue: dailyLateType == InterestValueType.percentage ? dailyLateValue : 0, amountValue: dailyLateType == InterestValueType.fixedAmount ? dailyLateValue : 0, suffix: 'a.d.') : 'Sem juros diário definido'}',
+                            'Atraso por dia: ${dailyLateValue > 0 ? _formatInterestRule(type: dailyLateType, percentageValue: dailyLateType == InterestValueType.percentage ? dailyLateValue : 0, amountValue: dailyLateType == InterestValueType.fixedAmount ? dailyLateValue : 0, suffix: 'a.d.') : 'Sem juros diÃ¡rio definido'}',
                           ),
                         ],
                       ),
@@ -19795,7 +19795,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     },
                     icon: const Icon(Icons.history_toggle_off_rounded),
                     label: Text(
-                      'Início da renegociação: ${DateFormat('dd/MM/yyyy').format(renegotiationDate)}',
+                      'InÃ­cio da renegociaÃ§Ã£o: ${DateFormat('dd/MM/yyyy').format(renegotiationDate)}',
                     ),
                   ),
                 ),
@@ -19825,7 +19825,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Juros diário por atraso da renegociação',
+                    'Juros diÃ¡rio por atraso da renegociaÃ§Ã£o',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -19858,8 +19858,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: dailyLateType == InterestValueType.fixedAmount
-                        ? 'Juros diário por atraso (R\$)'
-                        : 'Juros diário por atraso (%)',
+                        ? 'Juros diÃ¡rio por atraso (R\$)'
+                        : 'Juros diÃ¡rio por atraso (%)',
                   ),
                 ),
               ],
@@ -19878,7 +19878,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final customTotal = _readDouble(customTotalController.text);
 
                 if ((multiplier <= 0 && customTotal <= 0) || installments <= 0) {
-                  _showSnack('Informe um valor final da dívida ou um multiplicador, além da quantidade de parcelas.', tone: _FeedbackTone.warning, title: 'Dados inválidos');
+                  _showSnack('Informe um valor final da dÃ­vida ou um multiplicador, alÃ©m da quantidade de parcelas.', tone: _FeedbackTone.warning, title: 'Dados invÃ¡lidos');
                   return;
                 }
 
@@ -19936,7 +19936,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final installmentAmount = negotiatedTotal / installmentCount;
     final now = DateTime.now();
     final dailyLateRule = renegotiationDailyInterestValue <= 0
-        ? 'Sem juros diário por atraso'
+        ? 'Sem juros diÃ¡rio por atraso'
         : _formatInterestRule(
             type: renegotiationDailyInterestType,
             percentageValue: renegotiationDailyInterestType ==
@@ -19959,7 +19959,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         principalPaid: 0,
         type: 'Renegociacao',
         note:
-            'Dívida renegociada em ${installmentCount}x de ${_currency(installmentAmount)}. Total novo: ${_currency(negotiatedTotal)}.${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${multiplier.toStringAsFixed(multiplier.truncateToDouble() == multiplier ? 0 : 2)}x.'} Início: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diário: $dailyLateRule.',
+            'DÃ­vida renegociada em ${installmentCount}x de ${_currency(installmentAmount)}. Total novo: ${_currency(negotiatedTotal)}.${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${multiplier.toStringAsFixed(multiplier.truncateToDouble() == multiplier ? 0 : 2)}x.'} InÃ­cio: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diÃ¡rio: $dailyLateRule.',
       ),
       ...client.paymentHistory,
     ];
@@ -20000,7 +20000,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         newDueDate: firstInstallmentDate,
       );
     }
-    _showSnack('A renegociacao foi aplicada e o novo acordo ja esta valendo.', tone: _FeedbackTone.success, title: 'Dívida renegociada');
+    _showSnack('A renegociacao foi aplicada e o novo acordo ja esta valendo.', tone: _FeedbackTone.success, title: 'DÃ­vida renegociada');
   }
 
   PaymentRecord? _applyPayment({
@@ -20029,7 +20029,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         break;
       case PaymentMode.principalOnly:
         // No backend, pagamentos "parciais" sempre abatem primeiro mora/juros e depois principal.
-        // Mantemos esse comportamento para nÃ£o divergir dos cÃ¡lculos oficiais.
+        // Mantemos esse comportamento para nÃƒÂ£o divergir dos cÃƒÂ¡lculos oficiais.
         {
           double remaining = amount;
           dailyPaid = math.min(remaining, dailyOutstanding);
@@ -20075,7 +20075,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       note: note,
     );
 
-    // No backend, `currentCycleInterestPaid` registra apenas o juro mensal (sem a mora diÃ¡ria).
+    // No backend, `currentCycleInterestPaid` registra apenas o juro mensal (sem a mora diÃƒÂ¡ria).
     client.interestPaidCurrentCycle += monthlyInterestPaid;
     client.totalInterestCollected += interestPaid;
     client.totalPrincipalCollected += principalPaid;
@@ -20127,7 +20127,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         client.pagouJuros = false;
         client.interestPaidCurrentCycle = 0;
       client.installmentsPaid = client.installmentCount;
-    } else if (client.status != 'excluído') {
+    } else if (client.status != 'excluÃ­do') {
       client.status = 'devendo';
     }
 
@@ -20187,7 +20187,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       _showSnack(
         'Pagamento salvo localmente, mas falhou no backend.',
         tone: _FeedbackTone.warning,
-        title: 'Sincronização pendente',
+        title: 'SincronizaÃ§Ã£o pendente',
       );
     }
   }
@@ -20213,7 +20213,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       _showSnack(
         'Renegociacao salva localmente, mas falhou no backend.',
         tone: _FeedbackTone.warning,
-        title: 'Sincronização pendente',
+        title: 'SincronizaÃ§Ã£o pendente',
       );
     }
   }
@@ -20227,7 +20227,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       case PaymentMode.automatic:
         return 'Pagamento parcial';
       case PaymentMode.settlement:
-        return 'Quitação';
+        return 'QuitaÃ§Ã£o';
     }
   }
 
@@ -20255,11 +20255,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final warning = resolvedMode == _ChargeCollectionMode.installment
           ? 'Nao encontrei parcelas em aberto para cobrar dessa pessoa agora.'
           : resolvedMode == _ChargeCollectionMode.interestOnly
-              ? 'Nao ha juros do mês pendentes para essa cobranca neste momento.'
+              ? 'Nao ha juros do mÃªs pendentes para essa cobranca neste momento.'
               : resolvedMode == _ChargeCollectionMode.currentCycle
                   ? 'Nao ha valor do ciclo atual para cobrar agora.'
                   : resolvedMode == _ChargeCollectionMode.dailyOnly
-                      ? 'Nao ha diária acumulada para essa cobranca neste momento.'
+                      ? 'Nao ha diÃ¡ria acumulada para essa cobranca neste momento.'
               : 'Nao encontrei valores em aberto para essa cobranca.';
       _showSnack(
         warning,
@@ -20320,10 +20320,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       builder: (dialogContext) {
         final screenHeight = MediaQuery.of(dialogContext).size.height;
         final selectedStatusText = selectedDebt.isOverdue
-            ? '${selectedDebt.overdueDays} dia(s) de atraso neste débito.'
+            ? '${selectedDebt.overdueDays} dia(s) de atraso neste dÃ©bito.'
             : selectedDebt.isDueToday
-                ? 'Este débito vence hoje.'
-                : 'Este débito está dentro do prazo.';
+                ? 'Este dÃ©bito vence hoje.'
+                : 'Este dÃ©bito estÃ¡ dentro do prazo.';
         return AlertDialog(
           title: const Text('Tipo de cobranca'),
           content: ConstrainedBox(
@@ -20358,7 +20358,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     context: dialogContext,
                     mode: _ChargeCollectionMode.total,
                     title: 'Cobrar total',
-                    subtitle: 'Principal + juros de todos os débitos em aberto.',
+                    subtitle: 'Principal + juros de todos os dÃ©bitos em aberto.',
                     amount: totalAmount,
                     enabled: totalAmount > 0.009,
                   ),
@@ -20366,8 +20366,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   _buildChargeModeOption(
                     context: dialogContext,
                     mode: _ChargeCollectionMode.interestOnly,
-                    title: 'Cobrar só juros',
-                    subtitle: 'Cobra só o juro do mês, sem incluir a diária.',
+                    title: 'Cobrar sÃ³ juros',
+                    subtitle: 'Cobra sÃ³ o juro do mÃªs, sem incluir a diÃ¡ria.',
                     amount: interestAmount,
                     enabled: interestAmount > 0.009,
                   ),
@@ -20375,9 +20375,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   _buildChargeModeOption(
                     context: dialogContext,
                     mode: _ChargeCollectionMode.currentCycle,
-                    title: 'Cobrar mês atual',
+                    title: 'Cobrar mÃªs atual',
                     subtitle:
-                        'Cobra juros do mês + diária acumulada, sem puxar o principal.',
+                        'Cobra juros do mÃªs + diÃ¡ria acumulada, sem puxar o principal.',
                     amount: currentCycleAmount,
                     enabled: currentCycleAmount > 0.009,
                   ),
@@ -20385,7 +20385,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   _buildChargeModeOption(
                     context: dialogContext,
                     mode: _ChargeCollectionMode.dailyOnly,
-                    title: 'Cobrar só diária',
+                    title: 'Cobrar sÃ³ diÃ¡ria',
                     subtitle: 'Usa somente a mora pelos dias em atraso.',
                     amount: dailyOnlyAmount,
                     enabled: dailyOnlyAmount > 0.009,
@@ -20395,7 +20395,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     context: dialogContext,
                     mode: _ChargeCollectionMode.installment,
                     title: 'Cobrar parcela',
-                    subtitle: 'Usa o valor das parcelas das dívidas renegociadas.',
+                    subtitle: 'Usa o valor das parcelas das dÃ­vidas renegociadas.',
                     amount: installmentAmount,
                     enabled: installmentAmount > 0.009,
                   ),
@@ -20535,7 +20535,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       '26',
       '${_pixField('00', 'br.gov.bcb.pix')}${_pixField('01', _pixPrimaryKey)}',
     );
-    final additionalData = _pixField('62', _pixField('05', 'COBREJA'));
+    final additionalData = _pixField('62', _pixField('05', 'PEGUEI&PAGUEI'));
     final basePayload =
         '${_pixField('00', '01')}'
         '${_pixField('52', '0000')}'
@@ -20578,11 +20578,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       _ChargeCollectionMode.total =>
         'O WhatsApp vai abrir com a cobranca completa pronta e o QR Code Pix no valor total.',
       _ChargeCollectionMode.interestOnly =>
-        'O WhatsApp vai abrir com a cobranca so do juro do mês pronta e o QR Code Pix no valor correspondente.',
+        'O WhatsApp vai abrir com a cobranca so do juro do mÃªs pronta e o QR Code Pix no valor correspondente.',
       _ChargeCollectionMode.currentCycle =>
-        'O WhatsApp vai abrir com a cobranca do ciclo atual, somando o juro do mês com a diária acumulada, sem puxar o principal.',
+        'O WhatsApp vai abrir com a cobranca do ciclo atual, somando o juro do mÃªs com a diÃ¡ria acumulada, sem puxar o principal.',
       _ChargeCollectionMode.dailyOnly =>
-        'O WhatsApp vai abrir com a cobranca somente da diária acumulada até agora.',
+        'O WhatsApp vai abrir com a cobranca somente da diÃ¡ria acumulada atÃ© agora.',
       _ChargeCollectionMode.installment =>
         'O WhatsApp vai abrir com a cobranca das parcelas pronta e o QR Code Pix no valor correspondente.',
     };
@@ -20716,7 +20716,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 await launchUrl(webUri, mode: LaunchMode.externalApplication);
               } else if (mounted) {
                 _showSnack(
-                  'Nao foi possível abrir o WhatsApp neste dispositivo agora.',
+                  'Nao foi possÃ­vel abrir o WhatsApp neste dispositivo agora.',
                   tone: _FeedbackTone.error,
                   title: 'Falha ao abrir WhatsApp',
                 );
@@ -20731,7 +20731,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   List<Client> _buildRelatedChargeClients(Client client) {
-    // O botão de cobrança do card deve refletir o débito mostrado na tela,
+    // O botÃ£o de cobranÃ§a do card deve refletir o dÃ©bito mostrado na tela,
     // sem somar automaticamente outros registros da mesma pessoa.
     return [client];
   }
@@ -20743,7 +20743,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   ) {
     if (relatedClients.length <= 1) {
       final date = DateFormat('dd/MM/yyyy').format(client.dueDate);
-      return 'Olá ${client.name}, seu valor atualizado é ${_currency(debt.totalDebt)}. '
+      return 'OlÃ¡ ${client.name}, seu valor atualizado Ã© ${_currency(debt.totalDebt)}. '
           'Vencimento: $date.';
     }
 
@@ -20768,7 +20768,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (entries.isEmpty) {
       final debt = FinanceService.calculateDebt(client);
       final date = dateFormat.format(client.dueDate);
-      return 'Olá ${client.name}, seu valor atualizado é ${_currency(debt.totalDebt)}. '
+      return 'OlÃ¡ ${client.name}, seu valor atualizado Ã© ${_currency(debt.totalDebt)}. '
           'Vencimento: $date.';
     }
 
@@ -20807,15 +20807,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final buffer = StringBuffer();
     final intro = switch (chargeMode) {
       _ChargeCollectionMode.total =>
-        'Olá ${client.name}, hoje você tem ${entries.length} débito(s) em aberto com a COBREJA.',
+        'OlÃ¡ ${client.name}, hoje vocÃª tem ${entries.length} dÃ©bito(s) em aberto com a PEGUEI&PAGUEI.',
       _ChargeCollectionMode.interestOnly =>
-        'Olá ${client.name}, hoje estou te enviando a cobrança somente do juro do mês em aberto com a COBREJA.',
+        'OlÃ¡ ${client.name}, hoje estou te enviando a cobranÃ§a somente do juro do mÃªs em aberto com a PEGUEI&PAGUEI.',
       _ChargeCollectionMode.currentCycle =>
-        'Olá ${client.name}, hoje estou te enviando a cobrança do mês atual com a COBREJA.',
+        'OlÃ¡ ${client.name}, hoje estou te enviando a cobranÃ§a do mÃªs atual com a PEGUEI&PAGUEI.',
       _ChargeCollectionMode.dailyOnly =>
-        'Olá ${client.name}, hoje estou te enviando a cobrança somente da diária acumulada com a COBREJA.',
+        'OlÃ¡ ${client.name}, hoje estou te enviando a cobranÃ§a somente da diÃ¡ria acumulada com a PEGUEI&PAGUEI.',
       _ChargeCollectionMode.installment =>
-        'Olá ${client.name}, hoje estou te enviando a cobrança das parcelas em aberto com a COBREJA.',
+        'OlÃ¡ ${client.name}, hoje estou te enviando a cobranÃ§a das parcelas em aberto com a PEGUEI&PAGUEI.',
     };
     buffer.writeln(intro);
 
@@ -20827,7 +20827,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       if (dueTodayCount > 0) {
         statusParts.add('$dueTodayCount vencendo hoje');
       }
-      buffer.writeln('Situação: ${statusParts.join(' • ')}.');
+      buffer.writeln('SituaÃ§Ã£o: ${statusParts.join(' â€¢ ')}.');
     }
 
     switch (chargeMode) {
@@ -20839,18 +20839,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         break;
       case _ChargeCollectionMode.interestOnly:
         buffer.writeln(
-          'Total do juro do mês para hoje: ${_currency(totalCycleInterest)}.',
+          'Total do juro do mÃªs para hoje: ${_currency(totalCycleInterest)}.',
         );
         break;
       case _ChargeCollectionMode.currentCycle:
         buffer.writeln(
-          'Total do mês atual: ${_currency(totalCycleInterest + totalLateInterest)} '
-          '(juros ${_currency(totalCycleInterest)} + diária ${_currency(totalLateInterest)}).',
+          'Total do mÃªs atual: ${_currency(totalCycleInterest + totalLateInterest)} '
+          '(juros ${_currency(totalCycleInterest)} + diÃ¡ria ${_currency(totalLateInterest)}).',
         );
         break;
       case _ChargeCollectionMode.dailyOnly:
         buffer.writeln(
-          'Total da diária acumulada para hoje: ${_currency(totalLateInterest)}.',
+          'Total da diÃ¡ria acumulada para hoje: ${_currency(totalLateInterest)}.',
         );
         break;
       case _ChargeCollectionMode.installment:
@@ -20877,9 +20877,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       switch (chargeMode) {
         case _ChargeCollectionMode.total:
           buffer.writeln(
-            '${lineNumber++}. Total ${_currency(itemDebt.totalDebt)} • '
-            'juros ${_currency(itemDebt.totalInterestDue)} • '
-            'principal ${_currency(itemDebt.remainingPrincipal)} • '
+            '${lineNumber++}. Total ${_currency(itemDebt.totalDebt)} â€¢ '
+            'juros ${_currency(itemDebt.totalInterestDue)} â€¢ '
+            'principal ${_currency(itemDebt.remainingPrincipal)} â€¢ '
             '$status.',
           );
           break;
@@ -20888,7 +20888,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             continue;
           }
           buffer.writeln(
-            '${lineNumber++}. Juros do mês ${_currency(itemDebt.cycleInterest)} • $status.',
+            '${lineNumber++}. Juros do mÃªs ${_currency(itemDebt.cycleInterest)} â€¢ $status.',
           );
           break;
         case _ChargeCollectionMode.currentCycle:
@@ -20897,7 +20897,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             continue;
           }
           buffer.writeln(
-            '${lineNumber++}. Mês atual ${_currency(currentCycleAmount)} • juros ${_currency(itemDebt.cycleInterest)} • diária ${_currency(itemDebt.lateInterest)} • $status.',
+            '${lineNumber++}. MÃªs atual ${_currency(currentCycleAmount)} â€¢ juros ${_currency(itemDebt.cycleInterest)} â€¢ diÃ¡ria ${_currency(itemDebt.lateInterest)} â€¢ $status.',
           );
           break;
         case _ChargeCollectionMode.dailyOnly:
@@ -20905,7 +20905,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             continue;
           }
           buffer.writeln(
-            '${lineNumber++}. Diária ${_currency(itemDebt.lateInterest)} • $status.',
+            '${lineNumber++}. DiÃ¡ria ${_currency(itemDebt.lateInterest)} â€¢ $status.',
           );
           break;
         case _ChargeCollectionMode.installment:
@@ -20921,7 +20921,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   ? 'parcela ${math.min(itemClient.installmentsPaid + 1, itemClient.installmentCount)}/${itemClient.installmentCount}'
                   : 'parcela atual';
           buffer.writeln(
-            '${lineNumber++}. $installmentInfo • ${_currency(installmentValue)} • $status.',
+            '${lineNumber++}. $installmentInfo â€¢ ${_currency(installmentValue)} â€¢ $status.',
           );
           break;
       }
@@ -21604,7 +21604,7 @@ class _ClientGroupCard extends StatelessWidget {
                             ),
                           ),
                           _StatusPill(
-                            text: subtitleParts.join(' • '),
+                            text: subtitleParts.join(' â€¢ '),
                             color: highlightColor,
                           ),
                         ],
@@ -21620,7 +21620,7 @@ class _ClientGroupCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Principal: ${_currency(totalPrincipal)} • Juros: ${_currency(totalInterest)}',
+                        'Principal: ${_currency(totalPrincipal)} â€¢ Juros: ${_currency(totalInterest)}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -21740,7 +21740,7 @@ class _AdminClientGroupProfilePageState
     final visible = _filteredClients();
 
     final summaries = _clients
-        .where((client) => client.status != 'excluido' && client.status != 'excluído')
+        .where((client) => client.status != 'excluido' && client.status != 'excluÃ­do')
         .map((client) => FinanceService.calculateDebt(client))
         .toList();
 
@@ -22076,16 +22076,16 @@ class _ClientCard extends StatelessWidget {
             ? 'Recebido: ${_currency(client.totalInterestCollected + client.totalPrincipalCollected)}'
             : 'Total: ${_currency(debt.totalDebt)}';
     final ratesText = client.isNegotiated
-        ? 'Acordo parcelado • atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
-        : '${_formatInterestRule(type: client.monthlyInterestType, percentageValue: client.monthlyInterestRate, amountValue: client.monthlyInterestAmount, suffix: 'a.m.')} • ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}';
+        ? 'Acordo parcelado â€¢ atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
+        : '${_formatInterestRule(type: client.monthlyInterestType, percentageValue: client.monthlyInterestRate, amountValue: client.monthlyInterestAmount, suffix: 'a.m.')} â€¢ ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}';
     final hasInterestBreakdown =
         tabType != 'juros' &&
         client.status != 'quitado' &&
         (debt.totalInterestDue > 0.009 || debt.lateInterest > 0.009);
     final principalBreakdownText =
-        'Principal: ${_currency(debt.remainingPrincipal)} • Juros: ${_currency(debt.cycleInterest)}';
+        'Principal: ${_currency(debt.remainingPrincipal)} â€¢ Juros: ${_currency(debt.cycleInterest)}';
     final dailyBreakdownText = debt.lateInterest > 0.009
-        ? 'Diária acumulada: ${_currency(debt.lateInterest)}'
+        ? 'DiÃ¡ria acumulada: ${_currency(debt.lateInterest)}'
         : null;
     final hasMultipleCycles =
         !client.isNegotiated &&
@@ -22175,7 +22175,7 @@ class _ClientCard extends StatelessWidget {
                             ),
                           if (client.isMarkedAsLostSafe || debt.overdueDays >= _estimatedLossOverdueDays)
                             const _StatusPill(
-                              text: 'Prejuízo',
+                              text: 'PrejuÃ­zo',
                               color: Color(0xFFB91C1C),
                             ),
                         ],
@@ -22190,7 +22190,7 @@ class _ClientCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Empréstimo: ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
+                        'EmprÃ©stimo: ${DateFormat('dd/MM/yyyy').format(client.borrowedDate)}',
                         style: TextStyle(
                           color: mutedColor,
                           fontSize: compact ? 11 : 12,
@@ -22268,7 +22268,7 @@ class _ClientCard extends StatelessWidget {
                   children: [
                     if (!selectable)
                       PopupMenuButton<String>(
-                        tooltip: 'Opções de cobrança no WhatsApp',
+                        tooltip: 'OpÃ§Ãµes de cobranÃ§a no WhatsApp',
                         onSelected: (value) {
                           if (value == 'single') {
                             onCharge();
@@ -22282,8 +22282,8 @@ class _ClientCard extends StatelessWidget {
                             child: ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.chat_bubble_outline_rounded),
-                              title: Text('Cobrar este débito'),
-                              subtitle: Text('Usa só o valor deste card'),
+                              title: Text('Cobrar este dÃ©bito'),
+                              subtitle: Text('Usa sÃ³ o valor deste card'),
                             ),
                           ),
                           PopupMenuItem<String>(
@@ -22291,7 +22291,7 @@ class _ClientCard extends StatelessWidget {
                             child: ListTile(
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.forum_rounded),
-                              title: Text('Cobrar todos os débitos'),
+                              title: Text('Cobrar todos os dÃ©bitos'),
                               subtitle: Text('Soma tudo dessa pessoa'),
                             ),
                           ),
@@ -22769,10 +22769,10 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('CobreJá'),
+        title: Text('Peguei & Paguei'),
       ),
       body: Center(
-        child: Text('Bem-vindo ao sistema! 🚀'),
+        child: Text('Bem-vindo ao sistema! ðŸš€'),
       ),
     );
   }

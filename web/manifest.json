@@ -1,11 +1,11 @@
 ﻿{
-  "name": "COBREJÁ",
-  "short_name": "COBREJÁ",
+  "name": "Peguei & Paguei",
+  "short_name": "Peguei & Paguei",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#061C3D",
-  "theme_color": "#061C3D",
-  "description": "Cobrança inteligente, recebimento garantido.",
+  "background_color": "#07111D",
+  "theme_color": "#061926",
+  "description": "Crédito simples, cobrança inteligente.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

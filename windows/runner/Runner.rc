@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+﻿// Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)
 #include "resource.h"
@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "COBREJÁ" "\0"
-            VALUE "FileDescription", "COBREJÁ" "\0"
+            VALUE "CompanyName", "Peguei & Paguei" "\0"
+            VALUE "FileDescription", "Peguei & Paguei" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "COBREJA" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 COBREJÁ. All rights reserved." "\0"
-            VALUE "OriginalFilename", "COBREJA.exe" "\0"
-            VALUE "ProductName", "COBREJÁ" "\0"
+            VALUE "InternalName", "PEGUEI_PAGUEI" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Peguei & Paguei. All rights reserved." "\0"
+            VALUE "OriginalFilename", "PEGUEI_PAGUEI.exe" "\0"
+            VALUE "ProductName", "Peguei & Paguei" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

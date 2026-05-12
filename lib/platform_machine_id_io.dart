@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -32,7 +32,7 @@ Future<String?> getPlatformMachineCode() async {
       return null;
     }
 
-    final raw = '$machineGuid|$computerName|COBREJA_WINDOWS';
+    final raw = '$machineGuid|$computerName|PEGUEI_PAGUEI_WINDOWS';
     return sha256
         .convert(utf8.encode(raw))
         .toString()
