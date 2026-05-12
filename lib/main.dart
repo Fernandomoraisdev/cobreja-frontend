@@ -7517,7 +7517,7 @@ class _CollectionAutomationPanel extends StatelessWidget {
         if (allEmpty)
           const Card(
             child: Padding(
-              padding: EdgeInsets.all(18),
+              padding: const EdgeInsets.all(18),
               child: Text(
                 'Nenhuma parcela vencendo ou atrasada no momento.',
                 style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w800),
@@ -12681,6 +12681,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               .contains('REJECTED'),
         )
         .toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor =
+        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF0B2137) : Colors.white;
+    final nestedColor =
+        isDark ? const Color(0xFF071827) : const Color(0xFFF8FBFF);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final bodyColor =
+        isDark ? const Color(0xFFD6E0EC) : const Color(0xFF374151);
+    final mutedColor =
+        isDark ? const Color(0xFFA9B7C8) : const Color(0xFF5B6474);
 
     Color statusColor(String status) {
       switch (status.toUpperCase()) {
@@ -12998,6 +13011,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ];
 
       return Card(
+        color: tileColor,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: borderColor),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -13008,10 +13027,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   Expanded(
                     child: Text(
                       clientName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
-                        color: Color(0xFF111827),
+                        color: titleColor,
                       ),
                     ),
                   ),
@@ -13022,15 +13041,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               const SizedBox(height: 10),
               Text(
                 'Valor solicitado: ${_currency(amount)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: titleColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               if (subtitleLines.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 for (final line in subtitleLines)
                   Text(
                     line,
-                    style: const TextStyle(
-                      color: Color(0xFF5B6474),
+                    style: TextStyle(
+                      color: mutedColor,
                       height: 1.35,
                     ),
                   ),
@@ -13043,8 +13065,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     if (requestedInstallments != null)
                       'Parcelas solicitadas: $requestedInstallments',
                   ].join(' • '),
-                  style: const TextStyle(
-                    color: Color(0xFF374151),
+                  style: TextStyle(
+                    color: bodyColor,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -13055,13 +13077,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FBFF),
+                    color: nestedColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFDCE9FF)),
+                    border: Border.all(color: borderColor),
                   ),
                   child: Text(
                     description,
-                    style: const TextStyle(color: Color(0xFF374151), height: 1.35),
+                    style: TextStyle(color: bodyColor, height: 1.35),
                   ),
                 ),
               ],
@@ -13069,7 +13091,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Resposta: $decisionNote',
-                  style: const TextStyle(color: Color(0xFF5B6474)),
+                  style: TextStyle(color: mutedColor),
                 ),
               ],
               if (status.toUpperCase() == 'PENDING') ...[
@@ -13107,10 +13129,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF111827),
+                color: titleColor,
               ),
             ),
             const SizedBox(height: 10),
@@ -13127,6 +13149,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
       children: [
         Card(
+          color: panelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: borderColor),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -13135,7 +13163,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Painel de solicitações',
                         style: TextStyle(
                           fontSize: 16,
@@ -13146,7 +13174,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       const SizedBox(height: 6),
                       Text(
                         'Pendentes: ${pending.length} • Aprovadas: ${approved.length} • Recusadas: ${rejected.length}',
-                        style: const TextStyle(color: Color(0xFF5B6474), height: 1.35),
+                        style: TextStyle(color: mutedColor, height: 1.35),
                       ),
                       if (_creditRequestsError != null) ...[
                         const SizedBox(height: 10),
@@ -13184,12 +13212,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             child: Center(child: CircularProgressIndicator()),
           )
         else if (requests.isEmpty)
-          const Card(
+          Card(
+            color: panelColor,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: borderColor),
+            ),
             child: Padding(
-              padding: EdgeInsets.all(18),
+              padding: const EdgeInsets.all(18),
               child: Text(
                 'Nenhuma solicitação enviada pelos clientes ainda.',
-                style: TextStyle(color: Color(0xFF5B6474), height: 1.35),
+                style: TextStyle(color: mutedColor, height: 1.35),
               ),
             ),
           )
@@ -13259,6 +13293,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         .toSet()
         .length;
     final latestPayment = filteredEntries.isEmpty ? null : filteredEntries.first.payment;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor =
+        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF0B2137) : Colors.white;
+    final nestedColor =
+        isDark ? const Color(0xFF071827) : const Color(0xFFF7FAFF);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final bodyColor =
+        isDark ? const Color(0xFFD6E0EC) : const Color(0xFF374151);
+    final mutedColor =
+        isDark ? const Color(0xFFA9B7C8) : const Color(0xFF5B6474);
+    final iconBg = isDark ? const Color(0xFF063F46) : const Color(0xFFE8F1FF);
+    final iconColor = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF061C3D);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
@@ -13266,14 +13315,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.96),
+            color: panelColor,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFDCE9FF)),
-            boxShadow: const [
+            border: Border.all(color: borderColor),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0A0F172A),
+                color: isDark ? const Color(0x22000000) : const Color(0x0A0F172A),
                 blurRadius: 18,
-                offset: Offset(0, 10),
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -13301,17 +13350,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       children: [
                         Text(
                           heroTitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF111827),
+                            color: titleColor,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           heroSubtitle,
-                          style: const TextStyle(
-                            color: Color(0xFF5B6474),
+                          style: TextStyle(
+                            color: mutedColor,
                             height: 1.45,
                           ),
                         ),
@@ -13439,14 +13488,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: tileColor,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFDCE9FF)),
-                boxShadow: const [
+                border: Border.all(color: borderColor),
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x0A0F172A),
+                    color: isDark ? const Color(0x22000000) : const Color(0x0A0F172A),
                     blurRadius: 18,
-                    offset: Offset(0, 10),
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
@@ -13456,13 +13505,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   Container(
                     height: 54,
                     width: 54,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE8F1FF),
+                    decoration: BoxDecoration(
+                      color: iconBg,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.receipt_long_rounded,
-                      color: Color(0xFF061C3D),
+                      color: iconColor,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -13475,10 +13524,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             Expanded(
                               child: Text(
                                 entry.client.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF111827),
+                                  color: titleColor,
                                 ),
                               ),
                             ),
@@ -13490,16 +13539,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           DateFormat('dd/MM/yyyy HH:mm').format(
                             entry.payment.date,
                           ),
-                          style: const TextStyle(
-                            color: Color(0xFF5B6474),
+                          style: TextStyle(
+                            color: mutedColor,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           lineBuilder(entry),
-                          style: const TextStyle(
-                            color: Color(0xFF374151),
+                          style: TextStyle(
+                            color: bodyColor,
                             height: 1.45,
                           ),
                         ),
@@ -13510,14 +13559,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAFF),
+                            color: nestedColor,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFDCE9FF)),
+                            border: Border.all(color: borderColor),
                           ),
                           child: Text(
                             'Tipo: ${entry.payment.type}',
-                            style: const TextStyle(
-                              color: Color(0xFF365071),
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFC9D7E8) : const Color(0xFF365071),
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
@@ -13527,8 +13576,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           const SizedBox(height: 6),
                           Text(
                             entry.payment.note.trim(),
-                            style: const TextStyle(
-                              color: Color(0xFF6B7280),
+                            style: TextStyle(
+                              color: mutedColor,
                               fontSize: 12,
                               height: 1.45,
                             ),
@@ -13543,7 +13592,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     children: [
                       Text(
                         _currency(entry.payment.amount),
-                        style: const TextStyle(
+                        style: TextStyle(
+                          color: titleColor,
                           fontWeight: FontWeight.w900,
                           fontSize: 17,
                         ),
@@ -13555,9 +13605,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           entry.client,
                           entry.payment,
                         ),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.receipt_long_rounded,
-                          color: Color(0xFF061C3D),
+                          color: iconColor,
                         ),
                       ),
                       PopupMenuButton<String>(
@@ -13604,19 +13654,27 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     required String title,
     required String subtitle,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor =
+        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.95);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final bodyColor =
+        isDark ? const Color(0xFFC9D7E8) : const Color(0xFF5B6474);
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 560),
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
+          color: panelColor,
           borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: const Color(0xFFDCE9FF)),
-          boxShadow: const [
+          border: Border.all(color: borderColor),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x120F172A),
+              color: isDark ? const Color(0x22000000) : const Color(0x120F172A),
               blurRadius: 28,
-              offset: Offset(0, 18),
+              offset: const Offset(0, 18),
             ),
           ],
         ),
@@ -13640,18 +13698,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF111827),
+                color: titleColor,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF5B6474),
+              style: TextStyle(
+                color: bodyColor,
                 height: 1.55,
               ),
             ),
@@ -15452,6 +15510,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
   Widget _buildEmptyState(String tabType, {bool hasFilter = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final panelColor =
+        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.95);
+    final nestedColor =
+        isDark ? const Color(0xFF071827) : const Color(0xFFF6FAFF);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final nestedBorderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFE5EEF9);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final bodyColor =
+        isDark ? const Color(0xFFC9D7E8) : const Color(0xFF5B6474);
+    final mutedColor =
+        isDark ? const Color(0xFFA9B7C8) : const Color(0xFF667085);
     final titles = {
       'todos': 'Nenhum cliente encontrado.',
       'devendo': 'Nenhuma cobrança ativa por enquanto.',
@@ -15503,14 +15575,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.95),
+                  color: panelColor,
                   borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: const Color(0xFFDCE9FF)),
-                  boxShadow: const [
+                  border: Border.all(color: borderColor),
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x120F172A),
+                      color: isDark ? const Color(0x22000000) : const Color(0x120F172A),
                       blurRadius: 28,
-                      offset: Offset(0, 18),
+                      offset: const Offset(0, 18),
                     ),
                   ],
                 ),
@@ -15547,10 +15619,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ? 'Nenhum resultado encontrado.'
                           : (titles[tabType] ?? 'Nenhum registro encontrado.'),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF111827),
+                        color: titleColor,
                         height: 1.15,
                       ),
                     ),
@@ -15558,9 +15630,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     Text(
                       subtitles[tabType] ?? 'Assim que houver movimentações, elas aparecerão aqui.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
-                        color: Color(0xFF5B6474),
+                        color: bodyColor,
                         height: 1.55,
                       ),
                     ),
@@ -15569,15 +15641,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6FAFF),
+                        color: nestedColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE5EEF9)),
+                        border: Border.all(color: nestedBorderColor),
                       ),
-                      child: const Text(
+                      child: Text(
                         'O painel sera preenchido automaticamente conforme voce cadastrar clientes, registrar pagamentos e organizar sua carteira.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Color(0xFF667085),
+                          color: mutedColor,
                           height: 1.45,
                         ),
                       ),
@@ -21068,15 +21140,25 @@ class _MetricsActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor =
+        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final titleColor = isDark ? Colors.white : const Color(0xFF111827);
+    final subtitleColor =
+        isDark ? const Color(0xFFC9D7E8) : const Color(0xFF5B6474);
+    final chevronColor =
+        isDark ? const Color(0xFF2DD4BF) : const Color(0xFF64748B);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Ink(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.96),
+          color: cardColor,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFDCE9FF)),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           children: [
@@ -21098,16 +21180,16 @@ class _MetricsActionCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
+                      color: titleColor,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF5B6474),
+                    style: TextStyle(
+                      color: subtitleColor,
                       height: 1.4,
                     ),
                   ),
@@ -21115,7 +21197,7 @@ class _MetricsActionCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B)),
+            Icon(Icons.chevron_right_rounded, color: chevronColor),
           ],
         ),
       ),
@@ -22636,20 +22718,26 @@ class _HistorySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF0B2137) : const Color(0xFFF8FBFF);
+    final borderColor =
+        isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+    final labelColor =
+        isDark ? const Color(0xFFC9D7E8) : const Color(0xFF5B6474);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDCE9FF)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             data.label,
-            style: const TextStyle(
-              color: Color(0xFF5B6474),
+            style: TextStyle(
+              color: labelColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
