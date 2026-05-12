@@ -10015,6 +10015,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final saas = (settings['saas'] as Map<String, dynamic>?) ?? const {};
     final support = (settings['support'] as Map<String, dynamic>?) ?? const {};
     final backup = (settings['backup'] as Map<String, dynamic>?) ?? const {};
+    final appearance = (settings['appearance'] as Map<String, dynamic>?) ?? const {};
+    final users = (settings['users'] as Map<String, dynamic>?) ?? const {};
+    final audit = (settings['audit'] as Map<String, dynamic>?) ?? const {};
     final nameController = TextEditingController(
       text: company['name']?.toString() ?? widget.account.name,
     );
@@ -10043,6 +10046,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         TextEditingController(text: finance['maxInstallments']?.toString() ?? '12');
     final whatsappAdminPhoneController =
         TextEditingController(text: whatsapp['adminPhone']?.toString() ?? '');
+    final maxAdminsController =
+        TextEditingController(text: users['maxAdmins']?.toString() ?? '1');
+    final auditRetentionController =
+        TextEditingController(text: audit['retentionDays']?.toString() ?? '365');
     var billingNotifications = notifications['billing'] != false;
     var whatsappNotifications = notifications['whatsapp'] != false;
     var supportNotifications = notifications['support'] != false;
@@ -10053,8 +10060,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     var requireDoubleConfirmation = security['requireDoubleConfirmation'] != false;
     var sensitiveRoutesProtected = security['sensitiveRoutesProtected'] != false;
     var supportRealtime = support['realtimeEnabled'] != false;
+    var supportEnabled = support['enabled'] != false;
     var supportSound = support['soundEnabled'] == true;
     var autoBackup = backup['autoBackupEnabled'] == true;
+    var restoreBackup = backup['restoreEnabled'] != false;
+    var extraAdminsEnabled = users['extraAdminsEnabled'] == true;
+    var auditCriticalActions = audit['criticalActions'] != false;
+    var auditExportEnabled = audit['exportEnabled'] != false;
 
     try {
       final submitted = await showDialog<bool>(
@@ -10063,7 +10075,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           builder: (dialogContext, setDialogState) => AlertDialog(
             title: const Text('Configurações da empresa'),
             content: DefaultTabController(
-              length: 6,
+              length: 12,
               child: SizedBox(
                 width: 820,
                 height: 600,
@@ -10077,7 +10089,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         Tab(icon: Icon(Icons.pix_rounded), text: 'Mercado Pago'),
                         Tab(icon: Icon(Icons.chat_rounded), text: 'WhatsApp'),
                         Tab(icon: Icon(Icons.notifications_rounded), text: 'Notificações'),
+                        Tab(icon: Icon(Icons.palette_rounded), text: 'Aparência'),
                         Tab(icon: Icon(Icons.security_rounded), text: 'Segurança'),
+                        Tab(icon: Icon(Icons.workspace_premium_rounded), text: 'SaaS'),
+                        Tab(icon: Icon(Icons.group_rounded), text: 'Usuários'),
+                        Tab(icon: Icon(Icons.fact_check_rounded), text: 'Auditoria'),
+                        Tab(icon: Icon(Icons.support_agent_rounded), text: 'Suporte'),
+                        Tab(icon: Icon(Icons.backup_rounded), text: 'Backup'),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -10235,17 +10253,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     hintText: 'Ex.: 5599999999999',
                                   ),
                                 ),
-                                SwitchListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  value: supportRealtime,
-                                  title: const Text('Suporte em tempo real'),
-                                  onChanged: (value) => setDialogState(() => supportRealtime = value),
-                                ),
-                                SwitchListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  value: supportSound,
-                                  title: const Text('Aviso sonoro de suporte'),
-                                  onChanged: (value) => setDialogState(() => supportSound = value),
+                                const SizedBox(height: 12),
+                                _SettingsReadOnlyPanel(
+                                  title: 'WhatsApp Business API',
+                                  lines: [
+                                    'Status: ${whatsapp['connectionStatus'] ?? 'NOT_CONNECTED'}',
+                                    'QR Code: ${whatsapp['qrCode'] == null ? 'pendente' : 'disponível'}',
+                                    'Automações de cobrança: ${whatsapp['billingAutomationEnabled'] == true ? 'ativas' : 'inativas'}',
+                                    'Templates: ${((whatsapp['templates'] as List?) ?? const []).length} modelo(s)',
+                                  ],
                                 ),
                               ],
                             ),
@@ -10292,6 +10308,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               ],
                             ),
                           ),
+                          _SettingsReadOnlyPanel(
+                            title: 'Aparência',
+                            lines: [
+                              'Tema salvo: ${appearance['theme'] ?? 'dark'}',
+                              'Cor de destaque: ${appearance['accentColor'] ?? 'Peguei & Paguei'}',
+                              'Layout compacto: ${appearance['compactLayout'] == true ? 'ativo' : 'inativo'}',
+                              'O ajuste visual rápido continua disponível na tela principal de Configurações.',
+                            ],
+                          ),
                           SingleChildScrollView(
                             child: Column(
                               children: [
@@ -10307,6 +10332,102 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                   title: const Text('Rotas sensíveis protegidas'),
                                   onChanged: (value) => setDialogState(() => sensitiveRoutesProtected = value),
                                 ),
+                              ],
+                            ),
+                          ),
+                          _SettingsReadOnlyPanel(
+                            title: 'SaaS',
+                            lines: [
+                              'Plano atual: ${saas['currentPlan'] ?? 'TRIAL'}',
+                              'Trial: ${saas['trial'] == false ? 'não' : 'sim'}',
+                              'Vencimento assinatura: ${saas['subscriptionEndsAt'] ?? 'não definido'}',
+                              'Limite de clientes: ${saas['clientLimit'] ?? 'conforme plano'}',
+                              'Upgrade: ${saas['upgradeUrl'] ?? 'em preparação'}',
+                            ],
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: extraAdminsEnabled,
+                                  title: const Text('Administradores extras'),
+                                  subtitle: const Text('Prepara o painel para equipes com mais de um operador.'),
+                                  onChanged: (value) => setDialogState(() => extraAdminsEnabled = value),
+                                ),
+                                TextField(
+                                  controller: maxAdminsController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(labelText: 'Máximo de admins'),
+                                ),
+                                const SizedBox(height: 12),
+                                _SettingsReadOnlyPanel(
+                                  title: 'Convites',
+                                  lines: [
+                                    'Convites pendentes: ${((users['pendingInvites'] as List?) ?? const []).length}',
+                                    'O envio de convite para admin será conectado no painel de usuários.',
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                TextField(
+                                  controller: auditRetentionController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(labelText: 'Retenção de logs em dias'),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: auditCriticalActions,
+                                  title: const Text('Registrar ações críticas'),
+                                  onChanged: (value) => setDialogState(() => auditCriticalActions = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: auditExportEnabled,
+                                  title: const Text('Exportação de auditoria'),
+                                  onChanged: (value) => setDialogState(() => auditExportEnabled = value),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportEnabled,
+                                  title: const Text('Suporte integrado'),
+                                  onChanged: (value) => setDialogState(() => supportEnabled = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportRealtime,
+                                  title: const Text('Atualização automática'),
+                                  onChanged: (value) => setDialogState(() => supportRealtime = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportSound,
+                                  title: const Text('Aviso sonoro opcional'),
+                                  onChanged: (value) => setDialogState(() => supportSound = value),
+                                ),
+                                _SettingsReadOnlyPanel(
+                                  title: 'Status padrão',
+                                  lines: [
+                                    'Novo atendimento: ${support['defaultStatus'] ?? 'OPEN'}',
+                                    'Histórico persistido: ativo',
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
                                 SwitchListTile(
                                   contentPadding: EdgeInsets.zero,
                                   value: autoBackup,
@@ -10314,12 +10435,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                   subtitle: const Text('Estrutura preparada para rotina agendada.'),
                                   onChanged: (value) => setDialogState(() => autoBackup = value),
                                 ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: restoreBackup,
+                                  title: const Text('Restauração habilitada'),
+                                  onChanged: (value) => setDialogState(() => restoreBackup = value),
+                                ),
                                 _SettingsReadOnlyPanel(
-                                  title: 'SaaS',
+                                  title: 'Último backup',
                                   lines: [
-                                    'Plano atual: ${saas['currentPlan'] ?? 'TRIAL'}',
-                                    'Trial: ${saas['trial'] == false ? 'não' : 'sim'}',
-                                    'Limite de clientes: ${saas['clientLimit'] ?? 'conforme plano'}',
+                                    backup['lastBackupAt']?.toString() ?? 'Nenhum backup automático registrado.',
+                                    'Backups manuais continuam disponíveis nas ações locais.',
                                   ],
                                 ),
                               ],
@@ -10395,6 +10521,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             'adminPhone': whatsappAdminPhoneController.text.trim(),
           },
           'support': {
+            'enabled': supportEnabled,
             'realtimeEnabled': supportRealtime,
             'soundEnabled': supportSound,
           },
@@ -10404,6 +10531,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           },
           'backup': {
             'autoBackupEnabled': autoBackup,
+            'restoreEnabled': restoreBackup,
+          },
+          'users': {
+            'extraAdminsEnabled': extraAdminsEnabled,
+            'maxAdmins': int.tryParse(maxAdminsController.text.trim()) ?? 1,
+          },
+          'audit': {
+            'retentionDays': int.tryParse(auditRetentionController.text.trim()) ?? 365,
+            'criticalActions': auditCriticalActions,
+            'exportEnabled': auditExportEnabled,
           },
         },
       );
@@ -10435,6 +10572,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       renegotiationRulesController.dispose();
       maxInstallmentsController.dispose();
       whatsappAdminPhoneController.dispose();
+      maxAdminsController.dispose();
+      auditRetentionController.dispose();
     }
   }
 
