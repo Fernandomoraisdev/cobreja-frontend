@@ -7034,6 +7034,54 @@ class _AuditLogList extends StatelessWidget {
   }
 }
 
+class _SettingsReadOnlyPanel extends StatelessWidget {
+  final String title;
+  final List<String> lines;
+
+  const _SettingsReadOnlyPanel({
+    required this.title,
+    required this.lines,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.borderSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textStrong,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...lines.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                line,
+                style: const TextStyle(
+                  color: AppColors.textBody,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MercadoPagoAdminPanel extends StatelessWidget {
   final Map<String, dynamic>? summary;
 
@@ -9963,9 +10011,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final notifications =
         (settings['notifications'] as Map<String, dynamic>?) ?? const {};
     final whatsapp = (settings['whatsapp'] as Map<String, dynamic>?) ?? const {};
+    final security = (settings['security'] as Map<String, dynamic>?) ?? const {};
+    final saas = (settings['saas'] as Map<String, dynamic>?) ?? const {};
+    final support = (settings['support'] as Map<String, dynamic>?) ?? const {};
+    final backup = (settings['backup'] as Map<String, dynamic>?) ?? const {};
     final nameController = TextEditingController(
       text: company['name']?.toString() ?? widget.account.name,
     );
+    final logoController = TextEditingController(text: company['logoUrl']?.toString() ?? '');
+    final faviconController =
+        TextEditingController(text: company['faviconUrl']?.toString() ?? '');
+    final domainController =
+        TextEditingController(text: company['customDomain']?.toString() ?? '');
     final cnpjController = TextEditingController(text: company['cnpj']?.toString() ?? '');
     final phoneController = TextEditingController(text: company['phone']?.toString() ?? '');
     final emailController = TextEditingController(text: company['email']?.toString() ?? '');
@@ -9974,6 +10031,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         TextEditingController(text: finance['monthlyInterest']?.toString() ?? '0');
     final dailyController =
         TextEditingController(text: finance['dailyInterest']?.toString() ?? '0');
+    final lateFineController =
+        TextEditingController(text: finance['lateFine']?.toString() ?? '0');
+    final lateFeeController =
+        TextEditingController(text: finance['lateFee']?.toString() ?? '0');
+    final graceDaysController =
+        TextEditingController(text: finance['graceDays']?.toString() ?? '0');
+    final renegotiationRulesController =
+        TextEditingController(text: finance['renegotiationRules']?.toString() ?? '');
     final maxInstallmentsController =
         TextEditingController(text: finance['maxInstallments']?.toString() ?? '12');
     final whatsappAdminPhoneController =
@@ -9984,147 +10049,283 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     var pixNotifications = notifications['pix'] != false;
     var creditNotifications = notifications['credit'] != false;
     var saasNotifications = notifications['saas'] != false;
+    var anticipationEnabled = finance['anticipationEnabled'] == true;
+    var requireDoubleConfirmation = security['requireDoubleConfirmation'] != false;
+    var sensitiveRoutesProtected = security['sensitiveRoutesProtected'] != false;
+    var supportRealtime = support['realtimeEnabled'] != false;
+    var supportSound = support['soundEnabled'] == true;
+    var autoBackup = backup['autoBackupEnabled'] == true;
 
     try {
       final submitted = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (dialogContext, setDialogState) => AlertDialog(
-            title: const Text('Configurações premium'),
-            content: SizedBox(
-              width: 620,
-              child: SingleChildScrollView(
+            title: const Text('Configurações da empresa'),
+            content: DefaultTabController(
+              length: 6,
+              child: SizedBox(
+                width: 820,
+                height: 600,
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Empresa',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Nome da empresa'),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        SizedBox(
-                          width: 190,
-                          child: TextField(
-                            controller: cnpjController,
-                            decoration: const InputDecoration(labelText: 'CNPJ'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 190,
-                          child: TextField(
-                            controller: phoneController,
-                            decoration: const InputDecoration(labelText: 'Telefone'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 190,
-                          child: TextField(
-                            controller: emailController,
-                            decoration: const InputDecoration(labelText: 'Email'),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: addressController,
-                      decoration: const InputDecoration(labelText: 'Endereço'),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      'Financeiro padrão',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            controller: monthlyController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Juros mensal'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            controller: dailyController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Juros diário'),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            controller: maxInstallmentsController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Parcelas máximas'),
-                          ),
-                        ),
+                    const TabBar(
+                      isScrollable: true,
+                      tabs: [
+                        Tab(icon: Icon(Icons.business_rounded), text: 'Empresa'),
+                        Tab(icon: Icon(Icons.payments_rounded), text: 'Financeiro'),
+                        Tab(icon: Icon(Icons.pix_rounded), text: 'Mercado Pago'),
+                        Tab(icon: Icon(Icons.chat_rounded), text: 'WhatsApp'),
+                        Tab(icon: Icon(Icons.notifications_rounded), text: 'Notificações'),
+                        Tab(icon: Icon(Icons.security_rounded), text: 'Segurança'),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: billingNotifications,
-                      title: const Text('Notificações de cobrança'),
-                      onChanged: (value) =>
-                          setDialogState(() => billingNotifications = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: supportNotifications,
-                      title: const Text('Notificações de suporte'),
-                      onChanged: (value) =>
-                          setDialogState(() => supportNotifications = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: pixNotifications,
-                      title: const Text('Notificações Pix'),
-                      onChanged: (value) =>
-                          setDialogState(() => pixNotifications = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: creditNotifications,
-                      title: const Text('Notificações de solicitações'),
-                      onChanged: (value) =>
-                          setDialogState(() => creditNotifications = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: saasNotifications,
-                      title: const Text('Notificações SaaS'),
-                      onChanged: (value) =>
-                          setDialogState(() => saasNotifications = value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: whatsappNotifications,
-                      title: const Text('Notificações WhatsApp'),
-                      onChanged: (value) =>
-                          setDialogState(() => whatsappNotifications = value),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: whatsappAdminPhoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Telefone WhatsApp do admin',
-                        hintText: 'Ex.: 5599999999999',
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                TextField(
+                                  controller: nameController,
+                                  decoration: const InputDecoration(labelText: 'Nome da empresa'),
+                                ),
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: logoController,
+                                  decoration: const InputDecoration(labelText: 'Logo URL'),
+                                ),
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: faviconController,
+                                  decoration: const InputDecoration(labelText: 'Favicon URL'),
+                                ),
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: domainController,
+                                  decoration: const InputDecoration(labelText: 'Domínio personalizado futuro'),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    SizedBox(
+                                      width: 250,
+                                      child: TextField(
+                                        controller: cnpjController,
+                                        decoration: const InputDecoration(labelText: 'CNPJ'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 250,
+                                      child: TextField(
+                                        controller: phoneController,
+                                        decoration: const InputDecoration(labelText: 'Telefone'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 250,
+                                      child: TextField(
+                                        controller: emailController,
+                                        decoration: const InputDecoration(labelText: 'Email'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: addressController,
+                                  decoration: const InputDecoration(labelText: 'Endereço'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: monthlyController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Juros mensal'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: dailyController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Juros diário'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: lateFineController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Multa atraso'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: lateFeeController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Taxa atraso'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: graceDaysController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Carência'),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 180,
+                                      child: TextField(
+                                        controller: maxInstallmentsController,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(labelText: 'Parcelas máximas'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: anticipationEnabled,
+                                  title: const Text('Antecipação habilitada'),
+                                  subtitle: const Text('Prepara desconto proporcional e Pix de antecipação.'),
+                                  onChanged: (value) => setDialogState(() => anticipationEnabled = value),
+                                ),
+                                TextField(
+                                  controller: renegotiationRulesController,
+                                  minLines: 3,
+                                  maxLines: 5,
+                                  decoration: const InputDecoration(labelText: 'Regras de renegociação'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _SettingsReadOnlyPanel(
+                            title: 'Mercado Pago por empresa',
+                            lines: [
+                              'Status integração: ${((settings['mercadoPago'] as Map<String, dynamic>?) ?? const {})['integrationStatus'] ?? 'PENDING'}',
+                              'Webhook: ${((settings['mercadoPago'] as Map<String, dynamic>?) ?? const {})['webhookStatus'] ?? 'PENDING'}',
+                              'Access token próprio: ${((settings['mercadoPago'] as Map<String, dynamic>?) ?? const {})['hasAccountAccessToken'] == true ? 'configurado' : 'não configurado'}',
+                              'Public key própria: ${((settings['mercadoPago'] as Map<String, dynamic>?) ?? const {})['hasAccountPublicKey'] == true ? 'configurada' : 'não configurada'}',
+                              'Use o painel Mercado Pago para cadastrar credenciais e consultar saldo.',
+                            ],
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                TextField(
+                                  controller: whatsappAdminPhoneController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Telefone WhatsApp do admin',
+                                    hintText: 'Ex.: 5599999999999',
+                                  ),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportRealtime,
+                                  title: const Text('Suporte em tempo real'),
+                                  onChanged: (value) => setDialogState(() => supportRealtime = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportSound,
+                                  title: const Text('Aviso sonoro de suporte'),
+                                  onChanged: (value) => setDialogState(() => supportSound = value),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: billingNotifications,
+                                  title: const Text('Cobrança'),
+                                  onChanged: (value) => setDialogState(() => billingNotifications = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: supportNotifications,
+                                  title: const Text('Suporte'),
+                                  onChanged: (value) => setDialogState(() => supportNotifications = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: pixNotifications,
+                                  title: const Text('Pix'),
+                                  onChanged: (value) => setDialogState(() => pixNotifications = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: creditNotifications,
+                                  title: const Text('Solicitações de crédito'),
+                                  onChanged: (value) => setDialogState(() => creditNotifications = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: saasNotifications,
+                                  title: const Text('SaaS'),
+                                  onChanged: (value) => setDialogState(() => saasNotifications = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: whatsappNotifications,
+                                  title: const Text('WhatsApp'),
+                                  onChanged: (value) => setDialogState(() => whatsappNotifications = value),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: requireDoubleConfirmation,
+                                  title: const Text('Confirmação dupla em ações críticas'),
+                                  onChanged: (value) => setDialogState(() => requireDoubleConfirmation = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: sensitiveRoutesProtected,
+                                  title: const Text('Rotas sensíveis protegidas'),
+                                  onChanged: (value) => setDialogState(() => sensitiveRoutesProtected = value),
+                                ),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: autoBackup,
+                                  title: const Text('Backup automático futuro'),
+                                  subtitle: const Text('Estrutura preparada para rotina agendada.'),
+                                  onChanged: (value) => setDialogState(() => autoBackup = value),
+                                ),
+                                _SettingsReadOnlyPanel(
+                                  title: 'SaaS',
+                                  lines: [
+                                    'Plano atual: ${saas['currentPlan'] ?? 'TRIAL'}',
+                                    'Trial: ${saas['trial'] == false ? 'não' : 'sim'}',
+                                    'Limite de clientes: ${saas['clientLimit'] ?? 'conforme plano'}',
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -10163,6 +10364,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         settings: {
           'company': {
             'name': nameController.text.trim(),
+            'logoUrl': logoController.text.trim(),
+            'faviconUrl': faviconController.text.trim(),
+            'customDomain': domainController.text.trim(),
             'cnpj': cnpjController.text.trim(),
             'phone': phoneController.text.trim(),
             'email': emailController.text.trim(),
@@ -10171,6 +10375,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           'finance': {
             'monthlyInterest': _readDouble(monthlyController.text),
             'dailyInterest': _readDouble(dailyController.text),
+            'lateFine': _readDouble(lateFineController.text),
+            'lateFee': _readDouble(lateFeeController.text),
+            'graceDays': int.tryParse(graceDaysController.text.trim()) ?? 0,
+            'anticipationEnabled': anticipationEnabled,
+            'renegotiationRules': renegotiationRulesController.text.trim(),
             'maxInstallments':
                 int.tryParse(maxInstallmentsController.text.trim()) ?? 12,
           },
@@ -10184,6 +10393,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           },
           'whatsapp': {
             'adminPhone': whatsappAdminPhoneController.text.trim(),
+          },
+          'support': {
+            'realtimeEnabled': supportRealtime,
+            'soundEnabled': supportSound,
+          },
+          'security': {
+            'requireDoubleConfirmation': requireDoubleConfirmation,
+            'sensitiveRoutesProtected': sensitiveRoutesProtected,
+          },
+          'backup': {
+            'autoBackupEnabled': autoBackup,
           },
         },
       );
@@ -10200,12 +10420,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     } finally {
       if (mounted) setState(() => _isSavingPremiumSettings = false);
       nameController.dispose();
+      logoController.dispose();
+      faviconController.dispose();
+      domainController.dispose();
       cnpjController.dispose();
       phoneController.dispose();
       emailController.dispose();
       addressController.dispose();
       monthlyController.dispose();
       dailyController.dispose();
+      lateFineController.dispose();
+      lateFeeController.dispose();
+      graceDaysController.dispose();
+      renegotiationRulesController.dispose();
       maxInstallmentsController.dispose();
       whatsappAdminPhoneController.dispose();
     }
