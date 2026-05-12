@@ -6,12 +6,12 @@
       <stop offset="1" stop-color="#031F1A"/>
     </linearGradient>
     <linearGradient id="neon" x1="145" y1="126" x2="370" y2="378" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7CFFB2"/>
-      <stop offset="1" stop-color="#18D979"/>
+      <stop stop-color="#E879F9"/>
+      <stop offset="1" stop-color="#A855F7"/>
     </linearGradient>
   </defs>
   <rect x="28" y="28" width="456" height="456" rx="118" fill="url(#bg)"/>
-  <rect x="47" y="47" width="418" height="418" rx="100" stroke="#22F58C" stroke-opacity="0.28" stroke-width="10"/>
+  <rect x="47" y="47" width="418" height="418" rx="100" stroke="#C084FC" stroke-opacity="0.28" stroke-width="10"/>
   <path d="M154 145H273C335 145 376 181 376 235C376 290 334 326 270 326H215V380H154V145ZM215 198V274H266C296 274 314 260 314 236C314 212 296 198 266 198H215Z" fill="white"/>
   <path d="M203 226H94" stroke="url(#neon)" stroke-width="22" stroke-linecap="round"/>
   <path d="M203 268H118" stroke="url(#neon)" stroke-width="22" stroke-linecap="round"/>
