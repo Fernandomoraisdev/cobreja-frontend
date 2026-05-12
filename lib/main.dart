@@ -2175,7 +2175,7 @@ extension AppPlanExtension on AppPlan {
   };
 
   Color get color => switch (this) {
-    AppPlan.basic => const Color(0xFF061C3D),
+    AppPlan.basic => const Color(0xFF080613),
     AppPlan.professional => const Color(0xFF22C55E),
     AppPlan.premium => const Color(0xFF7C3AED),
   };
@@ -2516,7 +2516,7 @@ class FinanceService {
             title: '${client.name} vence amanhã',
             subtitle: 'Prepare a cobrança de ${_currency(debt.totalDebt)}',
             client: client,
-            color: const Color(0xFF061C3D),
+            color: const Color(0xFF080613),
           ),
         );
       }
@@ -2988,7 +2988,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           surface: const Color(0xFF0F2238),
           error: AppColors.danger,
         ),
-        scaffoldBackgroundColor: const Color(0xFF071827),
+        scaffoldBackgroundColor: const Color(0xFF0D0916),
         textTheme: AppTypography.textTheme.apply(
           bodyColor: Colors.white,
           displayColor: Colors.white,
@@ -3033,7 +3033,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
             backgroundColor: accentSecondary,
-            foregroundColor: const Color(0xFF061C3D),
+            foregroundColor: const Color(0xFF080613),
             minimumSize: const Size(0, 54),
             textStyle: const TextStyle(
               fontSize: 16,
@@ -4469,7 +4469,7 @@ Future<bool> login(String identifier, String password) async {
                           widget.windowsMachineCode ??
                               'Não foi possível gerar o código da máquina.',
                           style: const TextStyle(
-                            color: Color(0xFF061C3D),
+                            color: Color(0xFF080613),
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
                           ),
@@ -4934,7 +4934,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
       SnackBar(
         content: Text(message),
         backgroundColor:
-            isError ? const Color(0xFFB91C1C) : const Color(0xFF0F766E),
+            isError ? const Color(0xFFB91C1C) : const Color(0xFF7E22CE),
       ),
     );
   }
@@ -5006,7 +5006,7 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final portalBackground =
-        isDark ? const Color(0xFF071827) : AppColors.background;
+        isDark ? const Color(0xFF0D0916) : AppColors.background;
     final portalHeaderColor =
         isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
     final portalMutedColor =
@@ -5513,7 +5513,7 @@ class _ClientProfileTab extends StatelessWidget {
             _ClientProfileMetricChip(
               title: 'Dívidas ativas',
               value: '$activeCount',
-              color: const Color(0xFF061C3D),
+              color: const Color(0xFF080613),
               icon: Icons.account_balance_wallet_rounded,
             ),
             _ClientProfileMetricChip(
@@ -5675,11 +5675,11 @@ class _ClientBankDashboardCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF061C3D), Color(0xFF0F766E), Color(0xFF16A34A)],
+          colors: [Color(0xFF080613), Color(0xFF7E22CE), Color(0xFF16A34A)],
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x22061C3D),
+            color: Color(0x33A855F7),
             blurRadius: 22,
             offset: Offset(0, 12),
           ),
@@ -8320,14 +8320,14 @@ class _FinancialAnalyticsStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF102A43) : AppColors.surface;
+    final cardColor = isDark ? const Color(0xFF171222) : AppColors.surface;
     final borderColor =
         isDark ? const Color(0xFF244462) : AppColors.borderSoft;
     final titleColor = isDark ? Colors.white : AppColors.textStrong;
     final subtitleColor =
         isDark ? const Color(0xFFC9D7E8) : AppColors.textMuted;
     final iconBg =
-        isDark ? const Color(0xFF063F46) : AppColors.primary.withOpacity(0.12);
+        isDark ? const Color(0xFF241336) : AppColors.primary.withOpacity(0.12);
     final iconColor = isDark ? const Color(0xFF2DD4BF) : AppColors.primary;
 
     return InkWell(
@@ -10950,7 +10950,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               : 'C',
           style: const TextStyle(
             fontWeight: FontWeight.w800,
-            color: Color(0xFF061C3D),
+            color: Color(0xFF080613),
           ),
         ),
       );
@@ -12683,10 +12683,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         .toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final panelColor =
-        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
-    final tileColor = isDark ? const Color(0xFF0B2137) : Colors.white;
+        isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF100B18) : Colors.white;
     final nestedColor =
-        isDark ? const Color(0xFF071827) : const Color(0xFFF8FBFF);
+        isDark ? const Color(0xFF0D0916) : const Color(0xFFF8FBFF);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final titleColor = isDark ? Colors.white : const Color(0xFF111827);
@@ -13295,10 +13295,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final latestPayment = filteredEntries.isEmpty ? null : filteredEntries.first.payment;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final panelColor =
-        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
-    final tileColor = isDark ? const Color(0xFF0B2137) : Colors.white;
+        isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF100B18) : Colors.white;
     final nestedColor =
-        isDark ? const Color(0xFF071827) : const Color(0xFFF7FAFF);
+        isDark ? const Color(0xFF0D0916) : const Color(0xFFF7FAFF);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final titleColor = isDark ? Colors.white : const Color(0xFF111827);
@@ -13306,8 +13306,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         isDark ? const Color(0xFFD6E0EC) : const Color(0xFF374151);
     final mutedColor =
         isDark ? const Color(0xFFA9B7C8) : const Color(0xFF5B6474);
-    final iconBg = isDark ? const Color(0xFF063F46) : const Color(0xFFE8F1FF);
-    final iconColor = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF061C3D);
+    final iconBg = isDark ? const Color(0xFF241336) : const Color(0xFFE8F1FF);
+    final iconColor = isDark ? const Color(0xFF2DD4BF) : const Color(0xFF080613);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
@@ -13656,7 +13656,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final panelColor =
-        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.95);
+        isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.95);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final titleColor = isDark ? Colors.white : const Color(0xFF111827);
@@ -13688,7 +13688,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
+                  colors: [Color(0xFF080613), Color(0xFF22C55E)],
                 ),
                 borderRadius: BorderRadius.circular(28),
               ),
@@ -14745,7 +14745,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         totalToReceive
       ),
         subtitle: '$activeClients clientes ativos',
-        color: const Color(0xFF061C3D),
+        color: const Color(0xFF080613),
         icon: Icons.account_balance_wallet_rounded,
         kind: _MetricCardKind.totalToReceive,
       ),
@@ -14884,7 +14884,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         ? _reminders.first.subtitle
         : _safeCustomReminders.first.description;
     final firstColor =
-        hasSystemReminder ? _reminders.first.color : const Color(0xFF061C3D);
+        hasSystemReminder ? _reminders.first.color : const Color(0xFF080613);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? Colors.white : const Color(0xFF111827);
     final subtitleColor =
@@ -14894,7 +14894,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final chevronColor =
         isDark ? const Color(0xFF2DD4BF) : const Color(0xFF92400E);
     final alertIconColor =
-        isDark && firstColor == const Color(0xFF061C3D)
+        isDark && firstColor == const Color(0xFF080613)
             ? const Color(0xFF2DD4BF)
             : firstColor;
     final alertIconBg = isDark
@@ -14913,7 +14913,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
               colors: isDark
-                  ? const [Color(0xFF102A43), Color(0xFF0B2137)]
+                  ? const [Color(0xFF171222), Color(0xFF100B18)]
                   : const [Color(0xFFFFF7ED), Color(0xFFFFFBEB)],
             ),
             border: Border.all(color: borderColor),
@@ -15060,7 +15060,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     child: Text(
                       '${clients.length} registro(s)',
                       style: const TextStyle(
-                        color: Color(0xFF061C3D),
+                        color: Color(0xFF080613),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -15363,7 +15363,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         _currency(latest.total),
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF061C3D),
+                          color: Color(0xFF080613),
                         ),
                       ),
                     ],
@@ -15408,7 +15408,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                   begin: Alignment.bottomCenter,
                                   end: Alignment.topCenter,
                                   colors: [
-                                    Color(0xFF061C3D),
+                                    Color(0xFF080613),
                                     Color(0xFF22C55E),
                                   ],
                                 ),
@@ -15496,10 +15496,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       onSelected: (_) => onTap(),
       selectedColor: const Color(0xFFE8F1FF),
       side: BorderSide(
-        color: selected ? const Color(0xFF061C3D) : const Color(0xFFD8E2F0),
+        color: selected ? const Color(0xFF080613) : const Color(0xFFD8E2F0),
       ),
       labelStyle: TextStyle(
-        color: selected ? const Color(0xFF061C3D) : const Color(0xFF4B5563),
+        color: selected ? const Color(0xFF080613) : const Color(0xFF4B5563),
         fontWeight: FontWeight.w700,
       ),
       showCheckmark: false,
@@ -15512,9 +15512,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildEmptyState(String tabType, {bool hasFilter = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final panelColor =
-        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.95);
+        isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.95);
     final nestedColor =
-        isDark ? const Color(0xFF071827) : const Color(0xFFF6FAFF);
+        isDark ? const Color(0xFF0D0916) : const Color(0xFFF6FAFF);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final nestedBorderColor =
@@ -15596,12 +15596,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
+                          colors: [Color(0xFF080613), Color(0xFF22C55E)],
                         ),
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF061C3D).withOpacity(0.18),
+                            color: const Color(0xFF080613).withOpacity(0.18),
                             blurRadius: 22,
                             offset: const Offset(0, 12),
                           ),
@@ -16777,7 +16777,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     ? const Color(0xFF16A34A)
                                     : debt.isOverdue
                                         ? const Color(0xFFDC2626)
-                                        : const Color(0xFF061C3D),
+                                        : const Color(0xFF080613),
                               ),
                             ],
                           )
@@ -16817,7 +16817,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                                     ? const Color(0xFF16A34A)
                                     : debt.isOverdue
                                         ? const Color(0xFFDC2626)
-                                        : const Color(0xFF061C3D),
+                                        : const Color(0xFF080613),
                               ),
                             ],
                           ),
@@ -16977,7 +16977,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _ActionChip(
             icon: Icons.edit_rounded,
             label: 'Editar dívida',
-            color: const Color(0xFF061C3D),
+            color: const Color(0xFF080613),
             onTap: () {
               Navigator.pop(context);
               _showEditClientDialog(client);
@@ -17018,7 +17018,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _ActionChip(
             icon: Icons.payments_rounded,
             label: 'Pagamento parcial',
-            color: const Color(0xFF061C3D),
+            color: const Color(0xFF080613),
             onTap: () {
               Navigator.pop(context);
               _showPaymentDialog(client);
@@ -17277,7 +17277,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     child: const Icon(
                       Icons.receipt_long_rounded,
-                      color: Color(0xFF061C3D),
+                      color: Color(0xFF080613),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -17332,7 +17332,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         icon: const Icon(
                           Icons.receipt_long_rounded,
-                          color: Color(0xFF061C3D),
+                          color: Color(0xFF080613),
                         ),
                         visualDensity: VisualDensity.compact,
                       ),
@@ -17953,7 +17953,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ];
             }).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF061C3D)),
+            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF080613)),
             cellAlignment: pw.Alignment.centerLeft,
             cellPadding: const pw.EdgeInsets.all(6),
             border: pw.TableBorder.all(color: PdfColor.fromHex('#DCE9FF')),
@@ -18275,7 +18275,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ];
             }).toList(),
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF061C3D)),
+            headerDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF080613)),
             cellPadding: const pw.EdgeInsets.all(6),
             border: pw.TableBorder.all(color: PdfColor.fromHex('#DCE9FF')),
           ),
@@ -19181,7 +19181,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             backgroundColor: Color(0xFFE8F1FF),
                             child: Icon(
                               Icons.edit_calendar_rounded,
-                              color: Color(0xFF061C3D),
+                              color: Color(0xFF080613),
                             ),
                           ),
                           title: Text(item.title),
@@ -20472,7 +20472,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   color: enabled
-                      ? const Color(0xFF061C3D)
+                      ? const Color(0xFF080613)
                       : const Color(0xFF9CA3AF),
                 ),
               ),
@@ -21142,7 +21142,7 @@ class _MetricsActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor =
-        isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
+        isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.96);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final titleColor = isDark ? Colors.white : const Color(0xFF111827);
@@ -21167,7 +21167,7 @@ class _MetricsActionCard extends StatelessWidget {
               width: 48,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF061C3D), Color(0xFF22C55E)],
+                  colors: [Color(0xFF080613), Color(0xFF22C55E)],
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -21527,7 +21527,7 @@ class _ClientGroupCard extends StatelessWidget {
         ? const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF102A43), Color(0xFF0B2137)],
+            colors: [Color(0xFF171222), Color(0xFF100B18)],
           )
         : const LinearGradient(
             begin: Alignment.topLeft,
@@ -21755,9 +21755,9 @@ class _AdminClientGroupProfilePageState
     final overdueCount = summaries.where((item) => item.isOverdue).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF071827),
+      backgroundColor: const Color(0xFF0D0916),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF071827),
+        backgroundColor: const Color(0xFF0D0916),
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -22060,7 +22060,7 @@ class _ClientCard extends StatelessWidget {
         ? const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF102A43), Color(0xFF0B2137)],
+            colors: [Color(0xFF171222), Color(0xFF100B18)],
           )
         : const LinearGradient(
             begin: Alignment.topLeft,
@@ -22423,8 +22423,8 @@ class _PremiumFoundationCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? Colors.white : AppColors.textStrong;
     final bodyColor = isDark ? const Color(0xFFD6E0EC) : AppColors.textMuted;
-    final panelColor = isDark ? const Color(0xFF102A43) : Colors.white.withOpacity(0.96);
-    final tileColor = isDark ? const Color(0xFF0B2137) : const Color(0xFFF8FBFF);
+    final panelColor = isDark ? const Color(0xFF171222) : Colors.white.withOpacity(0.96);
+    final tileColor = isDark ? const Color(0xFF100B18) : const Color(0xFFF8FBFF);
     final borderColor = isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
 
     return Container(
@@ -22432,12 +22432,12 @@ class _PremiumFoundationCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: isDark
             ? const LinearGradient(
-                colors: [Color(0xFF102A43), Color(0xFF061C3D)],
+                colors: [Color(0xFF171222), Color(0xFF080613)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
             : const LinearGradient(
-                colors: [Colors.white, Color(0xFFF1FFF7)],
+                colors: [Colors.white, Color(0xFFF6F0FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -22623,7 +22623,7 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final panelColor = isDark
-        ? const Color(0xFF102A43)
+        ? const Color(0xFF171222)
         : Colors.white.withOpacity(0.96);
     final borderColor = isDark
         ? const Color(0xFF244462)
@@ -22632,10 +22632,10 @@ class _SettingsCard extends StatelessWidget {
     final subtitleColor = isDark
         ? const Color(0xFFC9D7E8)
         : const Color(0xFF5B6474);
-    final iconBg = isDark ? const Color(0xFF063F46) : const Color(0xFFE8F1FF);
+    final iconBg = isDark ? const Color(0xFF241336) : const Color(0xFFE8F1FF);
     final iconColor = isDark
         ? const Color(0xFF2DD4BF)
-        : const Color(0xFF061C3D);
+        : const Color(0xFF080613);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -22719,7 +22719,7 @@ class _HistorySummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF0B2137) : const Color(0xFFF8FBFF);
+    final cardColor = isDark ? const Color(0xFF100B18) : const Color(0xFFF8FBFF);
     final borderColor =
         isDark ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
     final labelColor =
