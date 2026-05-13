@@ -240,6 +240,86 @@ class ApiService {
     return _extractPayloadList(response.body);
   }
 
+  static Future<List<dynamic>> fetchSuperAdminSubscriptions({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/subscriptions'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<List<dynamic>> fetchSuperAdminPayments({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/payments'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<List<dynamic>> fetchSuperAdminSupport({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/support'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<List<dynamic>> fetchSuperAdminLogs({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/logs'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<List<dynamic>> fetchSuperAdminWebhooks({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/webhooks'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
   static Future<Map<String, dynamic>> updateSuperAdminAccountStatus({
     required String token,
     required int accountId,
@@ -5121,6 +5201,11 @@ class SuperAdminPage extends StatefulWidget {
 class _SuperAdminPageState extends State<SuperAdminPage> {
   Map<String, dynamic>? _overview;
   List<Map<String, dynamic>> _accounts = [];
+  List<Map<String, dynamic>> _subscriptions = [];
+  List<Map<String, dynamic>> _payments = [];
+  List<Map<String, dynamic>> _supportTickets = [];
+  List<Map<String, dynamic>> _logs = [];
+  List<Map<String, dynamic>> _webhooks = [];
   _SuperAdminSection _selectedSection = _SuperAdminSection.painel;
   bool _loading = true;
   bool _saving = false;
@@ -5160,11 +5245,31 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       final results = await Future.wait([
         ApiService.fetchSuperAdminOverview(token: token),
         ApiService.fetchSuperAdminAccounts(token: token),
+        ApiService.fetchSuperAdminSubscriptions(token: token),
+        ApiService.fetchSuperAdminPayments(token: token),
+        ApiService.fetchSuperAdminSupport(token: token),
+        ApiService.fetchSuperAdminLogs(token: token),
+        ApiService.fetchSuperAdminWebhooks(token: token),
       ]);
       if (!mounted) return;
       setState(() {
         _overview = results[0] as Map<String, dynamic>;
         _accounts = (results[1] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _subscriptions = (results[2] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _payments = (results[3] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _supportTickets = (results[4] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _logs = (results[5] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _webhooks = (results[6] as List<dynamic>)
             .whereType<Map<String, dynamic>>()
             .toList();
         _loading = false;
@@ -5555,33 +5660,82 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           emptyTitle: 'Nenhuma empresa suspensa',
         );
       case _SuperAdminSection.assinaturas:
+        return _SuperAdminSubscriptionsView(subscriptions: _subscriptions);
       case _SuperAdminSection.planos:
         return _SuperAdminPlansView(accounts: _accounts);
       case _SuperAdminSection.receita:
       case _SuperAdminSection.cobrancas:
       case _SuperAdminSection.mercadoPago:
-        return _SuperAdminFinanceView(totals: _totals, money: _money);
+        return _SuperAdminFinanceView(
+          totals: _totals,
+          money: _money,
+          payments: _payments,
+        );
       case _SuperAdminSection.suporte:
-        return _SuperAdminPlaceholderView(
+        return _SuperAdminRecordsView(
+          title: 'Tickets de suporte',
+          emptyTitle: 'Nenhum ticket global encontrado',
           icon: Icons.support_agent_rounded,
-          title: 'Tickets suporte',
-          subtitle:
-              '${_intValue(_totals['supportOpen'])} atendimento(s) pendente(s). A fila em tempo real entra no próximo bloco de suporte global.',
+          records: _supportTickets,
+          lineBuilder: (item) {
+            final account = item['account'] is Map<String, dynamic>
+                ? item['account'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final client = item['client'] is Map<String, dynamic>
+                ? item['client'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            return _SuperAdminRecordLine(
+              title: item['subject']?.toString() ?? 'Atendimento sem assunto',
+              subtitle:
+                  '${account['name'] ?? 'Empresa'} • ${client['name'] ?? 'sem cliente'}',
+              trailing: item['status']?.toString() ?? 'OPEN',
+              color: AppColors.warning,
+            );
+          },
         );
       case _SuperAdminSection.logs:
       case _SuperAdminSection.auditoria:
-        return const _SuperAdminPlaceholderView(
-          icon: Icons.fact_check_rounded,
+        return _SuperAdminRecordsView(
           title: 'Auditoria global',
-          subtitle:
-              'A estrutura visual está pronta. O próximo passo é conectar a API de auditoria global paginada.',
+          emptyTitle: 'Nenhum log global encontrado',
+          icon: Icons.fact_check_rounded,
+          records: _logs,
+          lineBuilder: (item) {
+            final account = item['account'] is Map<String, dynamic>
+                ? item['account'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final createdAt = DateTime.tryParse(item['createdAt']?.toString() ?? '');
+            return _SuperAdminRecordLine(
+              title: item['action']?.toString() ?? 'Ação registrada',
+              subtitle:
+                  '${account['name'] ?? 'Plataforma'}${createdAt == null ? '' : ' • ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}'}',
+              trailing: item['severity']?.toString() ?? 'INFO',
+              color: item['severity']?.toString() == 'WARNING'
+                  ? AppColors.warning
+                  : AppColors.secondary,
+            );
+          },
         );
       case _SuperAdminSection.webhooks:
-        return const _SuperAdminPlaceholderView(
+        return _SuperAdminRecordsView(
+          title: 'Webhooks globais',
+          emptyTitle: 'Nenhum webhook recebido',
           icon: Icons.hub_rounded,
-          title: 'Webhooks',
-          subtitle:
-              'Monitoramento visual preparado para Mercado Pago, WhatsApp e eventos internos.',
+          records: _webhooks,
+          lineBuilder: (item) {
+            final account = item['account'] is Map<String, dynamic>
+                ? item['account'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            return _SuperAdminRecordLine(
+              title: item['eventType']?.toString() ??
+                  item['provider']?.toString() ??
+                  'Evento webhook',
+              subtitle:
+                  '${account['name'] ?? 'Sem empresa'} • recurso ${item['resourceId'] ?? '-'}',
+              trailing: item['processed'] == true ? 'Processado' : 'Pendente',
+              color: item['processed'] == true ? AppColors.success : AppColors.warning,
+            );
+          },
         );
     }
   }
@@ -6004,10 +6158,12 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
 class _SuperAdminFinanceView extends StatelessWidget {
   final Map<String, dynamic> totals;
   final String Function(dynamic value) money;
+  final List<Map<String, dynamic>> payments;
 
   const _SuperAdminFinanceView({
     required this.totals,
     required this.money,
+    required this.payments,
   });
 
   @override
@@ -6024,12 +6180,166 @@ class _SuperAdminFinanceView extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.lg),
-        const _SuperAdminPlaceholderView(
-          icon: Icons.insights_rounded,
-          title: 'Financeiro global preparado',
-          subtitle:
-              'MRR, ARR, pagamentos de hoje e inadimplência serão calculados no backend financeiro global.',
+        _SuperAdminRecordsView(
+          title: 'Pagamentos globais recentes',
+          emptyTitle: 'Nenhum pagamento global encontrado',
+          icon: Icons.payments_rounded,
+          records: payments,
+          lineBuilder: (item) {
+            final account = item['account'] is Map<String, dynamic>
+                ? item['account'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final client = item['client'] is Map<String, dynamic>
+                ? item['client'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final paidAt = DateTime.tryParse(item['paidAt']?.toString() ?? '');
+            return _SuperAdminRecordLine(
+              title: '${client['name'] ?? 'Cliente'} • ${money(item['amount'])}',
+              subtitle:
+                  '${account['name'] ?? 'Empresa'}${paidAt == null ? '' : ' • ${DateFormat('dd/MM/yyyy HH:mm').format(paidAt)}'}',
+              trailing: item['type']?.toString() ?? 'Pagamento',
+              color: AppColors.success,
+            );
+          },
         ),
+      ],
+    );
+  }
+}
+
+class _SuperAdminSubscriptionsView extends StatelessWidget {
+  final List<Map<String, dynamic>> subscriptions;
+
+  const _SuperAdminSubscriptionsView({required this.subscriptions});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SuperAdminRecordsView(
+      title: 'Assinaturas recentes',
+      emptyTitle: 'Nenhuma assinatura encontrada',
+      icon: Icons.workspace_premium_rounded,
+      records: subscriptions,
+      lineBuilder: (item) {
+        final account = item['account'] is Map<String, dynamic>
+            ? item['account'] as Map<String, dynamic>
+            : <String, dynamic>{};
+        final plan = item['plan'] is Map<String, dynamic>
+            ? item['plan'] as Map<String, dynamic>
+            : <String, dynamic>{};
+        final periodEnd = DateTime.tryParse(item['currentPeriodEnd']?.toString() ?? '');
+        return _SuperAdminRecordLine(
+          title: account['name']?.toString() ?? 'Empresa sem nome',
+          subtitle:
+              'Plano ${plan['name'] ?? plan['code'] ?? '-'}${periodEnd == null ? '' : ' • vence ${DateFormat('dd/MM/yyyy').format(periodEnd)}'}',
+          trailing: item['status']?.toString() ?? 'TRIAL',
+          color: AppColors.secondary,
+        );
+      },
+    );
+  }
+}
+
+class _SuperAdminRecordLine {
+  final String title;
+  final String subtitle;
+  final String trailing;
+  final Color color;
+
+  const _SuperAdminRecordLine({
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    required this.color,
+  });
+}
+
+class _SuperAdminRecordsView extends StatelessWidget {
+  final String title;
+  final String emptyTitle;
+  final IconData icon;
+  final List<Map<String, dynamic>> records;
+  final _SuperAdminRecordLine Function(Map<String, dynamic> item) lineBuilder;
+
+  const _SuperAdminRecordsView({
+    required this.title,
+    required this.emptyTitle,
+    required this.icon,
+    required this.records,
+    required this.lineBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (records.isEmpty) {
+      return _SuperAdminEmptyState(
+        icon: icon,
+        title: emptyTitle,
+        subtitle: 'Os dados aparecerão aqui assim que forem registrados.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        ...records.map((item) {
+          final line = lineBuilder(item);
+          return Container(
+            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: const Color(0xE6171222),
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: line.color.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(icon, color: line.color, size: 22),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        line.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        line.subtitle,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _StatusPill(text: line.trailing, color: line.color),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
