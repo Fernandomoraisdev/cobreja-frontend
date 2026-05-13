@@ -698,6 +698,22 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<List<dynamic>> fetchSaasPlanPayments({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/saas/plan-payments'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchSecurityOverview({
     required String token,
   }) async {
@@ -9970,7 +9986,7 @@ class _SaasPlanPanel extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _MercadoPagoInfoCard(
-          title: 'Historico do plano',
+          title: 'Faturas e comprovantes do plano',
           subtitle: planPayments.isEmpty
               ? 'Nenhuma cobranca de plano registrada ainda.'
               : '${planPayments.length} cobranca(s) recente(s) do SaaS.',
@@ -9983,22 +9999,125 @@ class _SaasPlanPanel extends StatelessWidget {
                     value: 'Sem historico de cobranca',
                   ),
                 ]
-              : planPayments.map((payment) {
-                  final plan = (payment['plan'] as Map<String, dynamic>?) ?? const {};
-                  final paidAt = DateTime.tryParse(payment['paidAt']?.toString() ?? '');
-                  final createdAt = DateTime.tryParse(payment['createdAt']?.toString() ?? '');
-                  final dateText = paidAt != null
-                      ? 'Pago em ${DateFormat('dd/MM/yyyy HH:mm').format(paidAt)}'
-                      : createdAt != null
-                          ? 'Criado em ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}'
-                          : 'Sem data';
-                  return _DetailLine(
-                    label: '${plan['name'] ?? plan['code'] ?? 'Plano'} - ${payment['status'] ?? '-'}',
-                    value: '${_currency(_readDouble(payment['amount']))} | $dateText',
-                  );
-                }).toList(),
+              : planPayments
+                  .map((payment) => _SaasInvoiceTile(payment: payment))
+                  .toList(),
         ),
       ],
+    );
+  }
+}
+
+class _SaasInvoiceTile extends StatelessWidget {
+  final Map<String, dynamic> payment;
+
+  const _SaasInvoiceTile({required this.payment});
+
+  Color _statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'APPROVED':
+        return AppColors.success;
+      case 'REJECTED':
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return AppColors.danger;
+      default:
+        return AppColors.warning;
+    }
+  }
+
+  Future<void> _openTicket(BuildContext context) async {
+    final ticketUrl = payment['ticketUrl']?.toString() ?? '';
+    if (ticketUrl.isEmpty) return;
+    final uri = Uri.tryParse(ticketUrl);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nao consegui abrir o link desta fatura.')),
+      );
+    }
+  }
+
+  Future<void> _copyReference(BuildContext context) async {
+    final reference = payment['externalReference']?.toString() ?? '';
+    if (reference.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: reference));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Referencia da fatura copiada.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = (payment['plan'] as Map<String, dynamic>?) ?? const {};
+    final status = payment['status']?.toString().toUpperCase() ?? 'PENDING';
+    final paidAt = DateTime.tryParse(payment['paidAt']?.toString() ?? '');
+    final createdAt = DateTime.tryParse(payment['createdAt']?.toString() ?? '');
+    final dateText = paidAt != null
+        ? 'Pago em ${DateFormat('dd/MM/yyyy HH:mm').format(paidAt)}'
+        : createdAt != null
+            ? 'Criado em ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}'
+            : 'Sem data';
+    final ticketUrl = payment['ticketUrl']?.toString() ?? '';
+    final color = _statusColor(status);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.14),
+            child: Icon(Icons.receipt_long_rounded, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      plan['name']?.toString() ?? plan['code']?.toString() ?? 'Plano',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    _StatusPill(text: status, color: color),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_currency(_readDouble(payment['amount']))} | $dateText',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copiar referencia',
+            onPressed: (payment['externalReference']?.toString() ?? '').isEmpty
+                ? null
+                : () => _copyReference(context),
+            icon: const Icon(Icons.copy_rounded),
+          ),
+          IconButton(
+            tooltip: 'Abrir comprovante/link',
+            onPressed: ticketUrl.isEmpty ? null : () => _openTicket(context),
+            icon: const Icon(Icons.open_in_new_rounded),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -10745,6 +10864,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   bool _isLoadingCollections = false;
   String? _collectionAutomationError;
   Map<String, dynamic>? _saasStatus;
+  List<Map<String, dynamic>> _saasPlanPayments = const [];
   bool _isLoadingSaas = false;
   String? _saasError;
   Map<String, dynamic>? _securityOverview;
@@ -11384,10 +11504,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _saasError = null;
         });
       }
-      final status = await ApiService.fetchSaasStatus(token: token);
+      final results = await Future.wait([
+        ApiService.fetchSaasStatus(token: token),
+        ApiService.fetchSaasPlanPayments(token: token),
+      ]);
+      final status = results[0] as Map<String, dynamic>;
+      final planPayments = (results[1] as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .toList();
       if (!mounted) return;
       setState(() {
-        _saasStatus = status;
+        _saasStatus = {
+          ...status,
+          'planPayments': planPayments,
+        };
+        _saasPlanPayments = planPayments;
         _isLoadingSaas = false;
       });
     } catch (e) {
