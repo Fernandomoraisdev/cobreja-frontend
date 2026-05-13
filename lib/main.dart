@@ -5731,7 +5731,7 @@ class _SuperAdminPlansView extends StatelessWidget {
     return Wrap(
       spacing: AppSpacing.md,
       runSpacing: AppSpacing.md,
-      children: ['FREE', 'STARTER', 'PRO', 'BUSINESS', 'LIFETIME']
+      children: ['FREE', 'MENSAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL', 'VITALICIO']
           .map(
             (plan) => SizedBox(
               width: 260,
@@ -6359,10 +6359,11 @@ class _SuperAdminAccountCard extends StatelessWidget {
                 onSelected: onChangePlan,
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: 'FREE', child: Text('Plano FREE')),
-                  PopupMenuItem(value: 'STARTER', child: Text('Plano STARTER')),
-                  PopupMenuItem(value: 'PRO', child: Text('Plano PRO')),
-                  PopupMenuItem(value: 'BUSINESS', child: Text('Plano BUSINESS')),
-                  PopupMenuItem(value: 'LIFETIME', child: Text('Plano VITALÍCIO')),
+                  PopupMenuItem(value: 'MENSAL', child: Text('Plano MENSAL')),
+                  PopupMenuItem(value: 'TRIMESTRAL', child: Text('Plano TRIMESTRAL')),
+                  PopupMenuItem(value: 'SEMESTRAL', child: Text('Plano SEMESTRAL')),
+                  PopupMenuItem(value: 'ANUAL', child: Text('Plano ANUAL')),
+                  PopupMenuItem(value: 'VITALICIO', child: Text('Plano VITALICIO')),
                 ],
                 child: _SuperAdminActionPill(
                   icon: Icons.workspace_premium_rounded,
@@ -9446,6 +9447,24 @@ class _SaasPlanPanel extends StatelessWidget {
     return _currency(cents / 100);
   }
 
+  String _periodLabel(Map<String, dynamic> plan) {
+    switch (plan['billingPeriod']?.toString().toUpperCase()) {
+      case 'MONTHLY':
+        return '/mes';
+      case 'QUARTERLY':
+        return '/trimestre';
+      case 'SEMIANNUAL':
+        return '/semestre';
+      case 'YEARLY':
+      case 'ANNUAL':
+        return '/ano';
+      case 'LIFETIME':
+        return 'pagamento unico';
+      default:
+        return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final subscription = (data?['subscription'] as Map<String, dynamic>?) ?? const {};
@@ -9488,7 +9507,7 @@ class _SaasPlanPanel extends StatelessWidget {
                 _MercadoPagoMetricCard(
                   width: compact ? constraints.maxWidth : (constraints.maxWidth - 24) / 3,
                   title: 'Status',
-                  value: subscription['status']?.toString() ?? 'TRIAL',
+                  value: subscription['status']?.toString() ?? 'ACTIVE',
                   icon: Icons.verified_user_rounded,
                   color: AppColors.success,
                 ),
@@ -9542,6 +9561,7 @@ class _SaasPlanPanel extends StatelessWidget {
                 (plan) => _SaasPlanCard(
                   plan: plan,
                   price: _price(plan),
+                  periodLabel: _periodLabel(plan),
                   selected: plan['code']?.toString() == currentCode,
                   onSelect: () => onSelectPlan(plan['code']?.toString() ?? ''),
                 ),
@@ -9556,12 +9576,14 @@ class _SaasPlanPanel extends StatelessWidget {
 class _SaasPlanCard extends StatelessWidget {
   final Map<String, dynamic> plan;
   final String price;
+  final String periodLabel;
   final bool selected;
   final VoidCallback onSelect;
 
   const _SaasPlanCard({
     required this.plan,
     required this.price,
+    required this.periodLabel,
     required this.selected,
     required this.onSelect,
   });
@@ -9593,13 +9615,30 @@ class _SaasPlanCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                price,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 22,
-                ),
+              Wrap(
+                spacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  Text(
+                    price,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                    ),
+                  ),
+                  if (periodLabel.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        periodLabel,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
