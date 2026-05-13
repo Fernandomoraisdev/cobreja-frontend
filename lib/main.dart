@@ -9681,6 +9681,7 @@ class _SaasPlanPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final subscription = (data?['subscription'] as Map<String, dynamic>?) ?? const {};
     final currentPlan = (subscription['plan'] as Map<String, dynamic>?) ?? const {};
+    final billing = (data?['billing'] as Map<String, dynamic>?) ?? const {};
     final usage = (data?['usage'] as Map<String, dynamic>?) ?? const {};
     final plans = (data?['plans'] as List?)
             ?.whereType<Map<String, dynamic>>()
@@ -9691,10 +9692,31 @@ class _SaasPlanPanel extends StatelessWidget {
     final unlimited = usage['unlimitedClients'] == true;
     final usagePercent = (usage['usagePercent'] as num?)?.toDouble() ?? 0;
     final currentCode = currentPlan['code']?.toString() ?? '';
+    final isPastDue = billing['isPastDue'] == true;
+    final accessBlocked = billing['accessBlocked'] == true;
+    final dueDate = DateTime.tryParse(billing['currentPeriodEnd']?.toString() ?? '');
+    final daysPastDue = (billing['daysPastDue'] as num?)?.toInt() ?? 0;
+    final graceDays = (billing['graceDays'] as num?)?.toInt() ?? 0;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
+        if (isPastDue) ...[
+          _MercadoPagoInfoCard(
+            title: accessBlocked ? 'Plano bloqueado' : 'Plano vencido',
+            subtitle: accessBlocked
+                ? 'Renove sua assinatura para voltar a cadastrar novos clientes.'
+                : 'Sua assinatura venceu ha $daysPastDue dia(s). Voce tem $graceDays dia(s) de carencia antes do bloqueio.',
+            icon: accessBlocked ? Icons.lock_rounded : Icons.warning_amber_rounded,
+            color: accessBlocked ? AppColors.danger : AppColors.warning,
+            children: [
+              if (dueDate != null)
+                _DetailLine(label: 'Vencimento', value: DateFormat('dd/MM/yyyy').format(dueDate)),
+              _DetailLine(label: 'Status', value: subscription['status']?.toString() ?? 'PAST_DUE'),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 720;
@@ -9721,7 +9743,11 @@ class _SaasPlanPanel extends StatelessWidget {
                   title: 'Status',
                   value: subscription['status']?.toString() ?? 'ACTIVE',
                   icon: Icons.verified_user_rounded,
-                  color: AppColors.success,
+                  color: accessBlocked
+                      ? AppColors.danger
+                      : isPastDue
+                          ? AppColors.warning
+                          : AppColors.success,
                 ),
               ],
             );
@@ -9753,7 +9779,7 @@ class _SaasPlanPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   unlimited
-                      ? 'Este plano não possui limite de clientes ativos.'
+                      ? 'Este plano nao possui limite de clientes ativos.'
                       : 'Restam ${usage['remainingClients'] ?? 0} cliente(s) ativo(s) neste plano.',
                   style: const TextStyle(
                     color: AppColors.textMuted,
