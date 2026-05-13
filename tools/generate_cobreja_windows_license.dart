@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 const List<String> _secretParts = [
-  'COBREJA',
+  'PEGUEI&PAGUEI',
   '_WIN',
   '_LIC',
   '_2026',
@@ -49,7 +49,7 @@ String _safeFileName(String value) {
 }
 
 void main(List<String> args) {
-  stdout.writeln('=== Gerador de licencas COBREJA Windows ===');
+  stdout.writeln('=== Gerador de licencas Peguei & Paguei Windows ===');
   stdout.writeln('');
 
   final machineCode = _readRequired('Codigo da maquina').toUpperCase();
@@ -89,7 +89,7 @@ void main(List<String> args) {
   }
 
   final payload = <String, dynamic>{
-    'product': 'COBREJA_WINDOWS',
+    'product': 'PEGUEI&PAGUEI_WINDOWS',
     'machineCode': machineCode,
     'type': type,
     'customerName': customerName,
@@ -107,7 +107,7 @@ void main(List<String> args) {
   );
 
   outputFile.writeAsStringSync('''
-COBREJA - Licenca Windows
+Peguei & Paguei - Licenca Windows
 
 Cliente: $customerName
 Tipo: $typeLabel

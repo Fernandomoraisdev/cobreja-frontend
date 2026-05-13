@@ -4020,7 +4020,7 @@ void _showError(String msg) {
     }
   }
 
-// ðŸ‘‡ AGORA SIM FORA DO LOGIN
+// Cadastro remoto usado pela tela de login.
 Future<bool> register(String name, String email, String password) async {
   try {
     await ApiService.register(name: name, email: email, password: password);
@@ -25555,7 +25555,7 @@ class HomePage extends StatelessWidget {
         title: Text('Peguei & Paguei'),
       ),
       body: Center(
-        child: Text('Bem-vindo ao sistema! ðŸš€'),
+        child: Text('Bem-vindo ao sistema!'),
       ),
     );
   }

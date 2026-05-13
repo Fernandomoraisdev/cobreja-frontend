@@ -1,4 +1,4 @@
-# Licenças Windows da COBREJÁ
+# Licenças Windows da Peguei & Paguei
 
 Gerador privado:
 
@@ -20,7 +20,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\generate_cobreja_windows_licens
 
 Fluxo:
 
-1. No Windows, o cliente abre a tela de ativação da COBREJÁ.
+1. No Windows, o cliente abre a tela de ativação da Peguei & Paguei.
 2. Copia o `Código da máquina`.
 3. Você gera a licença com o script.
 4. O cliente cola a licença no sistema.

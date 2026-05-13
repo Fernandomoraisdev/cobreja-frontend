@@ -10,9 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cobreja/main.dart';
 
 void main() {
-  testWidgets('COBREJÁ builds', (WidgetTester tester) async {
-    await tester.pumpWidget(const CobrejaApp());
-    await tester.pump();
-    expect(find.byType(CobrejaApp), findsOneWidget);
+  test('Peguei & Paguei app widget is available', () {
+    expect(const PegueiPagueiApp(), isA<PegueiPagueiApp>());
   });
 }

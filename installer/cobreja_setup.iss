@@ -1,7 +1,7 @@
-﻿#define MyAppName "COBREJÁ"
+#define MyAppName "Peguei & Paguei"
 #define MyAppVersion "1.1.0"
 #define MyAppPublisher "Fernando Morais"
-#define MyAppExeName "COBREJA.exe"
+#define MyAppExeName "PEGUEI_PAGUEI.exe"
 #define MyAppSourceDir "..\\build\\windows\\x64\\runner\\Release"
 
 [Setup]
@@ -13,7 +13,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\build\installer
-OutputBaseFilename=cobreja_setup
+OutputBaseFilename=peguei_paguei_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -37,5 +37,3 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName}"; Flags: nowait postinstall skipifsilent
-
-

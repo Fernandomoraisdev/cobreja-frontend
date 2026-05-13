@@ -6,7 +6,7 @@ param(
     [int]$SubscriptionDays = 30
 )
 
-$secret = 'COBREJA_WIN_LIC_2026_FMB_0720'
+$secret = 'PEGUEI&PAGUEI_WIN_LIC_2026_FMB_0720'
 
 function Read-IfEmpty {
     param(
@@ -65,7 +65,7 @@ if ($Type -eq 'subscription') {
 }
 
 $payload = [ordered]@{
-    product      = 'COBREJA_WINDOWS'
+    product      = 'PEGUEI&PAGUEI_WINDOWS'
     machineCode  = $MachineCode.ToUpperInvariant()
     type         = $Type
     customerName = $CustomerName
