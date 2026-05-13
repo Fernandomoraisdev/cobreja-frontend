@@ -1,10 +1,10 @@
 <svg width="760" height="160" viewBox="0 0 760 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="14" width="132" height="132" rx="36" fill="#F8FAFC" fill-opacity="0.08" stroke="#C084FC" stroke-opacity="0.35"/>
+  <rect x="8" y="14" width="132" height="132" rx="36" fill="#F8FAFC" fill-opacity="0.08" stroke="#7E22CE" stroke-opacity="0.45"/>
   <path d="M43 49H77C104 49 122 65 122 89C122 113 104 128 76 128H61V141H43V49ZM61 65V112H75C93 112 104 104 104 89C104 74 93 65 75 65H61Z" fill="white"/>
-  <path d="M55 79H20M55 96H27M55 113H35" stroke="#C084FC" stroke-width="8" stroke-linecap="round"/>
-  <path d="M110 126L123 139L149 108" stroke="#C084FC" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M55 79H20M55 96H27M55 113H35" stroke="#7E22CE" stroke-width="8" stroke-linecap="round"/>
+  <path d="M110 126L123 139L149 108" stroke="#7E22CE" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="166" y="74" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">Peguei</text>
-  <text x="326" y="74" fill="#C084FC" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">&amp;</text>
+  <text x="326" y="74" fill="#7E22CE" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">&amp;</text>
   <text x="374" y="74" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">Paguei</text>
   <text x="168" y="111" fill="#C9D7E8" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650" letter-spacing="1.4">FINTECH DE COBRANCA E CREDITO DIGITAL</text>
 </svg>
