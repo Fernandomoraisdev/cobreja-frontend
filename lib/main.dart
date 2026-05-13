@@ -8828,7 +8828,7 @@ class _SupportCenterTabState extends State<_SupportCenterTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Suporte Feronix',
+                        'Suporte Peguei & Paguei',
                         style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
                       ),
                       SizedBox(height: 4),
@@ -24947,7 +24947,7 @@ class _PremiumFoundationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Feronix Premium',
+                      'Peguei & Paguei Premium',
                       style: TextStyle(
                         color: titleColor,
                         fontWeight: FontWeight.w900,
@@ -24956,7 +24956,7 @@ class _PremiumFoundationCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Fundacao SaaS para configuracoes, suporte, auditoria, Pix, automacoes e paineis financeiros.',
+                      'Fundacao SaaS para configuracoes, suporte, auditoria, Pix, automacoes e paineis financeiros da Peguei & Paguei.',
                       style: TextStyle(color: bodyColor, height: 1.45),
                     ),
                   ],
