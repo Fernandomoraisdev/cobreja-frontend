@@ -626,6 +626,41 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> createSaasPlanPix({
+    required String token,
+    required String planCode,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/saas/plan-payments/pix'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'planCode': planCode}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> fetchSaasPlanPaymentStatus({
+    required String token,
+    required int intentId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/saas/plan-payments/$intentId/status'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> fetchSecurityOverview({
     required String token,
   }) async {
@@ -8260,6 +8295,183 @@ class _PixPaymentDialogState extends State<_PixPaymentDialog> {
 
 }
 
+class _SaasPlanPixDialog extends StatefulWidget {
+  final Map<String, dynamic> initialIntent;
+  final Future<void> Function() onRefresh;
+
+  const _SaasPlanPixDialog({
+    required this.initialIntent,
+    required this.onRefresh,
+  });
+
+  @override
+  State<_SaasPlanPixDialog> createState() => _SaasPlanPixDialogState();
+}
+
+class _SaasPlanPixDialogState extends State<_SaasPlanPixDialog> {
+  late Map<String, dynamic> _intent;
+  Timer? _pollTimer;
+  bool _isChecking = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _intent = Map<String, dynamic>.from(widget.initialIntent);
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_isChecking && _status != 'APPROVED') _checkStatus(showSnack: false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  int? get _intentId => (_intent['id'] as num?)?.toInt();
+  String get _status => _intent['status']?.toString().toUpperCase() ?? 'PENDING';
+  String get _qrCode => _intent['qrCode']?.toString() ?? '';
+
+  Uint8List? get _qrCodeImageBytes {
+    final raw = _intent['qrCodeBase64']?.toString() ?? '';
+    if (raw.isEmpty) return null;
+    try {
+      return base64Decode(raw.contains(',') ? raw.split(',').last : raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _checkStatus({bool showSnack = true}) async {
+    final id = _intentId;
+    if (id == null) return;
+    setState(() => _isChecking = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null || token.isEmpty) {
+        throw const ApiException(statusCode: 401, message: 'Sessao expirada.');
+      }
+      final payload = await ApiService.fetchSaasPlanPaymentStatus(token: token, intentId: id);
+      final updatedIntent = (payload['intent'] as Map<String, dynamic>?) ?? payload;
+      if (!mounted) return;
+      setState(() {
+        _intent = updatedIntent;
+        _message = _status == 'APPROVED'
+            ? 'Pagamento aprovado. Atualizando plano...'
+            : (showSnack ? 'Pagamento ainda nao confirmado.' : _message);
+      });
+      if (_status == 'APPROVED') {
+        _pollTimer?.cancel();
+        await widget.onRefresh();
+        if (mounted) Navigator.of(context).pop();
+      }
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _message = err is ApiException ? err.message : 'Erro ao consultar pagamento.';
+      });
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
+  }
+
+  Future<void> _copyPix() async {
+    if (_qrCode.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: _qrCode));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Pix do plano copiado.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = _readDouble(_intent['amount']);
+    final plan = (_intent['plan'] as Map<String, dynamic>?) ?? const {};
+    final imageBytes = _qrCodeImageBytes;
+
+    return AlertDialog(
+      title: Text('Pagar plano ${plan['name'] ?? ''}'.trim()),
+      content: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _currency(amount),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: SizedBox(
+                  width: 220,
+                  height: 220,
+                  child: _qrCode.isNotEmpty
+                      ? QrImageView(data: _qrCode, backgroundColor: Colors.white)
+                      : (imageBytes == null
+                          ? const Center(child: Text('QR Code indisponivel.'))
+                          : Image.memory(imageBytes, fit: BoxFit.contain)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (_qrCode.isNotEmpty)
+                SelectableText(
+                  _qrCode,
+                  maxLines: 4,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _status == 'APPROVED' ? 'Plano pago' : 'Aguardando pagamento',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _status == 'APPROVED' ? AppColors.success : AppColors.textMuted,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (_message != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _message!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isChecking ? null : () => Navigator.of(context).pop(),
+          child: const Text('Fechar'),
+        ),
+        FilledButton.icon(
+          onPressed: _qrCode.isEmpty ? null : _copyPix,
+          icon: const Icon(Icons.copy_rounded, size: 18),
+          label: const Text('Copiar Pix'),
+        ),
+        FilledButton.icon(
+          onPressed: _isChecking ? null : () => _checkStatus(),
+          icon: _isChecking
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh_rounded, size: 18),
+          label: const Text('Verificar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _SupportCenterTab extends StatefulWidget {
   final List<Map<String, dynamic>> conversations;
   final Future<void> Function() onRefresh;
@@ -9593,6 +9805,7 @@ class _SaasPlanCard extends StatelessWidget {
     final features = (plan['features'] as List?)?.map((item) => item.toString()).toList() ??
         const <String>[];
     final limit = plan['clientLimit'];
+    final isPaid = ((plan['priceCents'] as num?)?.toInt() ?? 0) > 0;
 
     return SizedBox(
       width: 290,
@@ -9670,8 +9883,8 @@ class _SaasPlanCard extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: selected ? null : onSelect,
-                  icon: Icon(selected ? Icons.lock_rounded : Icons.upgrade_rounded),
-                  label: Text(selected ? 'Plano atual' : 'Selecionar'),
+                  icon: Icon(selected ? Icons.lock_rounded : (isPaid ? Icons.pix_rounded : Icons.upgrade_rounded)),
+                  label: Text(selected ? 'Plano atual' : (isPaid ? 'Pagar com Pix' : 'Selecionar')),
                 ),
               ),
             ],
@@ -10976,6 +11189,28 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
     try {
       setState(() => _isLoadingSaas = true);
+      final plans = (_saasStatus?['plans'] as List?)?.whereType<Map<String, dynamic>>().toList() ??
+          const <Map<String, dynamic>>[];
+      final selectedPlan = plans.firstWhere(
+        (plan) => plan['code']?.toString() == planCode,
+        orElse: () => const <String, dynamic>{},
+      );
+      final priceCents = (selectedPlan['priceCents'] as num?)?.toInt() ?? 0;
+
+      if (priceCents > 0) {
+        final intent = await ApiService.createSaasPlanPix(token: token, planCode: planCode);
+        if (!mounted) return;
+        setState(() => _isLoadingSaas = false);
+        await showDialog(
+          context: context,
+          builder: (_) => _SaasPlanPixDialog(
+            initialIntent: intent,
+            onRefresh: () => _refreshSaasStatus(updateLoading: true),
+          ),
+        );
+        return;
+      }
+
       final result = await ApiService.selectSaasPlan(token: token, planCode: planCode);
       final overview = (result['overview'] as Map<String, dynamic>?) ?? result;
       if (!mounted) return;
