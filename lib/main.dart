@@ -18,8 +18,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'file_download.dart';
-import 'platform_machine_id.dart';
-
 import 'package:http/http.dart' as http;
 
 void main() {
@@ -1400,107 +1398,6 @@ String _formatInterestRule({
 const String _privacyPolicyUpdatedAt = '09 de abril de 2026';
 const String _privacyPolicyContact = '(21) 96568-0720';
 const String _accountDeletionPolicyUpdatedAt = '09 de abril de 2026';
-const List<String> _windowsLicenseSecretParts = [
-  'PEGUEI&PAGUEI',
-  '_WIN',
-  '_LIC',
-  '_2026',
-  '_FMB',
-  '_0720',
-];
-
-String get _windowsLicenseSecret => _windowsLicenseSecretParts.join();
-
-enum WindowsLicenseType { lifetime, singleUse, subscription }
-
-class WindowsLicenseInfo {
-  final WindowsLicenseType type;
-  final String machineCode;
-  final DateTime issuedAt;
-  final DateTime? expiresAt;
-  final String customerName;
-  final String licenseId;
-
-  const WindowsLicenseInfo({
-    required this.type,
-    required this.machineCode,
-    required this.issuedAt,
-    required this.expiresAt,
-    required this.customerName,
-    required this.licenseId,
-  });
-
-  bool get isExpired =>
-      expiresAt != null && DateTime.now().isAfter(expiresAt!);
-
-  bool get isValid => !isExpired;
-
-  String get typeLabel {
-    switch (type) {
-      case WindowsLicenseType.lifetime:
-        return 'Vitalícia';
-      case WindowsLicenseType.singleUse:
-        return 'Uso único';
-      case WindowsLicenseType.subscription:
-        return 'Assinatura';
-    }
-  }
-}
-
-WindowsLicenseType? _licenseTypeFromRaw(String raw) {
-  for (final type in WindowsLicenseType.values) {
-    if (type.name == raw) return type;
-  }
-  return null;
-}
-
-String _createLicenseSignature(String payloadBase64) {
-  final hmac = Hmac(sha256, utf8.encode(_windowsLicenseSecret));
-  return hmac.convert(utf8.encode(payloadBase64)).toString().toUpperCase();
-}
-
-WindowsLicenseInfo? _parseWindowsLicense(
-  String licenseKey,
-  String machineCode,
-) {
-  try {
-    final parts = licenseKey.trim().split('.');
-    if (parts.length != 2) return null;
-
-    final payloadBase64 = parts.first.trim();
-    final providedSignature = parts.last.trim().toUpperCase();
-    final expectedSignature = _createLicenseSignature(payloadBase64);
-    if (providedSignature != expectedSignature) return null;
-
-    final payloadJson = utf8.decode(base64Url.decode(base64Url.normalize(payloadBase64)));
-    final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
-
-    if (payload['product']?.toString() != 'PEGUEI&PAGUEI_WINDOWS') return null;
-    if (payload['machineCode']?.toString() != machineCode) return null;
-
-    final type = _licenseTypeFromRaw(payload['type']?.toString() ?? '');
-    final issuedAt = DateTime.tryParse(payload['issuedAt']?.toString() ?? '');
-    if (type == null || issuedAt == null) return null;
-
-    final expiresRaw = payload['expiresAt']?.toString();
-    final expiresAt = expiresRaw == null || expiresRaw.isEmpty
-        ? null
-        : DateTime.tryParse(expiresRaw);
-
-    final info = WindowsLicenseInfo(
-      type: type,
-      machineCode: payload['machineCode']?.toString() ?? '',
-      issuedAt: issuedAt,
-      expiresAt: expiresAt,
-      customerName: payload['customerName']?.toString() ?? 'Cliente',
-      licenseId: payload['licenseId']?.toString() ?? 'LIC',
-    );
-
-    return info.isValid ? info : null;
-  } catch (_) {
-    return null;
-  }
-}
 
 class _PrivacyPolicySectionData {
   final String title;
@@ -2717,8 +2614,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   bool _sessionIsSuperAdmin = false;
   bool _sessionIsImpersonating = false;
   String? _impersonatedCompanyName;
-  String? _windowsMachineCode;
-  WindowsLicenseInfo? _windowsLicense;
   AppAccentPreset _accentPreset = AppAccentPreset.cobreja;
   AppThemePreference _themePreference = AppThemePreference.claro;
   double _fontScale = 1.0;
@@ -2815,8 +2710,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       }
     }
 
-    String? machineCode;
-    WindowsLicenseInfo? windowsLicense;
     var accentPreset = AppAccentPreset.cobreja;
     var themePreference = AppThemePreference.claro;
     var fontScale = 1.0;
@@ -2837,19 +2730,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         );
       } catch (_) {}
     }
-    if (isWindowsDesktopPlatform) {
-      machineCode = await getPlatformMachineCode();
-      final savedLicense = prefs.getString('windows_license_key');
-      if (machineCode != null &&
-          savedLicense != null &&
-          savedLicense.trim().isNotEmpty) {
-        windowsLicense = _parseWindowsLicense(savedLicense, machineCode);
-        if (windowsLicense == null) {
-          await prefs.remove('windows_license_key');
-        }
-      }
-    }
-
     if (!mounted) return;
 
     setState(() {
@@ -2860,8 +2740,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionIsSuperAdmin = sessionIsSuperAdmin;
       _sessionIsImpersonating = sessionIsImpersonating;
       _impersonatedCompanyName = savedImpersonatedCompany;
-      _windowsMachineCode = machineCode;
-      _windowsLicense = windowsLicense;
       _accentPreset = accentPreset;
       _themePreference = themePreference;
       _fontScale = fontScale;
@@ -2908,25 +2786,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _themePreference = AppThemePreference.claro;
       _fontScale = 1.0;
     });
-  }
-
-  Future<bool> _activateWindowsLicense(String licenseKey) async {
-    final machineCode = _windowsMachineCode ?? await getPlatformMachineCode();
-    if (machineCode == null) return false;
-
-    final license = _parseWindowsLicense(licenseKey, machineCode);
-    if (license == null) return false;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('windows_license_key', licenseKey.trim());
-
-    if (!mounted) return true;
-
-    setState(() {
-      _windowsMachineCode = machineCode;
-      _windowsLicense = license;
-    });
-    return true;
   }
 
   Future<void> _saveAccount(UserAccount account) async {
@@ -3360,9 +3219,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
               initiallyAuthenticated: _sessionAuthenticated,
               onAuthenticated: _saveAccount,
               onDeleteAccount: _deleteAccount,
-              windowsMachineCode: _windowsMachineCode,
-              windowsLicense: null,
-              onActivateWindowsLicense: null,
               authenticatedBuilder: (account) => _sessionRole == 'CLIENT'
                   ? ClientPortalPage(
                       account: account,
@@ -3378,7 +3234,6 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
                       account: account,
                       onLogout: _logout,
                       onDeleteAccount: () => _deleteAccount(account),
-                      windowsLicense: _windowsLicense,
                       accentPreset: _accentPreset,
                       themePreference: _themePreference,
                       fontScale: _fontScale,
@@ -3656,289 +3511,12 @@ class _PegueiPagueiLoading extends StatelessWidget {
   }
 }
 
-class WindowsLicensePage extends StatefulWidget {
-  final String? machineCode;
-  final Future<bool> Function(String licenseKey) onActivate;
-
-  const WindowsLicensePage({
-    super.key,
-    required this.machineCode,
-    required this.onActivate,
-  });
-
-  @override
-  State<WindowsLicensePage> createState() => _WindowsLicensePageState();
-}
-
-class _WindowsLicensePageState extends State<WindowsLicensePage> {
-  final _licenseController = TextEditingController();
-  bool _isSubmitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _licenseController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _activate() async {
-    final key = _licenseController.text.trim();
-    if (key.isEmpty) {
-      setState(() {
-        _error = 'Digite a licença para liberar o sistema neste computador.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-      _error = null;
-    });
-
-    final success = await widget.onActivate(key);
-    if (!mounted) return;
-
-    setState(() {
-      _isSubmitting = false;
-      if (!success) {
-        _error =
-            'Licença inválida para este computador. Confira o código da máquina e tente novamente.';
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final machineCode = widget.machineCode;
-
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.backgroundTop,
-              AppColors.backgroundMid,
-              AppColors.backgroundBottom,
-            ],
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: Container(
-                padding: const EdgeInsets.all(28),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.96),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: const Color(0xFFDCE9FF)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x120F172A),
-                      blurRadius: 28,
-                      offset: Offset(0, 18),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          height: 64,
-                          width: 64,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.secondary],
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: SvgPicture.asset(
-                              'assets/branding/peguei_paguei_mark.svg',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ativação do Peguei & Paguei',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(fontSize: 30),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Digite a licença do Windows para liberar o sistema neste computador.',
-                                style: TextStyle(
-                                  color: AppColors.textMuted,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAFF),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFDCE9FF)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Código da máquina',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textStrong,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SelectableText(
-                            machineCode ?? 'Não foi possível gerar o código da máquina.',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.1,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: machineCode == null
-                                    ? null
-                                    : () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(text: machineCode),
-                                        );
-                                        if (!mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Código da máquina copiado.',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                icon: const Icon(Icons.copy_rounded),
-                                label: const Text('Copiar código'),
-                              ),
-                              const Chip(
-                                label: Text('Licenças: Vitalícia e Uso único'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: _licenseController,
-                      minLines: 3,
-                      maxLines: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'Licença do sistema',
-                        hintText:
-                            'Cole aqui a licença gerada para este computador.',
-                      ),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        style: const TextStyle(
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: machineCode == null || _isSubmitting
-                            ? null
-                            : _activate,
-                        icon: _isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.verified_rounded),
-                        label: Text(
-                          _isSubmitting ? 'Validando licença...' : 'Ativar sistema',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FBFF),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFDCE9FF)),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Como funciona',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            '1. Copie o código da máquina.\n2. Gere a licença no seu gerador privado.\n3. Cole a licença aqui para liberar o uso no Windows.',
-                            style: TextStyle(
-                              color: AppColors.textMuted,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class AuthGatePage extends StatefulWidget {
   final UserAccount? savedAccount;
   final List<UserAccount> registeredAccounts;
   final bool initiallyAuthenticated;
   final ValueChanged<UserAccount> onAuthenticated;
   final Future<void> Function(UserAccount account) onDeleteAccount;
-  final String? windowsMachineCode;
-  final WindowsLicenseInfo? windowsLicense;
-  final Future<bool> Function(String licenseKey)? onActivateWindowsLicense;
   final Widget Function(UserAccount account) authenticatedBuilder;
 
   const AuthGatePage({
@@ -3948,9 +3526,6 @@ class AuthGatePage extends StatefulWidget {
     required this.initiallyAuthenticated,
     required this.onAuthenticated,
     required this.onDeleteAccount,
-    this.windowsMachineCode,
-    this.windowsLicense,
-    this.onActivateWindowsLicense,
     required this.authenticatedBuilder,
   });
 
@@ -3964,12 +3539,10 @@ class _AuthGatePageState extends State<AuthGatePage> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isActivatingWindowsLicense = false;
   bool _registerAsClient = true;
   int _failedAttempts = 0;
   DateTime? _lockedUntil;
   UserAccount? _sessionAccount;
-  String? _windowsLicenseError;
   String? _lastAuthError;
   int? _inviteAccountId;
   bool _clientInviteMode = false;
@@ -3981,7 +3554,6 @@ class _AuthGatePageState extends State<AuthGatePage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _windowsLicenseController = TextEditingController();
 
   Map<String, dynamic>? dashboardData;
 
@@ -4161,61 +3733,11 @@ Future<bool> login(String identifier, String password) async {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _windowsLicenseController.dispose();
     super.dispose();
-  }
-
-  bool get _requiresWindowsLicense =>
-      isWindowsDesktopPlatform && widget.onActivateWindowsLicense != null;
-
-  bool get _hasWindowsLicense =>
-      !_requiresWindowsLicense || widget.windowsLicense != null;
-
-  Future<void> _activateWindowsLicense() async {
-    final licenseKey = _windowsLicenseController.text.trim();
-    if (licenseKey.isEmpty) {
-      setState(() {
-        _windowsLicenseError =
-            'Cole a licença enviada pelo distribuidor para liberar o sistema.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isActivatingWindowsLicense = true;
-      _windowsLicenseError = null;
-    });
-
-    final success = await widget.onActivateWindowsLicense!(licenseKey);
-    if (!mounted) return;
-
-    setState(() {
-      _isActivatingWindowsLicense = false;
-      if (!success) {
-        _windowsLicenseError =
-            'Licença inválida para este computador. Confira o código da máquina e tente novamente.';
-      }
-    });
-
-    if (success) {
-      _showAuthMessage(
-        'Licença ativada',
-        'O sistema foi liberado com sucesso neste computador.',
-        success: true,
-      );
-    }
   }
 
  Future<void> _submit() async {
   if (_isSubmitting) return;
-
-  if (!_hasWindowsLicense) {
-    _showAuthMessage(
-      'Licença necessária',
-      'Peça ao distribuidor do seu sistema para enviar a licença antes de continuar.',
-    );
-    return;
-  }
 
   final rawIdentifier = _emailController.text.trim();
   final email = _normalizeEmail(rawIdentifier);
@@ -4475,7 +3997,7 @@ Future<bool> login(String identifier, String password) async {
   @override
   Widget build(BuildContext context) {
     final saved = _sessionAccount ?? widget.savedAccount;
-    if (_authenticated && saved != null && _hasWindowsLicense) {
+    if (_authenticated && saved != null) {
       return widget.authenticatedBuilder(saved);
     }
 
@@ -4731,165 +4253,6 @@ Future<bool> login(String identifier, String password) async {
             ),
           ),
           const SizedBox(height: 24),
-          if (_requiresWindowsLicense && !_hasWindowsLicense) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7FAFF),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFDCE9FF)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Licença do sistema',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Peça ao distribuidor do seu sistema para enviar a licença.',
-                    style: TextStyle(
-                      color: Color(0xFF5B6474),
-                      height: 1.45,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFDCE9FF)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Código da máquina',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF111827),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SelectableText(
-                          widget.windowsMachineCode ??
-                              'Não foi possível gerar o código da máquina.',
-                          style: const TextStyle(
-                            color: Color(0xFF080613),
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          onPressed: widget.windowsMachineCode == null
-                              ? null
-                              : () async {
-                                  await Clipboard.setData(
-                                    ClipboardData(
-                                      text: widget.windowsMachineCode!,
-                                    ),
-                                  );
-                                  if (!mounted) return;
-                                  _showAuthMessage(
-                                    'Código copiado',
-                                    'O código da máquina foi copiado para você enviar ao distribuidor.',
-                                    success: true,
-                                  );
-                                },
-                          icon: const Icon(Icons.copy_rounded),
-                          label: const Text('Copiar código'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _windowsLicenseController,
-                    minLines: 2,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Licença',
-                      hintText: 'Cole aqui a licença recebida para este computador.',
-                    ),
-                  ),
-                  if (_windowsLicenseError != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      _windowsLicenseError!,
-                      style: const TextStyle(
-                        color: AppColors.danger,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isActivatingWindowsLicense
-                          ? null
-                          : _activateWindowsLicense,
-                      icon: _isActivatingWindowsLicense
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.verified_rounded),
-                      label: Text(
-                        _isActivatingWindowsLicense
-                            ? 'Validando licença...'
-                            : 'Ativar licença',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
-          if (_requiresWindowsLicense && _hasWindowsLicense) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFFCF6),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFB6F0CF)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.verified_rounded,
-                    color: Color(0xFF15803D),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Licença ${widget.windowsLicense!.typeLabel.toLowerCase()} ativa neste computador.',
-                      style: const TextStyle(
-                        color: Color(0xFF166534),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-          ],
           if (_isRegisterMode) ...[
             if (_clientInviteMode)
               Container(
@@ -10832,7 +10195,6 @@ class MainNavigationPage extends StatefulWidget {
   final UserAccount account;
   final VoidCallback onLogout;
   final Future<void> Function() onDeleteAccount;
-  final WindowsLicenseInfo? windowsLicense;
   final AppAccentPreset accentPreset;
   final AppThemePreference themePreference;
   final double fontScale;
@@ -10849,7 +10211,6 @@ class MainNavigationPage extends StatefulWidget {
     required this.account,
     required this.onLogout,
     required this.onDeleteAccount,
-    this.windowsLicense,
     required this.accentPreset,
     required this.themePreference,
     required this.fontScale,
@@ -13356,61 +12717,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 
-  void _showWindowsLicenseDetails() {
-    final license = widget.windowsLicense;
-    if (license == null) return;
-
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Licença do Windows'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7FAFF),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFDCE9FF)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildReceiptLine('Tipo da licença', license.typeLabel),
-                    _buildReceiptLine('Cliente', license.customerName),
-                    _buildReceiptLine('Licença', license.licenseId),
-                    _buildReceiptLine(
-                      'Emitida em',
-                      DateFormat('dd/MM/yyyy HH:mm').format(license.issuedAt.toLocal()),
-                    ),
-                    _buildReceiptLine(
-                      'Validade',
-                      license.expiresAt == null
-                          ? 'Sem vencimento'
-                          : DateFormat('dd/MM/yyyy HH:mm')
-                              .format(license.expiresAt!.toLocal()),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _loadClients() async {
     final prefs = await SharedPreferences.getInstance();
     final remindersJson = prefs.getString('custom_reminders');
@@ -14706,45 +14012,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  if (isWindowsDesktopPlatform && widget.windowsLicense != null) ...[
-                    Tooltip(
-                      message: 'Ver detalhes da licença do Windows',
-                      child: InkWell(
-                        onTap: _showWindowsLicenseDetails,
-                        borderRadius: BorderRadius.circular(999),
-                        child: Ink(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _shellPanelSoftColor,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: _shellBorderColor),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.verified_user_rounded,
-                                color: _shellStrongTextColor,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                widget.windowsLicense!.typeLabel,
-                                style: TextStyle(
-                                  color: _shellStrongTextColor,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
                   _IconBubble(
                     icon: Icons.notifications_active_rounded,
                     badge: _notificationBadgeCount,
