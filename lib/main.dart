@@ -208,6 +208,97 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchSuperAdminOverview({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/overview'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<List<dynamic>> fetchSuperAdminAccounts({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/accounts'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<Map<String, dynamic>> updateSuperAdminAccountStatus({
+    required String token,
+    required int accountId,
+    required String status,
+    String? reason,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/super-admin/accounts/$accountId/status'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        'status': status,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> changeSuperAdminAccountPlan({
+    required String token,
+    required int accountId,
+    required String planCode,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/super-admin/accounts/$accountId/plan'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'planCode': planCode}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> impersonateSuperAdminAccount({
+    required String token,
+    required int accountId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/super-admin/accounts/$accountId/impersonate'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> getPremiumSettings({
     required String token,
   }) async {
@@ -2543,6 +2634,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   bool _isLoading = true;
   bool _sessionAuthenticated = false;
   String? _sessionRole;
+  bool _sessionIsSuperAdmin = false;
   String? _windowsMachineCode;
   WindowsLicenseInfo? _windowsLicense;
   AppAccentPreset _accentPreset = AppAccentPreset.cobreja;
@@ -2562,6 +2654,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     final sessionEmail = prefs.getString('session_email');
     final token = prefs.getString('token');
     final savedRole = prefs.getString('session_role');
+    final savedIsSuperAdmin = prefs.getBool('session_is_super_admin') ?? false;
     final rawAccentPreset = prefs.getString('app_accent_preset');
     final rawThemePreference = prefs.getString('app_theme_preference');
     final rawFontScale = prefs.getDouble('app_font_scale');
@@ -2601,6 +2694,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     var sessionAuthenticated =
         sessionAccount != null && token != null && token.isNotEmpty;
     var sessionRole = savedRole;
+    var sessionIsSuperAdmin = savedIsSuperAdmin;
 
     // Confirma o token no backend para evitar "sessão zera no F5" quando o token
     // expira/é inválido ou quando mudou a estrutura do JWT.
@@ -2613,14 +2707,19 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           sessionRole = role;
           await prefs.setString('session_role', role);
         }
+        final isSuperAdmin = me['isSuperAdmin'] == true;
+        sessionIsSuperAdmin = isSuperAdmin;
+        await prefs.setBool('session_is_super_admin', isSuperAdmin);
       } catch (e) {
         if (e is ApiException && e.statusCode == 401) {
           sessionAuthenticated = false;
           sessionAccount = null;
           sessionRole = null;
+          sessionIsSuperAdmin = false;
           await prefs.remove('session_email');
           await prefs.remove('token');
           await prefs.remove('session_role');
+          await prefs.remove('session_is_super_admin');
         }
       }
     }
@@ -2667,6 +2766,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _account = sessionAccount;
       _sessionAuthenticated = sessionAuthenticated;
       _sessionRole = sessionRole;
+      _sessionIsSuperAdmin = sessionIsSuperAdmin;
       _windowsMachineCode = machineCode;
       _windowsLicense = windowsLicense;
       _accentPreset = accentPreset;
@@ -2760,6 +2860,54 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _account = account;
       _sessionAuthenticated = true;
       _sessionRole = prefs.getString('session_role');
+      _sessionIsSuperAdmin = prefs.getBool('session_is_super_admin') ?? false;
+    });
+  }
+
+  Future<void> _applyImpersonatedAdminSession(
+    Map<String, dynamic> payload,
+  ) async {
+    final data = payload['data'] is Map<String, dynamic>
+        ? payload['data'] as Map<String, dynamic>
+        : payload;
+    final token = (data['token'] ?? payload['token'] ?? '').toString();
+    final user = data['user'] is Map<String, dynamic>
+        ? data['user'] as Map<String, dynamic>
+        : payload['user'] is Map<String, dynamic>
+            ? payload['user'] as Map<String, dynamic>
+            : <String, dynamic>{};
+    final email = user['email']?.toString() ?? '';
+    final name = user['name']?.toString() ?? email;
+    if (token.isEmpty || email.isEmpty) return;
+
+    final account = UserAccount(name: name, email: email);
+    final prefs = await SharedPreferences.getInstance();
+    final nextAccounts = [..._accounts];
+    final index = nextAccounts.indexWhere(
+      (item) => _normalizeEmail(item.email) == _normalizeEmail(email),
+    );
+    if (index == -1) {
+      nextAccounts.add(account);
+    } else {
+      nextAccounts[index] = account;
+    }
+    await prefs.setString('token', token);
+    await prefs.setString('session_role', 'ADMIN');
+    await prefs.setBool('session_is_super_admin', false);
+    await prefs.setString('session_email', _normalizeEmail(email));
+    await prefs.setString(
+      'accounts',
+      jsonEncode(nextAccounts.map((item) => item.toMap()).toList()),
+    );
+    await prefs.setString('account', jsonEncode(account.toMap()));
+
+    if (!mounted) return;
+    setState(() {
+      _accounts = nextAccounts;
+      _account = account;
+      _sessionAuthenticated = true;
+      _sessionRole = 'ADMIN';
+      _sessionIsSuperAdmin = false;
     });
   }
 
@@ -2768,11 +2916,13 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('session_email');
     await prefs.remove('token');
     await prefs.remove('session_role');
+    await prefs.remove('session_is_super_admin');
     if (!mounted) return;
     setState(() {
       _account = null;
       _sessionAuthenticated = false;
       _sessionRole = null;
+      _sessionIsSuperAdmin = false;
     });
   }
 
@@ -2799,6 +2949,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('session_email');
     await prefs.remove('token');
     await prefs.remove('session_role');
+    await prefs.remove('session_is_super_admin');
     await prefs.remove('clients');
     await prefs.remove('custom_reminders');
 
@@ -2808,6 +2959,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _account = null;
       _sessionAuthenticated = false;
       _sessionRole = null;
+      _sessionIsSuperAdmin = false;
     });
   }
 
@@ -3065,6 +3217,12 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
                       account: account,
                       onLogout: _logout,
                     )
+                  : _sessionIsSuperAdmin
+                      ? SuperAdminPage(
+                          account: account,
+                          onLogout: _logout,
+                          onImpersonate: _applyImpersonatedAdminSession,
+                        )
                   : MainNavigationPage(
                       account: account,
                       onLogout: _logout,
@@ -3759,6 +3917,7 @@ Future<bool> registerClient(
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', token);
       await prefs.setString('session_role', 'CLIENT');
+      await prefs.setBool('session_is_super_admin', false);
     }
     widget.onAuthenticated(UserAccount(name: resolvedName, email: resolvedEmail));
     _lastAuthError = null;
@@ -3793,6 +3952,7 @@ Future<bool> login(String identifier, String password) async {
         } else {
           await prefs.remove('session_role');
         }
+        await prefs.setBool('session_is_super_admin', me['isSuperAdmin'] == true);
       } catch (_) {
         // Se falhar, mantém a sessão e usa a role salva anteriormente (se houver).
       }
@@ -4846,6 +5006,947 @@ class _PrivacyPolicySection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class SuperAdminPage extends StatefulWidget {
+  final UserAccount account;
+  final VoidCallback onLogout;
+  final Future<void> Function(Map<String, dynamic> payload) onImpersonate;
+
+  const SuperAdminPage({
+    super.key,
+    required this.account,
+    required this.onLogout,
+    required this.onImpersonate,
+  });
+
+  @override
+  State<SuperAdminPage> createState() => _SuperAdminPageState();
+}
+
+class _SuperAdminPageState extends State<SuperAdminPage> {
+  Map<String, dynamic>? _overview;
+  List<Map<String, dynamic>> _accounts = [];
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<String?> _token() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  Future<void> _load() async {
+    final token = await _token();
+    if (token == null) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Sessão expirada. Entre novamente.';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        ApiService.fetchSuperAdminOverview(token: token),
+        ApiService.fetchSuperAdminAccounts(token: token),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _overview = results[0] as Map<String, dynamic>;
+        _accounts = (results[1] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e is ApiException ? e.message : 'Falha ao carregar empresas.';
+      });
+    }
+  }
+
+  int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _money(dynamic value) {
+    return NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$')
+        .format(_readDouble(value));
+  }
+
+  Map<String, dynamic> get _totals {
+    final totals = _overview?['totals'];
+    return totals is Map<String, dynamic> ? totals : <String, dynamic>{};
+  }
+
+  Future<void> _changeStatus(Map<String, dynamic> account) async {
+    final token = await _token();
+    if (token == null) return;
+    final accountId = _intValue(account['id']);
+    final currentStatus = account['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    final nextStatus = currentStatus == 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
+
+    setState(() => _saving = true);
+    try {
+      await ApiService.updateSuperAdminAccountStatus(
+        token: token,
+        accountId: accountId,
+        status: nextStatus,
+        reason: nextStatus == 'SUSPENDED'
+            ? 'Suspenso pelo painel Super Admin'
+            : null,
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextStatus == 'SUSPENDED'
+                ? 'Empresa suspensa.'
+                : 'Empresa liberada.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao alterar status.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _changePlan(Map<String, dynamic> account, String planCode) async {
+    final token = await _token();
+    if (token == null) return;
+    setState(() => _saving = true);
+    try {
+      await ApiService.changeSuperAdminAccountPlan(
+        token: token,
+        accountId: _intValue(account['id']),
+        planCode: planCode,
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Plano alterado para $planCode.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao alterar plano.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _impersonate(Map<String, dynamic> account) async {
+    final token = await _token();
+    if (token == null) return;
+    setState(() => _saving = true);
+    try {
+      final payload = await ApiService.impersonateSuperAdminAccount(
+        token: token,
+        accountId: _intValue(account['id']),
+      );
+      await widget.onImpersonate(payload);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao impersonar admin.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF05030B),
+              Color(0xFF10081E),
+              Color(0xFF05030B),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SuperAdminHeader(
+                  account: widget.account,
+                  onRefresh: _load,
+                  onLogout: widget.onLogout,
+                  busy: _saving,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                if (_loading)
+                  const Expanded(
+                    child: Center(
+                      child: _PegueiPagueiLoading(label: 'Carregando Super Admin'),
+                    ),
+                  )
+                else if (_error != null)
+                  Expanded(
+                    child: Center(
+                      child: _SuperAdminEmptyState(
+                        icon: Icons.admin_panel_settings_rounded,
+                        title: 'Não foi possível carregar',
+                        subtitle: _error!,
+                        actionLabel: 'Tentar novamente',
+                        onAction: _load,
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      color: AppColors.secondary,
+                      child: ListView(
+                        children: [
+                          _SuperAdminMetrics(
+                            totals: _totals,
+                            money: _money,
+                            intValue: _intValue,
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Empresas SaaS',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${_accounts.length} empresa(s)',
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          if (_accounts.isEmpty)
+                            _SuperAdminEmptyState(
+                              icon: Icons.business_rounded,
+                              title: 'Nenhuma empresa cadastrada',
+                              subtitle:
+                                  'As contas dos administradores aparecerão aqui.',
+                              actionLabel: 'Atualizar',
+                              onAction: _load,
+                            )
+                          else
+                            ..._accounts.map(
+                              (account) => Padding(
+                                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                                child: _SuperAdminAccountCard(
+                                  account: account,
+                                  onChangeStatus: _saving
+                                      ? null
+                                      : () => _changeStatus(account),
+                                  onChangePlan: _saving
+                                      ? null
+                                      : (plan) => _changePlan(account, plan),
+                                  onImpersonate: _saving
+                                      ? null
+                                      : () => _impersonate(account),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuperAdminHeader extends StatelessWidget {
+  final UserAccount account;
+  final VoidCallback onRefresh;
+  final VoidCallback onLogout;
+  final bool busy;
+
+  const _SuperAdminHeader({
+    required this.account,
+    required this.onRefresh,
+    required this.onLogout,
+    required this.busy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 54,
+          width: 54,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFC084FC), Color(0xFFE879F9)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withOpacity(0.22),
+                blurRadius: 26,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.security_rounded, color: Color(0xFF080613)),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'SUPER ADMIN',
+                style: TextStyle(
+                  color: AppColors.secondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Controle geral Peguei & Paguei',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                account.email,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SuperAdminIconButton(
+          icon: Icons.refresh_rounded,
+          label: 'Atualizar',
+          onPressed: busy ? null : onRefresh,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _SuperAdminIconButton(
+          icon: Icons.logout_rounded,
+          label: 'Sair',
+          onPressed: onLogout,
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 720) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              brand,
+              const SizedBox(height: AppSpacing.md),
+              actions,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: brand),
+            actions,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SuperAdminIconButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  const _SuperAdminIconButton({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: IconButton.filledTonal(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xFF171222),
+          foregroundColor: Colors.white,
+          disabledForegroundColor: AppColors.textMuted,
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuperAdminMetrics extends StatelessWidget {
+  final Map<String, dynamic> totals;
+  final String Function(dynamic value) money;
+  final int Function(dynamic value) intValue;
+
+  const _SuperAdminMetrics({
+    required this.totals,
+    required this.money,
+    required this.intValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      _SuperMetricData(
+        icon: Icons.business_rounded,
+        label: 'Empresas',
+        value: '${intValue(totals['accounts'])}',
+        subtitle: 'contas criadas',
+      ),
+      _SuperMetricData(
+        icon: Icons.people_alt_rounded,
+        label: 'Usuários',
+        value: '${intValue(totals['users'])}',
+        subtitle: 'admins e clientes',
+      ),
+      _SuperMetricData(
+        icon: Icons.workspace_premium_rounded,
+        label: 'Assinaturas',
+        value: '${intValue(totals['activeSubscriptions'])}',
+        subtitle: 'ativas/trial',
+      ),
+      _SuperMetricData(
+        icon: Icons.payments_rounded,
+        label: 'Pagamentos',
+        value: money(totals['paymentsAmount']),
+        subtitle: '${intValue(totals['paymentsCount'])} registro(s)',
+      ),
+      _SuperMetricData(
+        icon: Icons.block_rounded,
+        label: 'Suspensas',
+        value: '${intValue(totals['suspendedAccounts'])}',
+        subtitle: 'contas bloqueadas',
+        danger: true,
+      ),
+      _SuperMetricData(
+        icon: Icons.support_agent_rounded,
+        label: 'Suporte',
+        value: '${intValue(totals['supportOpen'])}',
+        subtitle: 'pendências abertas',
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width > 1180
+            ? 3
+            : width > 760
+                ? 2
+                : 1;
+        return GridView.builder(
+          itemCount: cards.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: crossAxisCount == 1 ? 3.4 : 3.1,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+          ),
+          itemBuilder: (context, index) => _SuperAdminMetricCard(data: cards[index]),
+        );
+      },
+    );
+  }
+}
+
+class _SuperMetricData {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String subtitle;
+  final bool danger;
+
+  const _SuperMetricData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.subtitle,
+    this.danger = false,
+  });
+}
+
+class _SuperAdminMetricCard extends StatelessWidget {
+  final _SuperMetricData data;
+
+  const _SuperAdminMetricCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = data.danger ? AppColors.danger : AppColors.secondary;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xCC171222),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: color.withOpacity(0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.10),
+            blurRadius: 28,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(data.icon, color: color),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.label,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    data.value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  data.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminAccountCard extends StatelessWidget {
+  final Map<String, dynamic> account;
+  final VoidCallback? onChangeStatus;
+  final ValueChanged<String>? onChangePlan;
+  final VoidCallback? onImpersonate;
+
+  const _SuperAdminAccountCard({
+    required this.account,
+    this.onChangeStatus,
+    this.onChangePlan,
+    this.onImpersonate,
+  });
+
+  int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = account['admin'] is Map<String, dynamic>
+        ? account['admin'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final counts = account['counts'] is Map<String, dynamic>
+        ? account['counts'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final subscription = account['subscription'] is Map<String, dynamic>
+        ? account['subscription'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final plan = subscription['plan'] is Map<String, dynamic>
+        ? subscription['plan'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final status = account['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    final isSuspended = status == 'SUSPENDED';
+    final planCode = plan['code']?.toString() ?? subscription['planCode']?.toString() ?? 'FREE';
+    final createdAt = DateTime.tryParse(account['createdAt']?.toString() ?? '');
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xE6171222),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(
+          color: isSuspended
+              ? AppColors.danger.withOpacity(0.34)
+              : AppColors.border,
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+          final info = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    account['name']?.toString() ?? 'Empresa sem nome',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  _StatusPill(
+                    text: isSuspended ? 'Suspensa' : 'Ativa',
+                    color: isSuspended ? AppColors.danger : AppColors.success,
+                  ),
+                  _StatusPill(
+                    text: planCode,
+                    color: AppColors.secondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${admin['name']?.toString() ?? 'Admin não informado'} • ${admin['email']?.toString() ?? 'sem email'}',
+                style: const TextStyle(
+                  color: AppColors.textBody,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _SuperAdminCountChip(
+                    icon: Icons.people_rounded,
+                    label: '${_intValue(counts['clients'])} clientes',
+                  ),
+                  _SuperAdminCountChip(
+                    icon: Icons.receipt_long_rounded,
+                    label: '${_intValue(counts['debts'])} dívidas',
+                  ),
+                  _SuperAdminCountChip(
+                    icon: Icons.payments_rounded,
+                    label: '${_intValue(counts['payments'])} pagamentos',
+                  ),
+                  if (createdAt != null)
+                    _SuperAdminCountChip(
+                      icon: Icons.calendar_month_rounded,
+                      label: DateFormat('dd/MM/yyyy').format(createdAt),
+                    ),
+                ],
+              ),
+            ],
+          );
+
+          final actions = Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+            children: [
+              PopupMenuButton<String>(
+                tooltip: 'Trocar plano',
+                onSelected: onChangePlan,
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'FREE', child: Text('Plano FREE')),
+                  PopupMenuItem(value: 'STARTER', child: Text('Plano STARTER')),
+                  PopupMenuItem(value: 'PRO', child: Text('Plano PRO')),
+                  PopupMenuItem(value: 'BUSINESS', child: Text('Plano BUSINESS')),
+                  PopupMenuItem(value: 'LIFETIME', child: Text('Plano VITALÍCIO')),
+                ],
+                child: _SuperAdminActionPill(
+                  icon: Icons.workspace_premium_rounded,
+                  label: 'Plano',
+                ),
+              ),
+              _SuperAdminActionPill(
+                icon: isSuspended ? Icons.lock_open_rounded : Icons.block_rounded,
+                label: isSuspended ? 'Liberar' : 'Suspender',
+                danger: !isSuspended,
+                onTap: onChangeStatus,
+              ),
+              _SuperAdminActionPill(
+                icon: Icons.visibility_rounded,
+                label: 'Impersonar',
+                onTap: onImpersonate,
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                info,
+                const SizedBox(height: AppSpacing.md),
+                actions,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: info),
+              const SizedBox(width: AppSpacing.md),
+              actions,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SuperAdminCountChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _SuperAdminCountChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF100B18),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.borderSoft),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.secondary),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textBody,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminActionPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool danger;
+  final VoidCallback? onTap;
+
+  const _SuperAdminActionPill({
+    required this.icon,
+    required this.label,
+    this.danger = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? AppColors.danger : AppColors.secondary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withOpacity(0.34)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SuperAdminEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _SuperAdminEmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: const Color(0xCC171222),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 58,
+            width: 58,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: AppColors.secondary, size: 30),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              height: 1.45,
+            ),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            FilledButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(actionLabel!),
+            ),
           ],
         ],
       ),
