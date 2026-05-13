@@ -270,6 +270,22 @@ class ApiService {
     return _extractPayloadList(response.body);
   }
 
+  static Future<List<dynamic>> fetchSuperAdminSaasPayments({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/saas-payments'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
   static Future<List<dynamic>> fetchSuperAdminSupport({
     required String token,
   }) async {
@@ -4622,6 +4638,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   List<Map<String, dynamic>> _accounts = [];
   List<Map<String, dynamic>> _subscriptions = [];
   List<Map<String, dynamic>> _payments = [];
+  List<Map<String, dynamic>> _saasPayments = [];
   List<Map<String, dynamic>> _supportTickets = [];
   List<Map<String, dynamic>> _logs = [];
   List<Map<String, dynamic>> _webhooks = [];
@@ -4666,6 +4683,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         ApiService.fetchSuperAdminAccounts(token: token),
         ApiService.fetchSuperAdminSubscriptions(token: token),
         ApiService.fetchSuperAdminPayments(token: token),
+        ApiService.fetchSuperAdminSaasPayments(token: token),
         ApiService.fetchSuperAdminSupport(token: token),
         ApiService.fetchSuperAdminLogs(token: token),
         ApiService.fetchSuperAdminWebhooks(token: token),
@@ -4682,13 +4700,16 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         _payments = (results[3] as List<dynamic>)
             .whereType<Map<String, dynamic>>()
             .toList();
-        _supportTickets = (results[4] as List<dynamic>)
+        _saasPayments = (results[4] as List<dynamic>)
             .whereType<Map<String, dynamic>>()
             .toList();
-        _logs = (results[5] as List<dynamic>)
+        _supportTickets = (results[5] as List<dynamic>)
             .whereType<Map<String, dynamic>>()
             .toList();
-        _webhooks = (results[6] as List<dynamic>)
+        _logs = (results[6] as List<dynamic>)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        _webhooks = (results[7] as List<dynamic>)
             .whereType<Map<String, dynamic>>()
             .toList();
         _loading = false;
@@ -5122,6 +5143,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           totals: _totals,
           money: _money,
           payments: _payments,
+          saasPayments: _saasPayments,
         );
       case _SuperAdminSection.suporte:
         return _SuperAdminRecordsView(
@@ -5615,11 +5637,13 @@ class _SuperAdminFinanceView extends StatelessWidget {
   final Map<String, dynamic> totals;
   final String Function(dynamic value) money;
   final List<Map<String, dynamic>> payments;
+  final List<Map<String, dynamic>> saasPayments;
 
   const _SuperAdminFinanceView({
     required this.totals,
     required this.money,
     required this.payments,
+    required this.saasPayments,
   });
 
   @override
@@ -5633,6 +5657,35 @@ class _SuperAdminFinanceView extends StatelessWidget {
             if (value is int) return value;
             if (value is num) return value.toInt();
             return int.tryParse(value?.toString() ?? '') ?? 0;
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _SuperAdminRecordsView(
+          title: 'Cobranças SaaS dos planos',
+          emptyTitle: 'Nenhuma cobrança SaaS encontrada',
+          icon: Icons.workspace_premium_rounded,
+          records: saasPayments,
+          lineBuilder: (item) {
+            final account = item['account'] is Map<String, dynamic>
+                ? item['account'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final plan = item['plan'] is Map<String, dynamic>
+                ? item['plan'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final paidAt = DateTime.tryParse(item['paidAt']?.toString() ?? '');
+            final createdAt = DateTime.tryParse(item['createdAt']?.toString() ?? '');
+            final status = item['status']?.toString().toUpperCase() ?? 'PENDING';
+            return _SuperAdminRecordLine(
+              title: '${account['name'] ?? 'Empresa'} - ${money(item['amount'])}',
+              subtitle:
+                  'Plano ${plan['name'] ?? plan['code'] ?? '-'}${paidAt == null ? createdAt == null ? '' : ' - criado ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}' : ' - pago ${DateFormat('dd/MM/yyyy HH:mm').format(paidAt)}'}',
+              trailing: status,
+              color: status == 'APPROVED'
+                  ? AppColors.success
+                  : status == 'REJECTED' || status == 'CANCELLED'
+                      ? AppColors.danger
+                      : AppColors.warning,
+            );
           },
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -6212,6 +6265,13 @@ class _SuperAdminMetrics extends StatelessWidget {
         value: '${intValue(totals['delinquencyRate'])}%',
         subtitle: 'risco consolidado',
         danger: true,
+      ),
+      _SuperMetricData(
+        icon: Icons.workspace_premium_rounded,
+        label: 'SaaS recebido',
+        value: money(totals['saasPaymentsAmount']),
+        subtitle: '${intValue(totals['saasPaymentsPending'])} pendente(s)',
+        danger: intValue(totals['saasPaymentsPending']) > 0,
       ),
       _SuperMetricData(
         icon: Icons.support_agent_rounded,
