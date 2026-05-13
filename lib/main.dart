@@ -9845,6 +9845,10 @@ class _SaasPlanPanel extends StatelessWidget {
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         const <Map<String, dynamic>>[];
+    final planPayments = (data?['planPayments'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const <Map<String, dynamic>>[];
     final activeClients = (usage['activeClients'] as num?)?.toInt() ?? 0;
     final clientLimit = usage['clientLimit'];
     final unlimited = usage['unlimitedClients'] == true;
@@ -9963,6 +9967,36 @@ class _SaasPlanPanel extends StatelessWidget {
                 ),
               )
               .toList(),
+        ),
+        const SizedBox(height: 14),
+        _MercadoPagoInfoCard(
+          title: 'Historico do plano',
+          subtitle: planPayments.isEmpty
+              ? 'Nenhuma cobranca de plano registrada ainda.'
+              : '${planPayments.length} cobranca(s) recente(s) do SaaS.',
+          icon: Icons.receipt_long_rounded,
+          color: AppColors.secondary,
+          children: planPayments.isEmpty
+              ? [
+                  const _DetailLine(
+                    label: 'Status',
+                    value: 'Sem historico de cobranca',
+                  ),
+                ]
+              : planPayments.map((payment) {
+                  final plan = (payment['plan'] as Map<String, dynamic>?) ?? const {};
+                  final paidAt = DateTime.tryParse(payment['paidAt']?.toString() ?? '');
+                  final createdAt = DateTime.tryParse(payment['createdAt']?.toString() ?? '');
+                  final dateText = paidAt != null
+                      ? 'Pago em ${DateFormat('dd/MM/yyyy HH:mm').format(paidAt)}'
+                      : createdAt != null
+                          ? 'Criado em ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}'
+                          : 'Sem data';
+                  return _DetailLine(
+                    label: '${plan['name'] ?? plan['code'] ?? 'Plano'} - ${payment['status'] ?? '-'}',
+                    value: '${_currency(_readDouble(payment['amount']))} | $dateText',
+                  );
+                }).toList(),
         ),
       ],
     );
@@ -11365,6 +11399,68 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  Future<bool> _confirmSaasPlanChange(Map<String, dynamic> selectedPlan) async {
+    final currentSubscription =
+        (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
+    final currentPlan =
+        (currentSubscription['plan'] as Map<String, dynamic>?) ?? const {};
+    final usage = (_saasStatus?['usage'] as Map<String, dynamic>?) ?? const {};
+    final activeClients = (usage['activeClients'] as num?)?.toInt() ?? 0;
+    final selectedLimit = selectedPlan['clientLimit'];
+    final selectedCode = selectedPlan['code']?.toString() ?? '';
+    final currentCode = currentPlan['code']?.toString() ?? '';
+    final priceCents = (selectedPlan['priceCents'] as num?)?.toInt() ?? 0;
+    final selectedLimitText =
+        selectedLimit == null ? 'clientes ilimitados' : 'ate $selectedLimit clientes ativos';
+    final limitTooLow = selectedLimit is num && activeClients > selectedLimit.toInt();
+
+    if (selectedCode == currentCode) return false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(limitTooLow ? 'Plano incompatível' : 'Confirmar mudança de plano'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Plano atual: ${currentPlan['name'] ?? (currentCode.isEmpty ? 'Atual' : currentCode)}'),
+            const SizedBox(height: 6),
+            Text('Novo plano: ${selectedPlan['name'] ?? selectedCode}'),
+            const SizedBox(height: 6),
+            Text('Carteira atual: $activeClients cliente(s) ativo(s)'),
+            const SizedBox(height: 6),
+            Text('Limite do novo plano: $selectedLimitText'),
+            if (priceCents > 0) ...[
+              const SizedBox(height: 6),
+              Text('Valor: ${_currency(priceCents / 100)}'),
+            ],
+            if (limitTooLow) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Este plano tem limite menor que a quantidade atual de clientes. O backend vai bloquear a troca ate voce arquivar clientes ou escolher um plano maior.',
+                style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: limitTooLow ? null : () => Navigator.pop(dialogContext, true),
+            icon: Icon(priceCents > 0 ? Icons.pix_rounded : Icons.check_rounded),
+            label: Text(priceCents > 0 ? 'Gerar Pix' : 'Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed == true;
+  }
+
   Future<void> _selectSaasPlan(String planCode) async {
     final token = await _readAuthToken();
     if (token == null || token.isEmpty) {
@@ -11380,6 +11476,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         orElse: () => const <String, dynamic>{},
       );
       final priceCents = (selectedPlan['priceCents'] as num?)?.toInt() ?? 0;
+      final confirmed = await _confirmSaasPlanChange(selectedPlan);
+      if (!confirmed) {
+        if (mounted) setState(() => _isLoadingSaas = false);
+        return;
+      }
 
       if (priceCents > 0) {
         final intent = await ApiService.createSaasPlanPix(token: token, planCode: planCode);
