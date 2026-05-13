@@ -2635,6 +2635,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   bool _sessionAuthenticated = false;
   String? _sessionRole;
   bool _sessionIsSuperAdmin = false;
+  bool _sessionIsImpersonating = false;
+  String? _impersonatedCompanyName;
   String? _windowsMachineCode;
   WindowsLicenseInfo? _windowsLicense;
   AppAccentPreset _accentPreset = AppAccentPreset.cobreja;
@@ -2655,6 +2657,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     final token = prefs.getString('token');
     final savedRole = prefs.getString('session_role');
     final savedIsSuperAdmin = prefs.getBool('session_is_super_admin') ?? false;
+    final savedReturnToken = prefs.getString('super_admin_return_token');
+    final savedImpersonatedCompany = prefs.getString('impersonated_company_name');
     final rawAccentPreset = prefs.getString('app_accent_preset');
     final rawThemePreference = prefs.getString('app_theme_preference');
     final rawFontScale = prefs.getDouble('app_font_scale');
@@ -2695,6 +2699,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         sessionAccount != null && token != null && token.isNotEmpty;
     var sessionRole = savedRole;
     var sessionIsSuperAdmin = savedIsSuperAdmin;
+    var sessionIsImpersonating =
+        savedReturnToken != null && savedReturnToken.isNotEmpty;
 
     // Confirma o token no backend para evitar "sessão zera no F5" quando o token
     // expira/é inválido ou quando mudou a estrutura do JWT.
@@ -2716,10 +2722,15 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           sessionAccount = null;
           sessionRole = null;
           sessionIsSuperAdmin = false;
+          sessionIsImpersonating = false;
           await prefs.remove('session_email');
           await prefs.remove('token');
           await prefs.remove('session_role');
           await prefs.remove('session_is_super_admin');
+          await prefs.remove('super_admin_return_token');
+          await prefs.remove('super_admin_return_email');
+          await prefs.remove('super_admin_return_name');
+          await prefs.remove('impersonated_company_name');
         }
       }
     }
@@ -2767,6 +2778,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionAuthenticated = sessionAuthenticated;
       _sessionRole = sessionRole;
       _sessionIsSuperAdmin = sessionIsSuperAdmin;
+      _sessionIsImpersonating = sessionIsImpersonating;
+      _impersonatedCompanyName = savedImpersonatedCompany;
       _windowsMachineCode = machineCode;
       _windowsLicense = windowsLicense;
       _accentPreset = accentPreset;
@@ -2876,12 +2889,24 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         : payload['user'] is Map<String, dynamic>
             ? payload['user'] as Map<String, dynamic>
             : <String, dynamic>{};
+    final company = data['account'] is Map<String, dynamic>
+        ? data['account'] as Map<String, dynamic>
+        : payload['account'] is Map<String, dynamic>
+            ? payload['account'] as Map<String, dynamic>
+            : <String, dynamic>{};
     final email = user['email']?.toString() ?? '';
     final name = user['name']?.toString() ?? email;
     if (token.isEmpty || email.isEmpty) return;
 
     final account = UserAccount(name: name, email: email);
     final prefs = await SharedPreferences.getInstance();
+    final currentToken = prefs.getString('token');
+    if (currentToken != null && currentToken.isNotEmpty) {
+      await prefs.setString('super_admin_return_token', currentToken);
+      await prefs.setString('super_admin_return_email', widgetSafeEmail(_account));
+      await prefs.setString('super_admin_return_name', _account?.name ?? 'Super Admin');
+    }
+    final companyName = company['name']?.toString() ?? 'Empresa selecionada';
     final nextAccounts = [..._accounts];
     final index = nextAccounts.indexWhere(
       (item) => _normalizeEmail(item.email) == _normalizeEmail(email),
@@ -2895,6 +2920,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.setString('session_role', 'ADMIN');
     await prefs.setBool('session_is_super_admin', false);
     await prefs.setString('session_email', _normalizeEmail(email));
+    await prefs.setString('impersonated_company_name', companyName);
     await prefs.setString(
       'accounts',
       jsonEncode(nextAccounts.map((item) => item.toMap()).toList()),
@@ -2908,6 +2934,39 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionAuthenticated = true;
       _sessionRole = 'ADMIN';
       _sessionIsSuperAdmin = false;
+      _sessionIsImpersonating = true;
+      _impersonatedCompanyName = companyName;
+    });
+  }
+
+  String widgetSafeEmail(UserAccount? account) => account?.email ?? '';
+
+  Future<void> _returnToSuperAdminSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('super_admin_return_token');
+    final email = prefs.getString('super_admin_return_email');
+    final name = prefs.getString('super_admin_return_name') ?? 'Super Admin';
+    if (token == null || token.isEmpty || email == null || email.isEmpty) {
+      await _logout();
+      return;
+    }
+    final account = UserAccount(name: name, email: email);
+    await prefs.setString('token', token);
+    await prefs.setString('session_email', _normalizeEmail(email));
+    await prefs.setString('session_role', 'ADMIN');
+    await prefs.setBool('session_is_super_admin', true);
+    await prefs.remove('super_admin_return_token');
+    await prefs.remove('super_admin_return_email');
+    await prefs.remove('super_admin_return_name');
+    await prefs.remove('impersonated_company_name');
+    if (!mounted) return;
+    setState(() {
+      _account = account;
+      _sessionAuthenticated = true;
+      _sessionRole = 'ADMIN';
+      _sessionIsSuperAdmin = true;
+      _sessionIsImpersonating = false;
+      _impersonatedCompanyName = null;
     });
   }
 
@@ -2917,12 +2976,18 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('token');
     await prefs.remove('session_role');
     await prefs.remove('session_is_super_admin');
+    await prefs.remove('super_admin_return_token');
+    await prefs.remove('super_admin_return_email');
+    await prefs.remove('super_admin_return_name');
+    await prefs.remove('impersonated_company_name');
     if (!mounted) return;
     setState(() {
       _account = null;
       _sessionAuthenticated = false;
       _sessionRole = null;
       _sessionIsSuperAdmin = false;
+      _sessionIsImpersonating = false;
+      _impersonatedCompanyName = null;
     });
   }
 
@@ -2950,6 +3015,10 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('token');
     await prefs.remove('session_role');
     await prefs.remove('session_is_super_admin');
+    await prefs.remove('super_admin_return_token');
+    await prefs.remove('super_admin_return_email');
+    await prefs.remove('super_admin_return_name');
+    await prefs.remove('impersonated_company_name');
     await prefs.remove('clients');
     await prefs.remove('custom_reminders');
 
@@ -2960,6 +3029,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionAuthenticated = false;
       _sessionRole = null;
       _sessionIsSuperAdmin = false;
+      _sessionIsImpersonating = false;
+      _impersonatedCompanyName = null;
     });
   }
 
@@ -3235,6 +3306,9 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
                       onUpdateThemePreference: _updateThemePreference,
                       onUpdateFontScale: _updateFontScale,
                       onResetVisualPreferences: _resetVisualPreferences,
+                      isImpersonating: _sessionIsImpersonating,
+                      impersonatedCompanyName: _impersonatedCompanyName,
+                      onReturnToSuperAdmin: _returnToSuperAdminSession,
                     ),
             ),
     );
@@ -5013,6 +5087,21 @@ class _PrivacyPolicySection extends StatelessWidget {
   }
 }
 
+enum _SuperAdminSection {
+  painel,
+  empresas,
+  receita,
+  assinaturas,
+  cobrancas,
+  logs,
+  webhooks,
+  mercadoPago,
+  suporte,
+  suspensoes,
+  planos,
+  auditoria,
+}
+
 class SuperAdminPage extends StatefulWidget {
   final UserAccount account;
   final VoidCallback onLogout;
@@ -5032,6 +5121,7 @@ class SuperAdminPage extends StatefulWidget {
 class _SuperAdminPageState extends State<SuperAdminPage> {
   Map<String, dynamic>? _overview;
   List<Map<String, dynamic>> _accounts = [];
+  _SuperAdminSection _selectedSection = _SuperAdminSection.painel;
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -5039,6 +5129,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   @override
   void initState() {
     super.initState();
+    _selectedSection = _sectionFromPath(Uri.base.path);
     _load();
   }
 
@@ -5101,6 +5192,115 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   Map<String, dynamic> get _totals {
     final totals = _overview?['totals'];
     return totals is Map<String, dynamic> ? totals : <String, dynamic>{};
+  }
+
+  _SuperAdminSection _sectionFromPath(String path) {
+    switch (path) {
+      case '/super-admin/companies':
+        return _SuperAdminSection.empresas;
+      case '/super-admin/subscriptions':
+        return _SuperAdminSection.assinaturas;
+      case '/super-admin/payments':
+        return _SuperAdminSection.cobrancas;
+      case '/super-admin/support':
+        return _SuperAdminSection.suporte;
+      case '/super-admin/logs':
+        return _SuperAdminSection.logs;
+      case '/super-admin/webhooks':
+        return _SuperAdminSection.webhooks;
+      default:
+        return _SuperAdminSection.painel;
+    }
+  }
+
+  String _pathForSection(_SuperAdminSection section) {
+    switch (section) {
+      case _SuperAdminSection.empresas:
+        return '/super-admin/companies';
+      case _SuperAdminSection.assinaturas:
+        return '/super-admin/subscriptions';
+      case _SuperAdminSection.cobrancas:
+        return '/super-admin/payments';
+      case _SuperAdminSection.suporte:
+        return '/super-admin/support';
+      case _SuperAdminSection.logs:
+      case _SuperAdminSection.auditoria:
+        return '/super-admin/logs';
+      case _SuperAdminSection.webhooks:
+        return '/super-admin/webhooks';
+      case _SuperAdminSection.receita:
+      case _SuperAdminSection.mercadoPago:
+      case _SuperAdminSection.suspensoes:
+      case _SuperAdminSection.planos:
+      case _SuperAdminSection.painel:
+        return '/super-admin';
+    }
+  }
+
+  String _titleForSection(_SuperAdminSection section) {
+    switch (section) {
+      case _SuperAdminSection.painel:
+        return 'Painel Global';
+      case _SuperAdminSection.empresas:
+        return 'Empresas SaaS';
+      case _SuperAdminSection.receita:
+        return 'Receita da plataforma';
+      case _SuperAdminSection.assinaturas:
+        return 'Assinaturas';
+      case _SuperAdminSection.cobrancas:
+        return 'Cobranças globais';
+      case _SuperAdminSection.logs:
+        return 'Logs globais';
+      case _SuperAdminSection.webhooks:
+        return 'Webhooks';
+      case _SuperAdminSection.mercadoPago:
+        return 'Mercado Pago global';
+      case _SuperAdminSection.suporte:
+        return 'Tickets suporte';
+      case _SuperAdminSection.suspensoes:
+        return 'Suspensões';
+      case _SuperAdminSection.planos:
+        return 'Planos SaaS';
+      case _SuperAdminSection.auditoria:
+        return 'Auditoria global';
+    }
+  }
+
+  String _subtitleForSection(_SuperAdminSection section) {
+    switch (section) {
+      case _SuperAdminSection.painel:
+        return 'Visão executiva da plataforma, contas, receita, Pix e suporte.';
+      case _SuperAdminSection.empresas:
+        return 'Gerencie contas, planos, suspensão e acesso assistido.';
+      case _SuperAdminSection.receita:
+        return 'Acompanhe MRR, ARR, pagamentos e previsões.';
+      case _SuperAdminSection.assinaturas:
+        return 'Controle upgrades, downgrades, trial e vencimentos SaaS.';
+      case _SuperAdminSection.cobrancas:
+        return 'Monitore Pix, cobranças e liquidações globais.';
+      case _SuperAdminSection.logs:
+        return 'Veja eventos técnicos e ações críticas da plataforma.';
+      case _SuperAdminSection.webhooks:
+        return 'Acompanhe entregas, falhas e saúde das integrações.';
+      case _SuperAdminSection.mercadoPago:
+        return 'Consolide status e configuração financeira global.';
+      case _SuperAdminSection.suporte:
+        return 'Tickets abertos e atendimentos pendentes.';
+      case _SuperAdminSection.suspensoes:
+        return 'Contas bloqueadas e motivos de restrição.';
+      case _SuperAdminSection.planos:
+        return 'Catálogo comercial, limites e recursos dos planos.';
+      case _SuperAdminSection.auditoria:
+        return 'Rastreamento global para segurança e conformidade.';
+    }
+  }
+
+  void _selectSection(_SuperAdminSection section) {
+    setState(() => _selectedSection = section);
+    SystemNavigator.routeInformationUpdated(
+      location: _pathForSection(section),
+      replace: false,
+    );
   }
 
   Future<void> _changeStatus(Map<String, dynamic> account) async {
@@ -5194,120 +5394,766 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF05030B),
-              Color(0xFF10081E),
-              Color(0xFF05030B),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SuperAdminHeader(
-                  account: widget.account,
-                  onRefresh: _load,
-                  onLogout: widget.onLogout,
-                  busy: _saving,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                if (_loading)
-                  const Expanded(
-                    child: Center(
-                      child: _PegueiPagueiLoading(label: 'Carregando Super Admin'),
-                    ),
-                  )
-                else if (_error != null)
-                  Expanded(
-                    child: Center(
-                      child: _SuperAdminEmptyState(
-                        icon: Icons.admin_panel_settings_rounded,
-                        title: 'Não foi possível carregar',
-                        subtitle: _error!,
-                        actionLabel: 'Tentar novamente',
-                        onAction: _load,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        final content = _buildSuperAdminContent();
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          drawer: compact
+              ? Drawer(
+                  backgroundColor: Colors.transparent,
+                  child: _SuperAdminSidebar(
+                    selected: _selectedSection,
+                    onSelect: (section) {
+                      Navigator.of(context).pop();
+                      _selectSection(section);
+                    },
+                    compact: true,
+                  ),
+                )
+              : null,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topRight,
+                radius: 1.4,
+                colors: [
+                  Color(0xFF3B0764),
+                  Color(0xFF0D0715),
+                  Color(0xFF030108),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  if (!compact)
+                    SizedBox(
+                      width: 286,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 0, 14),
+                        child: _SuperAdminSidebar(
+                          selected: _selectedSection,
+                          onSelect: _selectSection,
+                        ),
                       ),
                     ),
-                  )
-                else
                   Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: _load,
-                      color: AppColors.secondary,
-                      child: ListView(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 14 : 24,
+                        14,
+                        compact ? 14 : 24,
+                        14,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _SuperAdminMetrics(
-                            totals: _totals,
-                            money: _money,
-                            intValue: _intValue,
+                          _SuperAdminHeader(
+                            account: widget.account,
+                            onRefresh: _load,
+                            onLogout: widget.onLogout,
+                            busy: _saving,
+                            sectionTitle: _titleForSection(_selectedSection),
+                            sectionSubtitle:
+                                _subtitleForSection(_selectedSection),
+                            showMenuButton: compact,
                           ),
-                          const SizedBox(height: AppSpacing.xl),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Empresas SaaS',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${_accounts.length} empresa(s)',
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          if (_accounts.isEmpty)
-                            _SuperAdminEmptyState(
-                              icon: Icons.business_rounded,
-                              title: 'Nenhuma empresa cadastrada',
-                              subtitle:
-                                  'As contas dos administradores aparecerão aqui.',
-                              actionLabel: 'Atualizar',
-                              onAction: _load,
-                            )
-                          else
-                            ..._accounts.map(
-                              (account) => Padding(
-                                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                                child: _SuperAdminAccountCard(
-                                  account: account,
-                                  onChangeStatus: _saving
-                                      ? null
-                                      : () => _changeStatus(account),
-                                  onChangePlan: _saving
-                                      ? null
-                                      : (plan) => _changePlan(account, plan),
-                                  onImpersonate: _saving
-                                      ? null
-                                      : () => _impersonate(account),
-                                ),
-                              ),
-                            ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Expanded(child: content),
+                          _SuperAdminFooter(),
                         ],
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSuperAdminContent() {
+    if (_loading) {
+      return const _SuperAdminSkeleton();
+    }
+    if (_error != null) {
+      return Center(
+        child: _SuperAdminEmptyState(
+          icon: Icons.admin_panel_settings_rounded,
+          title: 'Não foi possível carregar',
+          subtitle: _error!,
+          actionLabel: 'Tentar novamente',
+          onAction: _load,
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.secondary,
+      child: ListView(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: KeyedSubtree(
+              key: ValueKey(_selectedSection),
+              child: _sectionContent(_selectedSection),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionContent(_SuperAdminSection section) {
+    switch (section) {
+      case _SuperAdminSection.painel:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SuperAdminHero(totals: _totals, money: _money, intValue: _intValue),
+            const SizedBox(height: AppSpacing.lg),
+            _SuperAdminMetrics(
+              totals: _totals,
+              money: _money,
+              intValue: _intValue,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            _SuperAdminCompaniesSection(
+              accounts: _accounts.take(5).toList(),
+              saving: _saving,
+              onChangeStatus: _changeStatus,
+              onChangePlan: _changePlan,
+              onImpersonate: _impersonate,
+              emptyTitle: 'Nenhuma empresa cadastrada',
+            ),
+          ],
+        );
+      case _SuperAdminSection.empresas:
+        return _SuperAdminCompaniesSection(
+          accounts: _accounts,
+          saving: _saving,
+          onChangeStatus: _changeStatus,
+          onChangePlan: _changePlan,
+          onImpersonate: _impersonate,
+          emptyTitle: 'Nenhuma empresa cadastrada',
+        );
+      case _SuperAdminSection.suspensoes:
+        return _SuperAdminCompaniesSection(
+          accounts: _accounts
+              .where((item) =>
+                  item['status']?.toString().toUpperCase() == 'SUSPENDED')
+              .toList(),
+          saving: _saving,
+          onChangeStatus: _changeStatus,
+          onChangePlan: _changePlan,
+          onImpersonate: _impersonate,
+          emptyTitle: 'Nenhuma empresa suspensa',
+        );
+      case _SuperAdminSection.assinaturas:
+      case _SuperAdminSection.planos:
+        return _SuperAdminPlansView(accounts: _accounts);
+      case _SuperAdminSection.receita:
+      case _SuperAdminSection.cobrancas:
+      case _SuperAdminSection.mercadoPago:
+        return _SuperAdminFinanceView(totals: _totals, money: _money);
+      case _SuperAdminSection.suporte:
+        return _SuperAdminPlaceholderView(
+          icon: Icons.support_agent_rounded,
+          title: 'Tickets suporte',
+          subtitle:
+              '${_intValue(_totals['supportOpen'])} atendimento(s) pendente(s). A fila em tempo real entra no próximo bloco de suporte global.',
+        );
+      case _SuperAdminSection.logs:
+      case _SuperAdminSection.auditoria:
+        return const _SuperAdminPlaceholderView(
+          icon: Icons.fact_check_rounded,
+          title: 'Auditoria global',
+          subtitle:
+              'A estrutura visual está pronta. O próximo passo é conectar a API de auditoria global paginada.',
+        );
+      case _SuperAdminSection.webhooks:
+        return const _SuperAdminPlaceholderView(
+          icon: Icons.hub_rounded,
+          title: 'Webhooks',
+          subtitle:
+              'Monitoramento visual preparado para Mercado Pago, WhatsApp e eventos internos.',
+        );
+    }
+  }
+}
+
+class _SuperAdminSidebar extends StatelessWidget {
+  final _SuperAdminSection selected;
+  final ValueChanged<_SuperAdminSection> onSelect;
+  final bool compact;
+
+  const _SuperAdminSidebar({
+    required this.selected,
+    required this.onSelect,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (_SuperAdminSection.painel, 'Painel Global', Icons.dashboard_rounded),
+      (_SuperAdminSection.empresas, 'Empresas SaaS', Icons.business_rounded),
+      (_SuperAdminSection.receita, 'Receita plataforma', Icons.trending_up_rounded),
+      (_SuperAdminSection.assinaturas, 'Assinaturas', Icons.workspace_premium_rounded),
+      (_SuperAdminSection.cobrancas, 'Cobranças globais', Icons.payments_rounded),
+      (_SuperAdminSection.logs, 'Logs globais', Icons.terminal_rounded),
+      (_SuperAdminSection.webhooks, 'Webhooks', Icons.hub_rounded),
+      (_SuperAdminSection.mercadoPago, 'Mercado Pago global', Icons.account_balance_rounded),
+      (_SuperAdminSection.suporte, 'Tickets suporte', Icons.support_agent_rounded),
+      (_SuperAdminSection.suspensoes, 'Suspensões', Icons.block_rounded),
+      (_SuperAdminSection.planos, 'Planos SaaS', Icons.layers_rounded),
+      (_SuperAdminSection.auditoria, 'Auditoria global', Icons.fact_check_rounded),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xEE100B18),
+        borderRadius: BorderRadius.circular(compact ? 0 : 30),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withOpacity(0.12),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SuperAdminBadge(),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  height: 50,
+                  child: SvgPicture.asset(
+                    'assets/branding/peguei_paguei_logo_white.svg',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'Comando global da plataforma SaaS.',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
+          Divider(height: 1, color: AppColors.secondary.withOpacity(0.16)),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: items
+                  .map(
+                    (item) => _SuperAdminNavTile(
+                      selected: selected == item.$1,
+                      label: item.$2,
+                      icon: item.$3,
+                      onTap: () => onSelect(item.$1),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminBadge extends StatelessWidget {
+  const _SuperAdminBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFC084FC), Color(0xFFE879F9)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withOpacity(0.36),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.admin_panel_settings_rounded, size: 17, color: Color(0xFF080613)),
+          SizedBox(width: 8),
+          Text(
+            'SUPER ADMIN',
+            style: TextStyle(
+              color: Color(0xFF080613),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminNavTile extends StatelessWidget {
+  final bool selected;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SuperAdminNavTile({
+    required this.selected,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+          decoration: BoxDecoration(
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B0764), Color(0xFF701A75)],
+                  )
+                : null,
+            color: selected ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? AppColors.secondary.withOpacity(0.48)
+                  : AppColors.borderSoft,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.secondary.withOpacity(0.18),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? Colors.white : AppColors.textMuted, size: 20),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.white : AppColors.textBody,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuperAdminHero extends StatelessWidget {
+  final Map<String, dynamic> totals;
+  final String Function(dynamic value) money;
+  final int Function(dynamic value) intValue;
+
+  const _SuperAdminHero({
+    required this.totals,
+    required this.money,
+    required this.intValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final revenue = money(totals['paymentsAmount']);
+    final companies = intValue(totals['accounts']);
+    final pix = intValue(totals['paymentsCount']);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E0B33), Color(0xFF3B0764), Color(0xFF090511)],
+        ),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: AppColors.secondary.withOpacity(0.30)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withOpacity(0.20),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 780;
+          final headline = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SuperAdminBadge(),
+              const SizedBox(height: AppSpacing.lg),
+              const Text(
+                'Operação global em tempo real',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Controle empresas, assinaturas, Pix, suporte e riscos da plataforma em uma visão executiva.',
+                style: TextStyle(
+                  color: AppColors.textBody,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          );
+          final stats = Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _SuperHeroStat(label: 'Receita total', value: revenue),
+              _SuperHeroStat(label: 'Empresas', value: '$companies'),
+              _SuperHeroStat(label: 'Pix processados', value: '$pix'),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headline,
+                const SizedBox(height: AppSpacing.lg),
+                stats,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: headline),
+              const SizedBox(width: AppSpacing.lg),
+              SizedBox(width: 390, child: stats),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SuperHeroStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SuperHeroStat({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 23,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminCompaniesSection extends StatelessWidget {
+  final List<Map<String, dynamic>> accounts;
+  final bool saving;
+  final Future<void> Function(Map<String, dynamic> account) onChangeStatus;
+  final Future<void> Function(Map<String, dynamic> account, String planCode)
+      onChangePlan;
+  final Future<void> Function(Map<String, dynamic> account) onImpersonate;
+  final String emptyTitle;
+
+  const _SuperAdminCompaniesSection({
+    required this.accounts,
+    required this.saving,
+    required this.onChangeStatus,
+    required this.onChangePlan,
+    required this.onImpersonate,
+    required this.emptyTitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Empresas SaaS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '${accounts.length} registro(s)',
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (accounts.isEmpty)
+          _SuperAdminEmptyState(
+            icon: Icons.business_rounded,
+            title: emptyTitle,
+            subtitle: 'Quando houver dados disponíveis, eles aparecerão aqui.',
+          )
+        else
+          ...accounts.map(
+            (account) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _SuperAdminAccountCard(
+                account: account,
+                onChangeStatus: saving ? null : () => onChangeStatus(account),
+                onChangePlan:
+                    saving ? null : (plan) => onChangePlan(account, plan),
+                onImpersonate: saving ? null : () => onImpersonate(account),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SuperAdminFinanceView extends StatelessWidget {
+  final Map<String, dynamic> totals;
+  final String Function(dynamic value) money;
+
+  const _SuperAdminFinanceView({
+    required this.totals,
+    required this.money,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SuperAdminMetrics(
+          totals: totals,
+          money: money,
+          intValue: (value) {
+            if (value is int) return value;
+            if (value is num) return value.toInt();
+            return int.tryParse(value?.toString() ?? '') ?? 0;
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        const _SuperAdminPlaceholderView(
+          icon: Icons.insights_rounded,
+          title: 'Financeiro global preparado',
+          subtitle:
+              'MRR, ARR, pagamentos de hoje e inadimplência serão calculados no backend financeiro global.',
+        ),
+      ],
+    );
+  }
+}
+
+class _SuperAdminPlansView extends StatelessWidget {
+  final List<Map<String, dynamic>> accounts;
+
+  const _SuperAdminPlansView({required this.accounts});
+
+  @override
+  Widget build(BuildContext context) {
+    final planCounts = <String, int>{};
+    for (final account in accounts) {
+      final subscription = account['subscription'] is Map<String, dynamic>
+          ? account['subscription'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final plan = subscription['plan'] is Map<String, dynamic>
+          ? subscription['plan'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final code =
+          plan['code']?.toString() ?? subscription['planCode']?.toString() ?? 'FREE';
+      planCounts[code] = (planCounts[code] ?? 0) + 1;
+    }
+
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.md,
+      children: ['FREE', 'STARTER', 'PRO', 'BUSINESS', 'LIFETIME']
+          .map(
+            (plan) => SizedBox(
+              width: 260,
+              child: _SuperAdminMetricCard(
+                data: _SuperMetricData(
+                  icon: Icons.workspace_premium_rounded,
+                  label: 'Plano $plan',
+                  value: '${planCounts[plan] ?? 0}',
+                  subtitle: 'empresa(s) vinculada(s)',
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _SuperAdminPlaceholderView extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SuperAdminPlaceholderView({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SuperAdminEmptyState(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+    );
+  }
+}
+
+class _SuperAdminSkeleton extends StatelessWidget {
+  const _SuperAdminSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: [
+        Container(
+          height: 180,
+          decoration: BoxDecoration(
+            color: const Color(0x99171222),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: AppColors.border),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth > 900 ? 3 : 1;
+            return GridView.builder(
+              itemCount: 6,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppSpacing.md,
+                mainAxisSpacing: AppSpacing.md,
+                childAspectRatio: 3.1,
+              ),
+              itemBuilder: (_, __) => Container(
+                decoration: BoxDecoration(
+                  color: const Color(0x66171222),
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                  border: Border.all(color: AppColors.borderSoft),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _SuperAdminFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Text(
+        '© Peguei & Paguei • Fernando Morais • 2026',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: AppColors.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -5319,12 +6165,18 @@ class _SuperAdminHeader extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback onLogout;
   final bool busy;
+  final String sectionTitle;
+  final String sectionSubtitle;
+  final bool showMenuButton;
 
   const _SuperAdminHeader({
     required this.account,
     required this.onRefresh,
     required this.onLogout,
     required this.busy,
+    required this.sectionTitle,
+    required this.sectionSubtitle,
+    this.showMenuButton = false,
   });
 
   @override
@@ -5332,6 +6184,16 @@ class _SuperAdminHeader extends StatelessWidget {
     final brand = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (showMenuButton) ...[
+          Builder(
+            builder: (buttonContext) => _SuperAdminIconButton(
+              icon: Icons.menu_rounded,
+              label: 'Menu Super Admin',
+              onPressed: () => Scaffold.of(buttonContext).openDrawer(),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
         Container(
           height: 54,
           width: 54,
@@ -5366,10 +6228,10 @@ class _SuperAdminHeader extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Controle geral Peguei & Paguei',
+                'Peguei & Paguei Global',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -5413,16 +6275,67 @@ class _SuperAdminHeader extends StatelessWidget {
               brand,
               const SizedBox(height: AppSpacing.md),
               actions,
+              const SizedBox(height: AppSpacing.md),
+              _SuperAdminSectionTitle(
+                title: sectionTitle,
+                subtitle: sectionSubtitle,
+              ),
             ],
           );
         }
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: brand),
-            actions,
+            Row(
+              children: [
+                Expanded(child: brand),
+                actions,
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _SuperAdminSectionTitle(
+              title: sectionTitle,
+              subtitle: sectionSubtitle,
+            ),
           ],
         );
       },
+    );
+  }
+}
+
+class _SuperAdminSectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SuperAdminSectionTitle({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -5471,34 +6384,54 @@ class _SuperAdminMetrics extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _SuperMetricData(
-        icon: Icons.business_rounded,
-        label: 'Empresas',
-        value: '${intValue(totals['accounts'])}',
-        subtitle: 'contas criadas',
-      ),
-      _SuperMetricData(
-        icon: Icons.people_alt_rounded,
-        label: 'Usuários',
-        value: '${intValue(totals['users'])}',
-        subtitle: 'admins e clientes',
-      ),
-      _SuperMetricData(
-        icon: Icons.workspace_premium_rounded,
-        label: 'Assinaturas',
-        value: '${intValue(totals['activeSubscriptions'])}',
-        subtitle: 'ativas/trial',
-      ),
-      _SuperMetricData(
-        icon: Icons.payments_rounded,
-        label: 'Pagamentos',
+        icon: Icons.monetization_on_rounded,
+        label: 'Receita total',
         value: money(totals['paymentsAmount']),
-        subtitle: '${intValue(totals['paymentsCount'])} registro(s)',
+        subtitle: 'recebimentos processados',
+      ),
+      _SuperMetricData(
+        icon: Icons.show_chart_rounded,
+        label: 'MRR',
+        value: money(totals['mrr']),
+        subtitle: 'receita recorrente mensal',
+      ),
+      _SuperMetricData(
+        icon: Icons.stacked_line_chart_rounded,
+        label: 'ARR',
+        value: money(totals['arr']),
+        subtitle: 'receita recorrente anual',
+      ),
+      _SuperMetricData(
+        icon: Icons.business_rounded,
+        label: 'Empresas ativas',
+        value:
+            '${math.max(0, intValue(totals['accounts']) - intValue(totals['suspendedAccounts']))}',
+        subtitle: 'contas liberadas',
       ),
       _SuperMetricData(
         icon: Icons.block_rounded,
-        label: 'Suspensas',
+        label: 'Empresas suspensas',
         value: '${intValue(totals['suspendedAccounts'])}',
         subtitle: 'contas bloqueadas',
+        danger: true,
+      ),
+      _SuperMetricData(
+        icon: Icons.pix_rounded,
+        label: 'Pix processados',
+        value: '${intValue(totals['paymentsCount'])}',
+        subtitle: 'pagamentos confirmados',
+      ),
+      _SuperMetricData(
+        icon: Icons.today_rounded,
+        label: 'Pagamentos hoje',
+        value: '${intValue(totals['paymentsToday'])}',
+        subtitle: 'liquidações do dia',
+      ),
+      _SuperMetricData(
+        icon: Icons.warning_amber_rounded,
+        label: 'Inadimplência',
+        value: '${intValue(totals['delinquencyRate'])}%',
+        subtitle: 'risco consolidado',
         danger: true,
       ),
       _SuperMetricData(
@@ -9597,6 +10530,9 @@ class MainNavigationPage extends StatefulWidget {
   final Future<void> Function(AppThemePreference preference) onUpdateThemePreference;
   final Future<void> Function(double scale) onUpdateFontScale;
   final Future<void> Function() onResetVisualPreferences;
+  final bool isImpersonating;
+  final String? impersonatedCompanyName;
+  final Future<void> Function()? onReturnToSuperAdmin;
 
   const MainNavigationPage({
     super.key,
@@ -9611,6 +10547,9 @@ class MainNavigationPage extends StatefulWidget {
     required this.onUpdateThemePreference,
     required this.onUpdateFontScale,
     required this.onResetVisualPreferences,
+    this.isImpersonating = false,
+    this.impersonatedCompanyName,
+    this.onReturnToSuperAdmin,
   });
 
   @override
@@ -13446,6 +14385,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.isImpersonating) _buildImpersonationBanner(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -13539,6 +14479,72 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ],
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImpersonationBanner() {
+    final company = widget.impersonatedCompanyName ?? 'empresa selecionada';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 680;
+        final message = Row(
+          children: [
+            const Icon(Icons.visibility_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Você está visualizando como $company',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        );
+        final button = TextButton.icon(
+          onPressed: widget.onReturnToSuperAdmin,
+          icon: const Icon(Icons.admin_panel_settings_rounded),
+          label: const Text('Voltar ao painel global'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.12),
+          ),
+        );
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF3B0764), Color(0xFF701A75)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.secondary.withOpacity(0.44)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withOpacity(0.16),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    message,
+                    const SizedBox(height: 10),
+                    Align(alignment: Alignment.centerLeft, child: button),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: message),
+                    button,
+                  ],
+                ),
         );
       },
     );
