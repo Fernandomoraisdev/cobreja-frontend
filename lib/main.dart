@@ -626,6 +626,27 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> renewSuperAdminSubscription({
+    required String token,
+    required int accountId,
+    int? subscriptionId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/super-admin/accounts/$accountId/subscription/renew'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        if (subscriptionId != null) 'subscriptionId': subscriptionId,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> createSaasPlanPix({
     required String token,
     required String planCode,
@@ -4873,6 +4894,36 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  Future<void> _renewSubscription(Map<String, dynamic> account) async {
+    final token = await _token();
+    if (token == null) return;
+    final subscription = account['subscription'] is Map<String, dynamic>
+        ? account['subscription'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    setState(() => _saving = true);
+    try {
+      await ApiService.renewSuperAdminSubscription(
+        token: token,
+        accountId: _intValue(account['id']),
+        subscriptionId: _intValue(subscription['id']),
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Assinatura renovada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao renovar assinatura.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _impersonate(Map<String, dynamic> account) async {
     final token = await _token();
     if (token == null) return;
@@ -5031,6 +5082,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               saving: _saving,
               onChangeStatus: _changeStatus,
               onChangePlan: _changePlan,
+              onRenewSubscription: _renewSubscription,
               onImpersonate: _impersonate,
               emptyTitle: 'Nenhuma empresa cadastrada',
             ),
@@ -5042,6 +5094,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           saving: _saving,
           onChangeStatus: _changeStatus,
           onChangePlan: _changePlan,
+          onRenewSubscription: _renewSubscription,
           onImpersonate: _impersonate,
           emptyTitle: 'Nenhuma empresa cadastrada',
         );
@@ -5054,6 +5107,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           saving: _saving,
           onChangeStatus: _changeStatus,
           onChangePlan: _changePlan,
+          onRenewSubscription: _renewSubscription,
           onImpersonate: _impersonate,
           emptyTitle: 'Nenhuma empresa suspensa',
         );
@@ -5490,6 +5544,7 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
   final Future<void> Function(Map<String, dynamic> account) onChangeStatus;
   final Future<void> Function(Map<String, dynamic> account, String planCode)
       onChangePlan;
+  final Future<void> Function(Map<String, dynamic> account) onRenewSubscription;
   final Future<void> Function(Map<String, dynamic> account) onImpersonate;
   final String emptyTitle;
 
@@ -5498,6 +5553,7 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
     required this.saving,
     required this.onChangeStatus,
     required this.onChangePlan,
+    required this.onRenewSubscription,
     required this.onImpersonate,
     required this.emptyTitle,
   });
@@ -5544,6 +5600,8 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
                 onChangeStatus: saving ? null : () => onChangeStatus(account),
                 onChangePlan:
                     saving ? null : (plan) => onChangePlan(account, plan),
+                onRenewSubscription:
+                    saving ? null : () => onRenewSubscription(account),
                 onImpersonate: saving ? null : () => onImpersonate(account),
               ),
             ),
@@ -5612,8 +5670,13 @@ class _SuperAdminSubscriptionsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pastDueCount = subscriptions
+        .where((item) => item['status']?.toString().toUpperCase() == 'PAST_DUE')
+        .length;
     return _SuperAdminRecordsView(
-      title: 'Assinaturas recentes',
+      title: pastDueCount > 0
+          ? 'Assinaturas recentes - $pastDueCount vencida(s)'
+          : 'Assinaturas recentes',
       emptyTitle: 'Nenhuma assinatura encontrada',
       icon: Icons.workspace_premium_rounded,
       records: subscriptions,
@@ -5625,12 +5688,13 @@ class _SuperAdminSubscriptionsView extends StatelessWidget {
             ? item['plan'] as Map<String, dynamic>
             : <String, dynamic>{};
         final periodEnd = DateTime.tryParse(item['currentPeriodEnd']?.toString() ?? '');
+        final status = item['status']?.toString().toUpperCase() ?? 'ACTIVE';
         return _SuperAdminRecordLine(
           title: account['name']?.toString() ?? 'Empresa sem nome',
           subtitle:
               'Plano ${plan['name'] ?? plan['code'] ?? '-'}${periodEnd == null ? '' : ' • vence ${DateFormat('dd/MM/yyyy').format(periodEnd)}'}',
-          trailing: item['status']?.toString() ?? 'TRIAL',
-          color: AppColors.secondary,
+          trailing: status,
+          color: status == 'PAST_DUE' ? AppColors.warning : AppColors.secondary,
         );
       },
     );
@@ -6124,6 +6188,13 @@ class _SuperAdminMetrics extends StatelessWidget {
         danger: true,
       ),
       _SuperMetricData(
+        icon: Icons.event_busy_rounded,
+        label: 'Planos vencidos',
+        value: '${intValue(totals['pastDueSubscriptions'])}',
+        subtitle: 'assinaturas em atraso',
+        danger: intValue(totals['pastDueSubscriptions']) > 0,
+      ),
+      _SuperMetricData(
         icon: Icons.pix_rounded,
         label: 'Pix processados',
         value: '${intValue(totals['paymentsCount'])}',
@@ -6275,12 +6346,14 @@ class _SuperAdminAccountCard extends StatelessWidget {
   final Map<String, dynamic> account;
   final VoidCallback? onChangeStatus;
   final ValueChanged<String>? onChangePlan;
+  final VoidCallback? onRenewSubscription;
   final VoidCallback? onImpersonate;
 
   const _SuperAdminAccountCard({
     required this.account,
     this.onChangeStatus,
     this.onChangePlan,
+    this.onRenewSubscription,
     this.onImpersonate,
   });
 
@@ -6305,9 +6378,15 @@ class _SuperAdminAccountCard extends StatelessWidget {
         ? subscription['plan'] as Map<String, dynamic>
         : <String, dynamic>{};
     final status = account['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    final billing = account['billing'] is Map<String, dynamic>
+        ? account['billing'] as Map<String, dynamic>
+        : <String, dynamic>{};
     final isSuspended = status == 'SUSPENDED';
+    final isPastDue = billing['isPastDue'] == true;
+    final isBlocked = billing['accessBlocked'] == true;
     final planCode = plan['code']?.toString() ?? subscription['planCode']?.toString() ?? 'FREE';
     final createdAt = DateTime.tryParse(account['createdAt']?.toString() ?? '');
+    final periodEnd = DateTime.tryParse(subscription['currentPeriodEnd']?.toString() ?? '');
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -6317,6 +6396,10 @@ class _SuperAdminAccountCard extends StatelessWidget {
         border: Border.all(
           color: isSuspended
               ? AppColors.danger.withOpacity(0.34)
+              : isBlocked
+                  ? AppColors.danger.withOpacity(0.30)
+                  : isPastDue
+                      ? AppColors.warning.withOpacity(0.28)
               : AppColors.border,
         ),
       ),
@@ -6343,6 +6426,11 @@ class _SuperAdminAccountCard extends StatelessWidget {
                     text: isSuspended ? 'Suspensa' : 'Ativa',
                     color: isSuspended ? AppColors.danger : AppColors.success,
                   ),
+                  if (isPastDue)
+                    _StatusPill(
+                      text: isBlocked ? 'Plano bloqueado' : 'Plano vencido',
+                      color: isBlocked ? AppColors.danger : AppColors.warning,
+                    ),
                   _StatusPill(
                     text: planCode,
                     color: AppColors.secondary,
@@ -6379,6 +6467,11 @@ class _SuperAdminAccountCard extends StatelessWidget {
                       icon: Icons.calendar_month_rounded,
                       label: DateFormat('dd/MM/yyyy').format(createdAt),
                     ),
+                  if (periodEnd != null)
+                    _SuperAdminCountChip(
+                      icon: Icons.event_busy_rounded,
+                      label: 'Vence ${DateFormat('dd/MM/yyyy').format(periodEnd)}',
+                    ),
                 ],
               ),
             ],
@@ -6404,6 +6497,11 @@ class _SuperAdminAccountCard extends StatelessWidget {
                   icon: Icons.workspace_premium_rounded,
                   label: 'Plano',
                 ),
+              ),
+              _SuperAdminActionPill(
+                icon: Icons.restart_alt_rounded,
+                label: 'Renovar',
+                onTap: onRenewSubscription,
               ),
               _SuperAdminActionPill(
                 icon: isSuspended ? Icons.lock_open_rounded : Icons.block_rounded,
