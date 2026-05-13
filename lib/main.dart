@@ -21646,6 +21646,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  IconData _notificationIcon(String type, String action) {
+    final normalizedType = type.toUpperCase();
+    final normalizedAction = action.toUpperCase();
+    if (normalizedType.startsWith('SAAS') || normalizedAction == 'SAAS') {
+      return Icons.workspace_premium_rounded;
+    }
+    if (normalizedAction == 'MERCADO_PAGO' || normalizedType.startsWith('PIX')) {
+      return Icons.pix_rounded;
+    }
+    if (normalizedAction == 'SUPPORT') return Icons.support_agent_rounded;
+    if (normalizedAction == 'COLLECTIONS') return Icons.campaign_rounded;
+    if (normalizedAction == 'CREDIT_REQUESTS') return Icons.request_quote_rounded;
+    return Icons.notifications_active_rounded;
+  }
+
   Future<void> _handleNotificationAction(String? action) async {
     final normalized = (action ?? '').toUpperCase();
     Navigator.of(context, rootNavigator: true).pop();
@@ -21753,11 +21768,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       ...serverNotifications.map(
                         (item) {
                           final color = _notificationSeverityColor(item['severity']?.toString() ?? 'INFO');
+                          final type = item['type']?.toString() ?? '';
+                          final action = item['action']?.toString() ?? '';
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
                               backgroundColor: color.withOpacity(0.12),
-                              child: Icon(Icons.notifications_active_rounded, color: color),
+                              child: Icon(_notificationIcon(type, action), color: color),
                             ),
                             title: Text(item['title']?.toString() ?? 'Notificacao'),
                             subtitle: Text(item['message']?.toString() ?? ''),
