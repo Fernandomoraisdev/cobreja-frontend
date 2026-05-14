@@ -642,6 +642,40 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> scheduleSaasPlanChange({
+    required String token,
+    required String planCode,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/saas/schedule-plan-change'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'planCode': planCode}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> cancelSaasScheduledPlanChange({
+    required String token,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/saas/schedule-plan-change'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> renewSuperAdminSubscription({
     required String token,
     required int accountId,
@@ -9821,10 +9855,12 @@ class _CollectionAutomationTile extends StatelessWidget {
 class _SaasPlanPanel extends StatelessWidget {
   final Map<String, dynamic>? data;
   final ValueChanged<String> onSelectPlan;
+  final VoidCallback? onCancelScheduledChange;
 
   const _SaasPlanPanel({
     required this.data,
     required this.onSelectPlan,
+    this.onCancelScheduledChange,
   });
 
   String _price(Map<String, dynamic> plan) {
@@ -9873,6 +9909,14 @@ class _SaasPlanPanel extends StatelessWidget {
     final isPastDue = billing['isPastDue'] == true;
     final accessBlocked = billing['accessBlocked'] == true;
     final dueDate = DateTime.tryParse(billing['currentPeriodEnd']?.toString() ?? '');
+    final pendingPlan = (subscription['pendingPlan'] as Map<String, dynamic>?) ??
+        (billing['pendingPlan'] as Map<String, dynamic>?) ??
+        const {};
+    final pendingChangeAt = DateTime.tryParse(
+      subscription['pendingChangeAt']?.toString() ??
+          billing['pendingChangeAt']?.toString() ??
+          '',
+    );
     final daysPastDue = (billing['daysPastDue'] as num?)?.toInt() ?? 0;
     final graceDays = (billing['graceDays'] as num?)?.toInt() ?? 0;
 
@@ -9891,6 +9935,39 @@ class _SaasPlanPanel extends StatelessWidget {
               if (dueDate != null)
                 _DetailLine(label: 'Vencimento', value: DateFormat('dd/MM/yyyy').format(dueDate)),
               _DetailLine(label: 'Status', value: subscription['status']?.toString() ?? 'PAST_DUE'),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (pendingPlan.isNotEmpty && pendingChangeAt != null) ...[
+          _MercadoPagoInfoCard(
+            title: 'Mudanca de plano agendada',
+            subtitle:
+                'O plano ${pendingPlan['name'] ?? pendingPlan['code'] ?? 'selecionado'} sera aplicado automaticamente no fim do ciclo atual.',
+            icon: Icons.event_available_rounded,
+            color: AppColors.secondary,
+            children: [
+              _DetailLine(
+                label: 'Data da troca',
+                value: DateFormat('dd/MM/yyyy').format(pendingChangeAt),
+              ),
+              _DetailLine(
+                label: 'Plano atual',
+                value: currentPlan['name']?.toString() ?? currentCode,
+              ),
+              _DetailLine(
+                label: 'Proximo plano',
+                value: pendingPlan['name']?.toString() ?? pendingPlan['code']?.toString() ?? '-',
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onCancelScheduledChange,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Cancelar agendamento'),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -11530,6 +11607,22 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  bool _shouldScheduleSaasPlanChange(Map<String, dynamic> selectedPlan) {
+    final currentSubscription =
+        (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
+    final currentPlan =
+        (currentSubscription['plan'] as Map<String, dynamic>?) ?? const {};
+    final currentPeriodEnd =
+        DateTime.tryParse(currentSubscription['currentPeriodEnd']?.toString() ?? '');
+    final currentPriceCents = (currentPlan['priceCents'] as num?)?.toInt() ?? 0;
+    final selectedPriceCents = (selectedPlan['priceCents'] as num?)?.toInt() ?? 0;
+    final selectedCode = selectedPlan['code']?.toString().toUpperCase() ?? '';
+    final isActivePaidCycle = currentPeriodEnd != null && currentPriceCents > 0;
+    final isDowngradeOrCancel =
+        selectedCode == 'FREE' || selectedPriceCents < currentPriceCents;
+    return isActivePaidCycle && isDowngradeOrCancel;
+  }
+
   Future<bool> _confirmSaasPlanChange(Map<String, dynamic> selectedPlan) async {
     final currentSubscription =
         (_saasStatus?['subscription'] as Map<String, dynamic>?) ?? const {};
@@ -11541,6 +11634,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final selectedCode = selectedPlan['code']?.toString() ?? '';
     final currentCode = currentPlan['code']?.toString() ?? '';
     final priceCents = (selectedPlan['priceCents'] as num?)?.toInt() ?? 0;
+    final scheduleChange = _shouldScheduleSaasPlanChange(selectedPlan);
+    final currentPeriodEnd =
+        DateTime.tryParse(currentSubscription['currentPeriodEnd']?.toString() ?? '');
     final selectedLimitText =
         selectedLimit == null ? 'clientes ilimitados' : 'ate $selectedLimit clientes ativos';
     final limitTooLow = selectedLimit is num && activeClients > selectedLimit.toInt();
@@ -11550,7 +11646,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(limitTooLow ? 'Plano incompatível' : 'Confirmar mudança de plano'),
+        title: Text(
+          limitTooLow
+              ? 'Plano incompativel'
+              : scheduleChange
+                  ? 'Agendar mudanca de plano'
+                  : 'Confirmar mudanca de plano',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -11565,6 +11667,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             if (priceCents > 0) ...[
               const SizedBox(height: 6),
               Text('Valor: ${_currency(priceCents / 100)}'),
+            ],
+            if (scheduleChange && currentPeriodEnd != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Como existe um ciclo pago ativo, a troca sera aplicada em ${DateFormat('dd/MM/yyyy').format(currentPeriodEnd)}. Ate la o plano atual continua liberado.',
+                style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.w800),
+              ),
             ],
             if (limitTooLow) ...[
               const SizedBox(height: 12),
@@ -11582,8 +11691,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ),
           FilledButton.icon(
             onPressed: limitTooLow ? null : () => Navigator.pop(dialogContext, true),
-            icon: Icon(priceCents > 0 ? Icons.pix_rounded : Icons.check_rounded),
-            label: Text(priceCents > 0 ? 'Gerar Pix' : 'Confirmar'),
+            icon: Icon(
+              scheduleChange
+                  ? Icons.event_available_rounded
+                  : priceCents > 0
+                      ? Icons.pix_rounded
+                      : Icons.check_rounded,
+            ),
+            label: Text(
+              scheduleChange
+                  ? 'Agendar'
+                  : priceCents > 0
+                      ? 'Gerar Pix'
+                      : 'Confirmar',
+            ),
           ),
         ],
       ),
@@ -11610,6 +11731,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       final confirmed = await _confirmSaasPlanChange(selectedPlan);
       if (!confirmed) {
         if (mounted) setState(() => _isLoadingSaas = false);
+        return;
+      }
+
+      if (_shouldScheduleSaasPlanChange(selectedPlan)) {
+        final result = await ApiService.scheduleSaasPlanChange(token: token, planCode: planCode);
+        final overview = (result['overview'] as Map<String, dynamic>?) ?? result;
+        if (!mounted) return;
+        setState(() {
+          _saasStatus = overview;
+          _isLoadingSaas = false;
+        });
+        _showSnack(
+          'Mudanca agendada para o fim do ciclo atual.',
+          tone: _FeedbackTone.success,
+          title: 'Plano agendado',
+        );
+        _refreshAuditLogs();
         return;
       }
 
@@ -11646,6 +11784,37 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         e is ApiException ? e.message : 'Não foi possivel alterar o plano.',
         tone: _FeedbackTone.error,
         title: 'Plano não alterado',
+      );
+    }
+  }
+
+  Future<void> _cancelSaasScheduledPlanChange() async {
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) {
+      _showSnack('Sessao expirada. Entre novamente.', tone: _FeedbackTone.error);
+      return;
+    }
+    try {
+      setState(() => _isLoadingSaas = true);
+      final result = await ApiService.cancelSaasScheduledPlanChange(token: token);
+      final overview = (result['overview'] as Map<String, dynamic>?) ?? result;
+      if (!mounted) return;
+      setState(() {
+        _saasStatus = overview;
+        _isLoadingSaas = false;
+      });
+      _showSnack(
+        'Agendamento cancelado.',
+        tone: _FeedbackTone.success,
+        title: 'Plano',
+      );
+      _refreshAuditLogs();
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSaas = false);
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel cancelar o agendamento.',
+        tone: _FeedbackTone.error,
+        title: 'Plano',
       );
     }
   }
@@ -11703,6 +11872,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   child: _SaasPlanPanel(
                     data: _saasStatus,
                     onSelectPlan: _selectSaasPlan,
+                    onCancelScheduledChange: _cancelSaasScheduledPlanChange,
                   ),
                 ),
             ],
