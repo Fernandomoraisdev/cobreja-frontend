@@ -2817,9 +2817,15 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
 
     final deduplicatedAccounts = <String, UserAccount>{};
     for (final account in loadedAccounts) {
-      deduplicatedAccounts[_normalizeEmail(account.email)] = account;
+      final normalizedEmail = _normalizeEmail(account.email);
+      if (normalizedEmail.isEmpty) continue;
+      deduplicatedAccounts[normalizedEmail] = account;
     }
     loadedAccounts = deduplicatedAccounts.values.toList();
+    await prefs.setString(
+      'accounts',
+      jsonEncode(loadedAccounts.map((item) => item.toMap()).toList()),
+    );
 
     UserAccount? sessionAccount;
     if (sessionEmail != null && loadedAccounts.isNotEmpty) {
@@ -2829,6 +2835,17 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           break;
         }
       }
+    }
+    if (sessionAccount == null &&
+        sessionEmail != null &&
+        raw != null &&
+        raw.isNotEmpty) {
+      try {
+        final rawAccount = UserAccount.fromMap(jsonDecode(raw));
+        if (_normalizeEmail(rawAccount.email) == _normalizeEmail(sessionEmail)) {
+          sessionAccount = rawAccount;
+        }
+      } catch (_) {}
     }
 
     var sessionAuthenticated =
@@ -3019,25 +3036,15 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     final companyName = role == 'CLIENT'
         ? 'Cliente ${client['name']?.toString().trim().isNotEmpty == true ? client['name'] : name}'
         : company['name']?.toString() ?? 'Empresa selecionada';
-    final nextAccounts = [..._accounts];
-    final index = nextAccounts.indexWhere(
-      (item) => _normalizeEmail(item.email) == _normalizeEmail(email),
-    );
-    if (index == -1) {
-      nextAccounts.add(account);
-    } else {
-      nextAccounts[index] = account;
-    }
+    final nextAccounts = _accounts
+        .where((item) => _normalizeEmail(item.email) != _normalizeEmail(email))
+        .toList();
     await prefs.setString('token', token);
     await prefs.setString('session_role', role);
     await prefs.setBool('session_is_super_admin', false);
     await prefs.remove('super_admin_panel_mode');
     await prefs.setString('session_email', _normalizeEmail(email));
     await prefs.setString('impersonated_company_name', companyName);
-    await prefs.setString(
-      'accounts',
-      jsonEncode(nextAccounts.map((item) => item.toMap()).toList()),
-    );
     await prefs.setString('account', jsonEncode(account.toMap()));
 
     if (!mounted) return;
@@ -3099,6 +3106,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.setString('session_email', _normalizeEmail(email));
     await prefs.setString('session_role', 'ADMIN');
     await prefs.setBool('session_is_super_admin', true);
+    await prefs.setString('account', jsonEncode(account.toMap()));
     await prefs.remove('super_admin_return_token');
     await prefs.remove('super_admin_return_email');
     await prefs.remove('super_admin_return_name');
@@ -3122,6 +3130,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('token');
     await prefs.remove('session_role');
     await prefs.remove('session_is_super_admin');
+    await prefs.remove('account');
     await prefs.remove('super_admin_return_token');
     await prefs.remove('super_admin_return_email');
     await prefs.remove('super_admin_return_name');
@@ -15139,9 +15148,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   List<Color> get _shellBackgroundColors => _isDarkTheme
       ? const [
-          Color(0xFF06111F),
-          Color(0xFF081A2E),
-          Color(0xFF092D24),
+          Color(0xFF3B0764),
+          Color(0xFF0D0715),
+          Color(0xFF030108),
         ]
       : const [
           AppColors.backgroundTop,
@@ -15150,28 +15159,28 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         ];
 
   Color get _shellPanelColor =>
-      _isDarkTheme ? const Color(0xFF0B1F36) : Colors.white.withOpacity(0.92);
+      _isDarkTheme ? const Color(0xCC171222) : const Color(0xFF171222);
 
   Color get _shellPanelSoftColor =>
-      _isDarkTheme ? const Color(0xFF102A46) : const Color(0xFFF8FBFF);
+      _isDarkTheme ? const Color(0xFF120C1D) : const Color(0xFF120C1D);
 
   Color get _shellBorderColor =>
-      _isDarkTheme ? const Color(0xFF244462) : const Color(0xFFDCE9FF);
+      _isDarkTheme ? AppColors.border : AppColors.border;
 
   Color get _shellStrongTextColor =>
-      _isDarkTheme ? const Color(0xFFF8FBFF) : const Color(0xFF111827);
+      _isDarkTheme ? Colors.white : Colors.white;
 
   Color get _shellMutedTextColor =>
-      _isDarkTheme ? const Color(0xFFB6C2D2) : const Color(0xFF5B6474);
+      _isDarkTheme ? AppColors.textMuted : AppColors.textMuted;
 
   Color get _shellNavTextColor =>
-      _isDarkTheme ? const Color(0xFFD7E3F4) : const Color(0xFF22324A);
+      _isDarkTheme ? AppColors.textBody : AppColors.textBody;
 
   Color get _shellNavIconColor =>
-      _isDarkTheme ? const Color(0xFF9FB3CC) : const Color(0xFF365071);
+      _isDarkTheme ? AppColors.textMuted : AppColors.textMuted;
 
   Color get _shellSelectedNavColor =>
-      _isDarkTheme ? AppColors.secondary : widget.accentPreset.primaryColor;
+      AppColors.secondary;
 
   @override
   Widget build(BuildContext context) {
