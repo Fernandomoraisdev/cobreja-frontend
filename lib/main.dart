@@ -4745,41 +4745,56 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     });
 
     try {
-      final results = await Future.wait([
-        ApiService.fetchSuperAdminOverview(token: token),
-        ApiService.fetchSuperAdminAccounts(token: token),
-        ApiService.fetchSuperAdminSubscriptions(token: token),
-        ApiService.fetchSuperAdminPayments(token: token),
-        ApiService.fetchSuperAdminSaasPayments(token: token),
-        ApiService.fetchSuperAdminSupport(token: token),
-        ApiService.fetchSuperAdminLogs(token: token),
-        ApiService.fetchSuperAdminWebhooks(token: token),
+      final loadErrors = <String>[];
+      Future<dynamic> optional(String label, Future<dynamic> request) async {
+        try {
+          return await request;
+        } catch (error) {
+          loadErrors.add(error is ApiException ? '$label: ${error.message}' : label);
+          return null;
+        }
+      }
+
+      final results = await Future.wait<dynamic>([
+        optional('Painel global', ApiService.fetchSuperAdminOverview(token: token)),
+        optional('Empresas', ApiService.fetchSuperAdminAccounts(token: token)),
+        optional('Assinaturas', ApiService.fetchSuperAdminSubscriptions(token: token)),
+        optional('Pagamentos', ApiService.fetchSuperAdminPayments(token: token)),
+        optional('Cobranças SaaS', ApiService.fetchSuperAdminSaasPayments(token: token)),
+        optional('Suporte', ApiService.fetchSuperAdminSupport(token: token)),
+        optional('Logs', ApiService.fetchSuperAdminLogs(token: token)),
+        optional('Webhooks', ApiService.fetchSuperAdminWebhooks(token: token)),
       ]);
       if (!mounted) return;
       setState(() {
-        _overview = results[0] as Map<String, dynamic>;
-        _accounts = (results[1] as List<dynamic>)
+        _overview = results[0] is Map<String, dynamic>
+            ? results[0] as Map<String, dynamic>
+            : _overview;
+        _accounts = ((results[1] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _subscriptions = (results[2] as List<dynamic>)
+        _subscriptions = ((results[2] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _payments = (results[3] as List<dynamic>)
+        _payments = ((results[3] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _saasPayments = (results[4] as List<dynamic>)
+        _saasPayments = ((results[4] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _supportTickets = (results[5] as List<dynamic>)
+        _supportTickets = ((results[5] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _logs = (results[6] as List<dynamic>)
+        _logs = ((results[6] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        _webhooks = (results[7] as List<dynamic>)
+        _webhooks = ((results[7] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
         _loading = false;
+        _error = results[0] == null && (_overview?.isEmpty ?? true)
+            ? (loadErrors.isEmpty ? 'Falha ao carregar painel global.' : loadErrors.first)
+            : null;
       });
     } catch (e) {
       if (!mounted) return;
