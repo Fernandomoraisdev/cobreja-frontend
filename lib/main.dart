@@ -6654,6 +6654,113 @@ class _SuperAdminPlansView extends StatelessWidget {
 
   const _SuperAdminPlansView({required this.accounts});
 
+  static const _plans = [
+    {
+      'code': 'FREE',
+      'name': 'Gratis',
+      'price': 'R\$ 0,00',
+      'period': '',
+      'limit': '10 clientes',
+    },
+    {
+      'code': 'MENSAL',
+      'name': 'Mensal',
+      'price': 'R\$ 39,90',
+      'period': '/mes',
+      'limit': '100 clientes',
+    },
+    {
+      'code': 'TRIMESTRAL',
+      'name': 'Trimestral',
+      'price': 'R\$ 99,90',
+      'period': '/trimestre',
+      'limit': '250 clientes',
+    },
+    {
+      'code': 'SEMESTRAL',
+      'name': 'Semestral',
+      'price': 'R\$ 179,90',
+      'period': '/semestre',
+      'limit': '500 clientes',
+    },
+    {
+      'code': 'ANUAL',
+      'name': 'Anual',
+      'price': 'R\$ 299,90',
+      'period': '/ano',
+      'limit': 'clientes ilimitados',
+    },
+    {
+      'code': 'VITALICIO',
+      'name': 'Vitalicio',
+      'price': 'R\$ 997,00',
+      'period': 'pagamento unico',
+      'limit': 'clientes ilimitados',
+    },
+  ];
+
+  String _accountPlanCode(Map<String, dynamic> account) {
+    final subscription = account['subscription'] is Map<String, dynamic>
+        ? account['subscription'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final plan = subscription['plan'] is Map<String, dynamic>
+        ? subscription['plan'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    return plan['code']?.toString() ?? subscription['planCode']?.toString() ?? 'FREE';
+  }
+
+  void _showPlanAccounts(BuildContext context, Map<String, String> plan) {
+    final code = plan['code'] ?? 'FREE';
+    final linkedAccounts = accounts.where((account) => _accountPlanCode(account) == code).toList();
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Plano ${plan['name']}'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DetailLine(label: 'Valor', value: '${plan['price']} ${plan['period']}'.trim()),
+              _DetailLine(label: 'Limite', value: plan['limit'] ?? '-'),
+              _DetailLine(label: 'Empresas', value: '${linkedAccounts.length} vinculada(s)'),
+              const SizedBox(height: 12),
+              if (linkedAccounts.isEmpty)
+                const Text(
+                  'Nenhuma empresa vinculada a este plano ainda.',
+                  style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemBuilder: (context, index) {
+                      final account = linkedAccounts[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.business_rounded),
+                        title: Text(account['name']?.toString() ?? 'Empresa'),
+                        subtitle: Text(account['email']?.toString() ?? account['id']?.toString() ?? ''),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemCount: linkedAccounts.length,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final planCounts = <String, int>{};
@@ -6672,19 +6779,27 @@ class _SuperAdminPlansView extends StatelessWidget {
     return Wrap(
       spacing: AppSpacing.md,
       runSpacing: AppSpacing.md,
-      children: ['FREE', 'MENSAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL', 'VITALICIO']
+      children: _plans
           .map(
-            (plan) => SizedBox(
+            (plan) {
+              final code = plan['code'] ?? 'FREE';
+              return SizedBox(
               width: 260,
-              child: _SuperAdminMetricCard(
-                data: _SuperMetricData(
-                  icon: Icons.workspace_premium_rounded,
-                  label: 'Plano $plan',
-                  value: '${planCounts[plan] ?? 0}',
-                  subtitle: 'empresa(s) vinculada(s)',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () => _showPlanAccounts(context, plan),
+                child: _SuperAdminMetricCard(
+                  data: _SuperMetricData(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Plano ${plan['name']}',
+                    value: plan['price'] ?? '-',
+                    subtitle:
+                        '${planCounts[code] ?? 0} empresa(s) • ${plan['limit']} ${plan['period']}',
+                  ),
                 ),
               ),
-            ),
+            );
+            },
           )
           .toList(),
     );
@@ -13858,15 +13973,31 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               ],
                             ),
                           ),
-                          _SettingsReadOnlyPanel(
-                            title: 'SaaS',
-                            lines: [
-                              'Plano atual: ${saas['currentPlan'] ?? 'TRIAL'}',
-                              'Trial: ${saas['trial'] == false ? 'não' : 'sim'}',
-                              'Vencimento assinatura: ${saas['subscriptionEndsAt'] ?? 'não definido'}',
-                              'Limite de clientes: ${saas['clientLimit'] ?? 'conforme plano'}',
-                              'Upgrade: ${saas['upgradeUrl'] ?? 'em preparação'}',
-                            ],
+                          SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _SettingsReadOnlyPanel(
+                                  title: 'SaaS',
+                                  lines: [
+                                    'Plano atual: ${saas['currentPlan'] ?? 'TRIAL'}',
+                                    'Trial: ${saas['trial'] == false ? 'não' : 'sim'}',
+                                    'Vencimento assinatura: ${saas['subscriptionEndsAt'] ?? 'não definido'}',
+                                    'Limite de clientes: ${saas['clientLimit'] ?? 'conforme plano'}',
+                                    'Upgrade: escolha um plano e pague via Pix',
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                FilledButton.icon(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext, false);
+                                    Future.microtask(_openSaasPlanPanel);
+                                  },
+                                  icon: const Icon(Icons.workspace_premium_rounded),
+                                  label: const Text('Abrir contratação de planos'),
+                                ),
+                              ],
+                            ),
                           ),
                           SingleChildScrollView(
                             child: Column(
@@ -17610,6 +17741,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       children: [
         _PremiumFoundationCard(
           onEditSettings: _openPremiumSettingsDialog,
+          onSectionTap: (section) {
+            if (section == 'SaaS') {
+              _openSaasPlanPanel();
+            } else {
+              _openPremiumSettingsDialog();
+            }
+          },
           sections: const [
             _PremiumFoundationSection(
               title: 'Empresa',
@@ -26287,10 +26425,12 @@ class _PremiumFoundationSection {
 class _PremiumFoundationCard extends StatelessWidget {
   final List<_PremiumFoundationSection> sections;
   final VoidCallback? onEditSettings;
+  final ValueChanged<String>? onSectionTap;
 
   const _PremiumFoundationCard({
     required this.sections,
     this.onEditSettings,
+    this.onSectionTap,
   });
 
   @override
@@ -26386,56 +26526,60 @@ class _PremiumFoundationCard extends StatelessWidget {
                 ),
                 itemBuilder: (context, index) {
                   final section = sections[index];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: tileColor,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          height: 40,
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: section.color.withOpacity(0.13),
-                            borderRadius: BorderRadius.circular(14),
+                  return InkWell(
+                    onTap: onSectionTap == null ? null : () => onSectionTap!(section.title),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Ink(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: tileColor,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            height: 40,
+                            width: 40,
+                            decoration: BoxDecoration(
+                              color: section.color.withOpacity(0.13),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(section.icon, color: section.color, size: 21),
                           ),
-                          child: Icon(section.icon, color: section.color, size: 21),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                section.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: titleColor,
-                                  fontWeight: FontWeight.w900,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  section.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: titleColor,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                section.subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: bodyColor,
-                                  fontSize: 12,
-                                  height: 1.25,
+                                const SizedBox(height: 2),
+                                Text(
+                                  section.subtitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: bodyColor,
+                                    fontSize: 12,
+                                    height: 1.25,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        _StatusPill(text: section.status, color: section.color),
-                      ],
+                          const SizedBox(width: 8),
+                          _StatusPill(text: section.status, color: section.color),
+                        ],
+                      ),
                     ),
                   );
                 },
