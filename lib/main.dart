@@ -9503,7 +9503,7 @@ class _SaasPlanPixDialogState extends State<_SaasPlanPixDialog> {
       if (_status == 'APPROVED') {
         _pollTimer?.cancel();
         await widget.onRefresh();
-        if (mounted) Navigator.of(context).pop();
+        if (mounted) Navigator.of(context).pop(true);
       }
     } catch (err) {
       if (!mounted) return;
@@ -9586,7 +9586,7 @@ class _SaasPlanPixDialogState extends State<_SaasPlanPixDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isChecking ? null : () => Navigator.of(context).pop(),
+          onPressed: _isChecking ? null : () => Navigator.of(context).pop(_status == 'APPROVED'),
           child: const Text('Fechar'),
         ),
         FilledButton.icon(
@@ -10902,6 +10902,19 @@ class _SaasPlanPanel extends StatelessWidget {
           ),
           const SizedBox(height: 14),
         ],
+        _MercadoPagoInfoCard(
+          title: 'Contratacao de plano',
+          subtitle:
+              'Planos a partir de R\$ 39,90. Escolha, pague com Pix e a liberacao acontece automaticamente quando o Mercado Pago confirmar.',
+          icon: Icons.auto_awesome_rounded,
+          color: AppColors.primary,
+          children: const [
+            _DetailLine(label: 'Pagamento', value: 'Pix com QR Code e copia e cola'),
+            _DetailLine(label: 'Liberacao', value: 'Automatica apos confirmacao do webhook'),
+            _DetailLine(label: 'Dados', value: 'Clientes, dividas e pagamentos permanecem salvos'),
+          ],
+        ),
+        const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 720;
@@ -12685,12 +12698,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         final intent = await ApiService.createSaasPlanPix(token: token, planCode: planCode);
         if (!mounted) return;
         setState(() => _isLoadingSaas = false);
-        await showDialog(
+        final paid = await showDialog<bool>(
           context: context,
           builder: (_) => _SaasPlanPixDialog(
             initialIntent: intent,
             onRefresh: () => _refreshSaasStatus(updateLoading: true),
           ),
+        );
+        await _refreshSaasStatus(updateLoading: true);
+        if (!mounted) return;
+        _showSnack(
+          paid == true
+              ? 'Plano liberado automaticamente.'
+              : 'Se o Pix for aprovado, o plano sera liberado automaticamente.',
+          tone: _FeedbackTone.success,
+          title: paid == true ? 'Plano contratado' : 'Plano em processamento',
         );
         return;
       }
