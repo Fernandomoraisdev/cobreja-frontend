@@ -3369,10 +3369,10 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           brightness: Brightness.dark,
           primary: accentSecondary,
           secondary: accentSecondary,
-          surface: const Color(0xFF0F2238),
+          surface: AppColors.surface,
           error: AppColors.danger,
         ),
-        scaffoldBackgroundColor: const Color(0xFF0D0916),
+        scaffoldBackgroundColor: AppColors.background,
         textTheme: AppTypography.textTheme.apply(
           bodyColor: Colors.white,
           displayColor: Colors.white,
@@ -3384,30 +3384,30 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           centerTitle: true,
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xFF0F2238),
+          color: AppColors.surface,
           elevation: 0,
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.xl),
-            side: const BorderSide(color: Color(0xFF1E3A5F)),
+            side: const BorderSide(color: AppColors.border),
           ),
         ),
         dialogTheme: DialogThemeData(
-          backgroundColor: const Color(0xFF0F2238),
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.xl),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF10263F),
+          fillColor: AppColors.surfaceSoft,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: const BorderSide(color: Color(0xFF25476E)),
+            borderSide: const BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
-            borderSide: const BorderSide(color: Color(0xFF25476E)),
+            borderSide: const BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
@@ -3430,9 +3430,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           ),
         ),
       ),
-      themeMode: _themePreference == AppThemePreference.escuro
-          ? ThemeMode.dark
-          : ThemeMode.light,
+      themeMode: ThemeMode.dark,
       home: _isLoading
           ? const SplashPage()
           : AuthGatePage(
@@ -15146,41 +15144,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   bool get _isDarkTheme => Theme.of(context).brightness == Brightness.dark;
 
-  List<Color> get _shellBackgroundColors => _isDarkTheme
-      ? const [
-          Color(0xFF3B0764),
-          Color(0xFF0D0715),
-          Color(0xFF030108),
-        ]
-      : const [
-          AppColors.backgroundTop,
-          AppColors.backgroundMid,
-          AppColors.backgroundBottom,
-        ];
+  Color get _shellPanelColor => const Color(0xCC171222);
 
-  Color get _shellPanelColor =>
-      _isDarkTheme ? const Color(0xCC171222) : const Color(0xFF171222);
+  Color get _shellPanelSoftColor => AppColors.surfaceSoft;
 
-  Color get _shellPanelSoftColor =>
-      _isDarkTheme ? const Color(0xFF120C1D) : const Color(0xFF120C1D);
+  Color get _shellBorderColor => AppColors.border;
 
-  Color get _shellBorderColor =>
-      _isDarkTheme ? AppColors.border : AppColors.border;
+  Color get _shellStrongTextColor => Colors.white;
 
-  Color get _shellStrongTextColor =>
-      _isDarkTheme ? Colors.white : Colors.white;
+  Color get _shellMutedTextColor => AppColors.textMuted;
 
-  Color get _shellMutedTextColor =>
-      _isDarkTheme ? AppColors.textMuted : AppColors.textMuted;
+  Color get _shellNavTextColor => AppColors.textBody;
 
-  Color get _shellNavTextColor =>
-      _isDarkTheme ? AppColors.textBody : AppColors.textBody;
+  Color get _shellNavIconColor => AppColors.textMuted;
 
-  Color get _shellNavIconColor =>
-      _isDarkTheme ? AppColors.textMuted : AppColors.textMuted;
-
-  Color get _shellSelectedNavColor =>
-      AppColors.secondary;
+  Color get _shellSelectedNavColor => AppColors.secondary;
 
   @override
   Widget build(BuildContext context) {
@@ -15191,11 +15169,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         return Scaffold(
           drawer: isCompact ? Drawer(child: _buildNavigationRailContent(compact: true)) : null,
           body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: _shellBackgroundColors,
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topRight,
+                radius: 1.4,
+                colors: [
+                  Color(0xFF3B0764),
+                  Color(0xFF0D0715),
+                  Color(0xFF030108),
+                ],
               ),
             ),
             child: SafeArea(
@@ -15438,9 +15420,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 SizedBox(
                   height: compact ? 48 : 54,
                   child: SvgPicture.asset(
-                    _isDarkTheme
-                        ? 'assets/branding/peguei_paguei_logo_white.svg'
-                        : 'assets/branding/peguei_paguei_logo.svg',
+                    'assets/branding/peguei_paguei_logo_white.svg',
                     fit: BoxFit.contain,
                     alignment: Alignment.centerLeft,
                   ),
@@ -15468,14 +15448,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         width: 56,
                         height: 76,
                         decoration: BoxDecoration(
-                          color: _isDarkTheme
-                              ? const Color(0xFF173452)
-                              : const Color(0xFFE8F1FF),
+                          color: AppColors.surfaceTint,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _isDarkTheme
-                                ? const Color(0xFF315577)
-                                : const Color(0xFFD6E7FF),
+                            color: AppColors.border,
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -24845,25 +24821,17 @@ class _ClientGroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final highlightColor =
         overdueCount > 0 ? const Color(0xFFDC2626) : AppColors.success;
-    final titleColor = isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
-    final bodyColor = isDark ? const Color(0xFFD6E0EC) : const Color(0xFF4B5563);
-    final mutedColor = isDark ? const Color(0xFFA9B7C8) : const Color(0xFF6B7280);
-    final cardGradient = isDark
-        ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF171222), Color(0xFF100B18)],
-          )
-        : const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Color(0xFFF8FBFF)],
-          );
-    final borderColor =
-        isDark ? const Color(0xFF244462) : const Color(0xFFE5E7EB);
+    const titleColor = Colors.white;
+    const bodyColor = AppColors.textBody;
+    const mutedColor = AppColors.textMuted;
+    const cardGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF171222), Color(0xFF100B18)],
+    );
+    const borderColor = AppColors.border;
 
     final hasLate = totalLate > 0.009;
     final subtitleParts = <String>[
@@ -25083,9 +25051,9 @@ class _AdminClientGroupProfilePageState
     final overdueCount = summaries.where((item) => item.isOverdue).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0916),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0916),
+        backgroundColor: AppColors.background,
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -25114,13 +25082,25 @@ class _AdminClientGroupProfilePageState
           ),
         ],
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFF10B981),
-        backgroundColor: const Color(0xFF0F2238),
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
-          children: [
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topRight,
+            radius: 1.4,
+            colors: [
+              Color(0xFF3B0764),
+              Color(0xFF0D0715),
+              Color(0xFF030108),
+            ],
+          ),
+        ),
+        child: RefreshIndicator(
+          color: AppColors.secondary,
+          backgroundColor: AppColors.surface,
+          onRefresh: _refresh,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
+            children: [
             Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -25230,7 +25210,8 @@ class _AdminClientGroupProfilePageState
                   onToggleSelected: () {},
                 );
               }),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -25256,12 +25237,16 @@ class _ProfileMetricCard extends StatelessWidget {
       width: 240,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF171222), Color(0xFF100B18)],
+        ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.borderSoft),
+        border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A0F172A),
+            color: Color(0x24000000),
             blurRadius: 12,
             offset: Offset(0, 8),
           ),
@@ -25328,16 +25313,21 @@ class _ProfileFilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF3E8FF) : Colors.white,
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [Color(0xFF581C87), Color(0xFF8B1CF6)],
+                )
+              : null,
+          color: selected ? null : AppColors.surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? AppColors.warning : AppColors.borderSoft,
+            color: selected ? const Color(0xFFB26CFF) : AppColors.border,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? AppColors.warning : const Color(0xFF111827),
+            color: selected ? Colors.white : AppColors.textBody,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -25375,28 +25365,20 @@ class _ClientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final highlightColor = client.status == 'quitado'
         ? const Color(0xFF16A34A)
         : debt.isOverdue
             ? const Color(0xFFDC2626)
             : AppColors.success;
-    final titleColor = isDark ? const Color(0xFFF8FAFC) : AppColors.textStrong;
-    final bodyColor = isDark ? const Color(0xFFD6E0EC) : const Color(0xFF4B5563);
-    final mutedColor = isDark ? const Color(0xFFA9B7C8) : const Color(0xFF6B7280);
-    final cardGradient = isDark
-        ? const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF171222), Color(0xFF100B18)],
-          )
-        : const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Color(0xFFF8FBFF)],
-          );
-    final borderColor =
-        isDark ? const Color(0xFF244462) : const Color(0xFFE5E7EB);
+    const titleColor = Colors.white;
+    const bodyColor = AppColors.textBody;
+    const mutedColor = AppColors.textMuted;
+    const cardGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFF171222), Color(0xFF100B18)],
+    );
+    const borderColor = AppColors.border;
 
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
