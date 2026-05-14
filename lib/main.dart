@@ -376,6 +376,23 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> cancelSuperAdminScheduledPlanChange({
+    required String token,
+    required int accountId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/super-admin/accounts/$accountId/plan-schedule'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> impersonateSuperAdminAccount({
     required String token,
     required int accountId,
@@ -4995,6 +5012,32 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  Future<void> _cancelPlanSchedule(Map<String, dynamic> account) async {
+    final token = await _token();
+    if (token == null) return;
+    setState(() => _saving = true);
+    try {
+      await ApiService.cancelSuperAdminScheduledPlanChange(
+        token: token,
+        accountId: _intValue(account['id']),
+      );
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agendamento de plano cancelado.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao cancelar agendamento.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _impersonate(Map<String, dynamic> account) async {
     final token = await _token();
     if (token == null) return;
@@ -5153,6 +5196,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               saving: _saving,
               onChangeStatus: _changeStatus,
               onChangePlan: _changePlan,
+              onCancelPlanSchedule: _cancelPlanSchedule,
               onRenewSubscription: _renewSubscription,
               onImpersonate: _impersonate,
               emptyTitle: 'Nenhuma empresa cadastrada',
@@ -5165,6 +5209,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           saving: _saving,
           onChangeStatus: _changeStatus,
           onChangePlan: _changePlan,
+          onCancelPlanSchedule: _cancelPlanSchedule,
           onRenewSubscription: _renewSubscription,
           onImpersonate: _impersonate,
           emptyTitle: 'Nenhuma empresa cadastrada',
@@ -5178,6 +5223,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           saving: _saving,
           onChangeStatus: _changeStatus,
           onChangePlan: _changePlan,
+          onCancelPlanSchedule: _cancelPlanSchedule,
           onRenewSubscription: _renewSubscription,
           onImpersonate: _impersonate,
           emptyTitle: 'Nenhuma empresa suspensa',
@@ -5616,6 +5662,7 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
   final Future<void> Function(Map<String, dynamic> account) onChangeStatus;
   final Future<void> Function(Map<String, dynamic> account, String planCode)
       onChangePlan;
+  final Future<void> Function(Map<String, dynamic> account) onCancelPlanSchedule;
   final Future<void> Function(Map<String, dynamic> account) onRenewSubscription;
   final Future<void> Function(Map<String, dynamic> account) onImpersonate;
   final String emptyTitle;
@@ -5625,6 +5672,7 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
     required this.saving,
     required this.onChangeStatus,
     required this.onChangePlan,
+    required this.onCancelPlanSchedule,
     required this.onRenewSubscription,
     required this.onImpersonate,
     required this.emptyTitle,
@@ -5672,6 +5720,8 @@ class _SuperAdminCompaniesSection extends StatelessWidget {
                 onChangeStatus: saving ? null : () => onChangeStatus(account),
                 onChangePlan:
                     saving ? null : (plan) => onChangePlan(account, plan),
+                onCancelPlanSchedule:
+                    saving ? null : () => onCancelPlanSchedule(account),
                 onRenewSubscription:
                     saving ? null : () => onRenewSubscription(account),
                 onImpersonate: saving ? null : () => onImpersonate(account),
@@ -5776,10 +5826,15 @@ class _SuperAdminSubscriptionsView extends StatelessWidget {
     final pastDueCount = subscriptions
         .where((item) => item['status']?.toString().toUpperCase() == 'PAST_DUE')
         .length;
+    final scheduledCount = subscriptions
+        .where((item) => item['pendingPlan'] is Map<String, dynamic>)
+        .length;
     return _SuperAdminRecordsView(
-      title: pastDueCount > 0
-          ? 'Assinaturas recentes - $pastDueCount vencida(s)'
-          : 'Assinaturas recentes',
+      title: [
+        'Assinaturas recentes',
+        if (pastDueCount > 0) '$pastDueCount vencida(s)',
+        if (scheduledCount > 0) '$scheduledCount troca(s) agendada(s)',
+      ].join(' - '),
       emptyTitle: 'Nenhuma assinatura encontrada',
       icon: Icons.workspace_premium_rounded,
       records: subscriptions,
@@ -5790,14 +5845,26 @@ class _SuperAdminSubscriptionsView extends StatelessWidget {
         final plan = item['plan'] is Map<String, dynamic>
             ? item['plan'] as Map<String, dynamic>
             : <String, dynamic>{};
+        final pendingPlan = item['pendingPlan'] is Map<String, dynamic>
+            ? item['pendingPlan'] as Map<String, dynamic>
+            : <String, dynamic>{};
         final periodEnd = DateTime.tryParse(item['currentPeriodEnd']?.toString() ?? '');
+        final pendingChangeAt =
+            DateTime.tryParse(item['pendingChangeAt']?.toString() ?? '');
         final status = item['status']?.toString().toUpperCase() ?? 'ACTIVE';
+        final pendingText = pendingPlan.isNotEmpty && pendingChangeAt != null
+            ? ' - troca para ${pendingPlan['name'] ?? pendingPlan['code'] ?? '-'} em ${DateFormat('dd/MM/yyyy').format(pendingChangeAt)}'
+            : '';
         return _SuperAdminRecordLine(
           title: account['name']?.toString() ?? 'Empresa sem nome',
           subtitle:
               'Plano ${plan['name'] ?? plan['code'] ?? '-'}${periodEnd == null ? '' : ' • vence ${DateFormat('dd/MM/yyyy').format(periodEnd)}'}',
-          trailing: status,
-          color: status == 'PAST_DUE' ? AppColors.warning : AppColors.secondary,
+          trailing: pendingText.isNotEmpty ? 'AGENDADO' : status,
+          color: pendingText.isNotEmpty
+              ? AppColors.warning
+              : status == 'PAST_DUE'
+                  ? AppColors.warning
+                  : AppColors.secondary,
         );
       },
     );
@@ -6456,6 +6523,7 @@ class _SuperAdminAccountCard extends StatelessWidget {
   final Map<String, dynamic> account;
   final VoidCallback? onChangeStatus;
   final ValueChanged<String>? onChangePlan;
+  final VoidCallback? onCancelPlanSchedule;
   final VoidCallback? onRenewSubscription;
   final VoidCallback? onImpersonate;
 
@@ -6463,6 +6531,7 @@ class _SuperAdminAccountCard extends StatelessWidget {
     required this.account,
     this.onChangeStatus,
     this.onChangePlan,
+    this.onCancelPlanSchedule,
     this.onRenewSubscription,
     this.onImpersonate,
   });
@@ -6487,6 +6556,9 @@ class _SuperAdminAccountCard extends StatelessWidget {
     final plan = subscription['plan'] is Map<String, dynamic>
         ? subscription['plan'] as Map<String, dynamic>
         : <String, dynamic>{};
+    final pendingPlan = subscription['pendingPlan'] is Map<String, dynamic>
+        ? subscription['pendingPlan'] as Map<String, dynamic>
+        : <String, dynamic>{};
     final status = account['status']?.toString().toUpperCase() ?? 'ACTIVE';
     final billing = account['billing'] is Map<String, dynamic>
         ? account['billing'] as Map<String, dynamic>
@@ -6497,6 +6569,8 @@ class _SuperAdminAccountCard extends StatelessWidget {
     final planCode = plan['code']?.toString() ?? subscription['planCode']?.toString() ?? 'FREE';
     final createdAt = DateTime.tryParse(account['createdAt']?.toString() ?? '');
     final periodEnd = DateTime.tryParse(subscription['currentPeriodEnd']?.toString() ?? '');
+    final pendingChangeAt =
+        DateTime.tryParse(subscription['pendingChangeAt']?.toString() ?? '');
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -6545,6 +6619,12 @@ class _SuperAdminAccountCard extends StatelessWidget {
                     text: planCode,
                     color: AppColors.secondary,
                   ),
+                  if (pendingPlan.isNotEmpty && pendingChangeAt != null)
+                    _StatusPill(
+                      text:
+                          'Agendado: ${pendingPlan['code'] ?? pendingPlan['name'] ?? '-'}',
+                      color: AppColors.warning,
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -6582,6 +6662,12 @@ class _SuperAdminAccountCard extends StatelessWidget {
                       icon: Icons.event_busy_rounded,
                       label: 'Vence ${DateFormat('dd/MM/yyyy').format(periodEnd)}',
                     ),
+                  if (pendingPlan.isNotEmpty && pendingChangeAt != null)
+                    _SuperAdminCountChip(
+                      icon: Icons.event_available_rounded,
+                      label:
+                          'Troca para ${pendingPlan['name'] ?? pendingPlan['code'] ?? '-'} em ${DateFormat('dd/MM/yyyy').format(pendingChangeAt)}',
+                    ),
                 ],
               ),
             ],
@@ -6613,6 +6699,12 @@ class _SuperAdminAccountCard extends StatelessWidget {
                 label: 'Renovar',
                 onTap: onRenewSubscription,
               ),
+              if (pendingPlan.isNotEmpty && pendingChangeAt != null)
+                _SuperAdminActionPill(
+                  icon: Icons.event_busy_rounded,
+                  label: 'Cancelar troca',
+                  onTap: onCancelPlanSchedule,
+                ),
               _SuperAdminActionPill(
                 icon: isSuspended ? Icons.lock_open_rounded : Icons.block_rounded,
                 label: isSuspended ? 'Liberar' : 'Suspender',
