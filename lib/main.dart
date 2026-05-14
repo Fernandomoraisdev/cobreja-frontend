@@ -13647,7 +13647,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
-  Future<void> _openPremiumSettingsDialog() async {
+  Future<void> _openPremiumSettingsDialog({int initialTabIndex = 0}) async {
     final settings = _premiumSettings ?? const <String, dynamic>{};
     final company = (settings['company'] as Map<String, dynamic>?) ?? const {};
     final finance = (settings['finance'] as Map<String, dynamic>?) ?? const {};
@@ -13661,6 +13661,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final appearance = (settings['appearance'] as Map<String, dynamic>?) ?? const {};
     final users = (settings['users'] as Map<String, dynamic>?) ?? const {};
     final audit = (settings['audit'] as Map<String, dynamic>?) ?? const {};
+    final normalizedInitialTabIndex = initialTabIndex.clamp(0, 11);
+    String accentLabel(dynamic value) {
+      final raw = value?.toString().trim() ?? '';
+      if (raw.isEmpty || raw.toLowerCase() == 'cobreja') return 'Peguei & Paguei';
+      return raw;
+    }
     final nameController = TextEditingController(
       text: company['name']?.toString() ?? widget.account.name,
     );
@@ -13718,10 +13724,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           builder: (dialogContext, setDialogState) => AlertDialog(
             title: const Text('Configurações da empresa'),
             content: DefaultTabController(
+              initialIndex: normalizedInitialTabIndex,
               length: 12,
               child: SizedBox(
-                width: 820,
-                height: 600,
+                width: 860,
+                height: 640,
                 child: Column(
                   children: [
                     const TabBar(
@@ -13743,7 +13750,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ),
                     const SizedBox(height: 16),
                     Expanded(
-                      child: TabBarView(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: TabBarView(
                         children: [
                           SingleChildScrollView(
                             child: Column(
@@ -13955,7 +13964,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             title: 'Aparência',
                             lines: [
                               'Tema salvo: ${appearance['theme'] ?? 'dark'}',
-                              'Cor de destaque: ${appearance['accentColor'] ?? 'Peguei & Paguei'}',
+                              'Cor de destaque: ${accentLabel(appearance['accentColor'])}',
                               'Layout compacto: ${appearance['compactLayout'] == true ? 'ativo' : 'inativo'}',
                               'O ajuste visual rápido continua disponível na tela principal de Configurações.',
                             ],
@@ -14112,6 +14121,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                         ],
                       ),
+                    ),
                     ),
                   ],
                 ),
@@ -17745,13 +17755,25 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 110),
       children: [
         _PremiumFoundationCard(
-          onEditSettings: _openPremiumSettingsDialog,
+          onEditSettings: () => _openPremiumSettingsDialog(),
           onSectionTap: (section) {
-            if (section == 'SaaS') {
-              _openSaasPlanPanel();
-            } else {
-              _openPremiumSettingsDialog();
-            }
+            final tabIndex = switch (section) {
+              'Empresa' => 0,
+              'Financeiro' => 1,
+              'Mercado Pago' => 2,
+              'WhatsApp' => 3,
+              'Notificacoes' => 4,
+              'Aparencia' => 5,
+              'Conta/Admin' => 6,
+              'Seguranca' => 6,
+              'SaaS' => 7,
+              'Usuarios' => 8,
+              'Auditoria' => 9,
+              'Suporte' => 10,
+              'Backup' => 11,
+              _ => 0,
+            };
+            _openPremiumSettingsDialog(initialTabIndex: tabIndex);
           },
           sections: const [
             _PremiumFoundationSection(
@@ -17767,6 +17789,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               icon: Icons.admin_panel_settings_rounded,
               status: 'Em estrutura',
               color: AppColors.primary,
+            ),
+            _PremiumFoundationSection(
+              title: 'Seguranca',
+              subtitle: 'JWT, rotas protegidas e confirmacao dupla.',
+              icon: Icons.security_rounded,
+              status: 'Ativa',
+              color: AppColors.success,
             ),
             _PremiumFoundationSection(
               title: 'Financeiro',
@@ -17797,6 +17826,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               color: AppColors.success,
             ),
             _PremiumFoundationSection(
+              title: 'Usuarios',
+              subtitle: 'Admins extras, convites e permissoes.',
+              icon: Icons.group_rounded,
+              status: 'Preparado',
+              color: AppColors.primary,
+            ),
+            _PremiumFoundationSection(
               title: 'Aparencia',
               subtitle: 'Dark, light, cores e layout compacto.',
               icon: Icons.palette_rounded,
@@ -17816,6 +17852,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               icon: Icons.fact_check_rounded,
               status: 'Base criada',
               color: AppColors.success,
+            ),
+            _PremiumFoundationSection(
+              title: 'Suporte',
+              subtitle: 'Chat, status e notificacoes de atendimento.',
+              icon: Icons.support_agent_rounded,
+              status: 'Preparado',
+              color: AppColors.warning,
+            ),
+            _PremiumFoundationSection(
+              title: 'Backup',
+              subtitle: 'Rotina, restauracao e historico de seguranca.',
+              icon: Icons.backup_rounded,
+              status: 'Manual',
+              color: AppColors.primary,
             ),
           ],
         ),
@@ -17900,7 +17950,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 color: activeNotificationTypes.isEmpty ? AppColors.warning : AppColors.success,
               ),
               OutlinedButton.icon(
-                onPressed: _openPremiumSettingsDialog,
+                onPressed: () => _openPremiumSettingsDialog(),
                 icon: const Icon(Icons.tune_rounded),
                 label: const Text('Editar preferencias'),
               ),
@@ -26531,10 +26581,9 @@ class _PremiumFoundationCard extends StatelessWidget {
                 ),
                 itemBuilder: (context, index) {
                   final section = sections[index];
-                  return InkWell(
+                  return GestureDetector(
                     onTap: onSectionTap == null ? null : () => onSectionTap!(section.title),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Ink(
+                    child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: tileColor,
