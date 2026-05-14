@@ -3639,9 +3639,9 @@ class _SplashPageState extends State<SplashPage>
                           child: ScaleTransition(
                             scale: _scaleAnimation,
                             child: Container(
-                              width: isCompact ? 78 : 92,
-                              height: isCompact ? 78 : 92,
-                              padding: const EdgeInsets.all(14),
+                              width: isCompact ? 96 : 112,
+                              height: isCompact ? 96 : 112,
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   begin: Alignment.topLeft,
@@ -3664,19 +3664,19 @@ class _SplashPageState extends State<SplashPage>
                             ),
                           ),
                         ),
-                        SizedBox(height: isCompact ? 18 : 22),
+                        SizedBox(height: isCompact ? 22 : 26),
                         FadeTransition(
                           opacity: _fadeAnimation,
                           child: SlideTransition(
                             position: _slideAnimation,
                             child: SvgPicture.asset(
                               'assets/branding/peguei_paguei_logo.svg',
-                              height: isCompact ? 42 : 52,
+                              height: isCompact ? 54 : 64,
                               fit: BoxFit.fitHeight,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
                         FadeTransition(
                           opacity: _fadeAnimation,
                           child: SlideTransition(
@@ -3686,8 +3686,8 @@ class _SplashPageState extends State<SplashPage>
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: const Color(0xFF4B5563),
-                                fontSize: isCompact ? 15 : 16,
-                                fontWeight: FontWeight.w600,
+                                fontSize: isCompact ? 17 : 19,
+                                fontWeight: FontWeight.w800,
                                 height: 1.5,
                               ),
                             ),
@@ -3695,14 +3695,14 @@ class _SplashPageState extends State<SplashPage>
                         ),
                         SizedBox(height: isCompact ? 22 : 26),
                         SizedBox(
-                          width: isCompact ? 170 : 220,
+                          width: isCompact ? 210 : 250,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(999),
                             child: AnimatedBuilder(
                               animation: _controller,
                               builder: (context, _) => LinearProgressIndicator(
                                 value: _controller.value.clamp(0.08, 1.0),
-                                minHeight: 8,
+                                minHeight: 9,
                                 backgroundColor: const Color(0xFFD9E7FF),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                   AppColors.primary,
@@ -3718,8 +3718,8 @@ class _SplashPageState extends State<SplashPage>
                             'Preparando seu painel financeiro...',
                             style: TextStyle(
                               color: const Color(0xFF5B6474),
-                              fontSize: isCompact ? 13 : 14,
-                              fontWeight: FontWeight.w600,
+                              fontSize: isCompact ? 15 : 16,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -3750,23 +3750,25 @@ class _PegueiPagueiLoading extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 180,
+            width: 240,
             child: SvgPicture.asset(
               'assets/branding/peguei_paguei_logo.svg',
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
           const SizedBox(
-            width: 34,
-            height: 34,
-            child: CircularProgressIndicator(strokeWidth: 3),
+            width: 42,
+            height: 42,
+            child: CircularProgressIndicator(strokeWidth: 3.5),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.textMuted,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
