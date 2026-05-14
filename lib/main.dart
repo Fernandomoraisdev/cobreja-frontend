@@ -334,6 +334,46 @@ class ApiService {
     return _extractPayloadList(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchSuperAdminOperationsHealth({
+    required String token,
+    int? accountId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/super-admin/operations/health').replace(
+      queryParameters: accountId == null ? null : {'accountId': '$accountId'},
+    );
+    final response = await http.get(
+      uri,
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<String> fetchSuperAdminOperationsBackup({
+    required String token,
+    int? accountId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/super-admin/operations/backup').replace(
+      queryParameters: accountId == null ? null : {'accountId': '$accountId'},
+    );
+    final response = await http.get(
+      uri,
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return response.body;
+  }
+
   static Future<Map<String, dynamic>> updateSuperAdminAccountStatus({
     required String token,
     required int accountId,
@@ -4757,6 +4797,7 @@ class _PrivacyPolicySection extends StatelessWidget {
 
 enum _SuperAdminSection {
   painel,
+  operacoes,
   empresas,
   receita,
   assinaturas,
@@ -4799,6 +4840,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   List<Map<String, dynamic>> _supportTickets = [];
   List<Map<String, dynamic>> _logs = [];
   List<Map<String, dynamic>> _webhooks = [];
+  Map<String, dynamic>? _operationsHealth;
   _SuperAdminSection _selectedSection = _SuperAdminSection.painel;
   bool _loading = true;
   bool _saving = false;
@@ -4854,6 +4896,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         optional('Suporte', ApiService.fetchSuperAdminSupport(token: token)),
         optional('Logs', ApiService.fetchSuperAdminLogs(token: token)),
         optional('Webhooks', ApiService.fetchSuperAdminWebhooks(token: token)),
+        optional('Operacoes', ApiService.fetchSuperAdminOperationsHealth(token: token)),
       ]);
       if (!mounted) return;
       setState(() {
@@ -4881,6 +4924,9 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         _webhooks = ((results[7] as List<dynamic>?) ?? const [])
             .whereType<Map<String, dynamic>>()
             .toList();
+        _operationsHealth = results[8] is Map<String, dynamic>
+            ? results[8] as Map<String, dynamic>
+            : _operationsHealth;
         _loading = false;
         _error = results[0] == null && (_overview?.isEmpty ?? true)
             ? (loadErrors.isEmpty ? 'Falha ao carregar painel global.' : loadErrors.first)
@@ -4913,6 +4959,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   _SuperAdminSection _sectionFromPath(String path) {
     switch (path) {
+      case '/super-admin/operations':
+        return _SuperAdminSection.operacoes;
       case '/super-admin/companies':
         return _SuperAdminSection.empresas;
       case '/super-admin/subscriptions':
@@ -4932,6 +4980,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   String _pathForSection(_SuperAdminSection section) {
     switch (section) {
+      case _SuperAdminSection.operacoes:
+        return '/super-admin/operations';
       case _SuperAdminSection.empresas:
         return '/super-admin/companies';
       case _SuperAdminSection.assinaturas:
@@ -4958,6 +5008,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     switch (section) {
       case _SuperAdminSection.painel:
         return 'Painel Global';
+      case _SuperAdminSection.operacoes:
+        return 'Operações';
       case _SuperAdminSection.empresas:
         return 'Empresas SaaS';
       case _SuperAdminSection.receita:
@@ -4987,6 +5039,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     switch (section) {
       case _SuperAdminSection.painel:
         return 'Visão executiva da plataforma, contas, receita, Pix e suporte.';
+      case _SuperAdminSection.operacoes:
+        return 'Saúde do sistema, backup seguro e checklist antes de deploy.';
       case _SuperAdminSection.empresas:
         return 'Gerencie contas, planos, suspensão e acesso assistido.';
       case _SuperAdminSection.receita:
@@ -5199,6 +5253,47 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  String _operationsBackupFileName({int? accountId}) {
+    final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final scope = accountId == null ? 'global' : 'empresa_$accountId';
+    return 'peguei_paguei_backup_${scope}_$stamp.json';
+  }
+
+  Future<void> _downloadOperationsBackup({int? accountId}) async {
+    final token = await _token();
+    if (token == null) return;
+    setState(() => _saving = true);
+    try {
+      final content = await ApiService.fetchSuperAdminOperationsBackup(
+        token: token,
+        accountId: accountId,
+      );
+      final path = await saveFileBytes(
+        bytes: Uint8List.fromList(utf8.encode(content)),
+        fileName: _operationsBackupFileName(accountId: accountId),
+        mimeType: 'application/json',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(path == null
+              ? 'Backup gerado.'
+              : 'Backup salvo em $path'),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao gerar backup.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -5344,6 +5439,18 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
             ),
           ],
         );
+      case _SuperAdminSection.operacoes:
+        return _SuperAdminOperationsView(
+          health: _operationsHealth ?? const <String, dynamic>{},
+          accounts: _accounts,
+          saving: _saving,
+          onRefresh: _load,
+          onDownloadGlobalBackup:
+              _saving ? null : () => _downloadOperationsBackup(),
+          onDownloadAccountBackup: _saving
+              ? null
+              : (accountId) => _downloadOperationsBackup(accountId: accountId),
+        );
       case _SuperAdminSection.empresas:
         return _SuperAdminCompaniesSection(
           accounts: _accounts,
@@ -5467,6 +5574,7 @@ class _SuperAdminSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (_SuperAdminSection.painel, 'Painel Global', Icons.dashboard_rounded),
+      (_SuperAdminSection.operacoes, 'Operações', Icons.health_and_safety_rounded),
       (_SuperAdminSection.empresas, 'Empresas SaaS', Icons.business_rounded),
       (_SuperAdminSection.receita, 'Receita plataforma', Icons.trending_up_rounded),
       (_SuperAdminSection.assinaturas, 'Assinaturas', Icons.workspace_premium_rounded),
@@ -5790,6 +5898,429 @@ class _SuperHeroStat extends StatelessWidget {
                 fontWeight: FontWeight.w900,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuperAdminOperationsView extends StatelessWidget {
+  final Map<String, dynamic> health;
+  final List<Map<String, dynamic>> accounts;
+  final bool saving;
+  final VoidCallback onRefresh;
+  final VoidCallback? onDownloadGlobalBackup;
+  final Future<void> Function(int accountId)? onDownloadAccountBackup;
+
+  const _SuperAdminOperationsView({
+    required this.health,
+    required this.accounts,
+    required this.saving,
+    required this.onRefresh,
+    required this.onDownloadGlobalBackup,
+    required this.onDownloadAccountBackup,
+  });
+
+  int _intValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _boolValue(dynamic value) => value == true;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = health['counts'] is Map<String, dynamic>
+        ? health['counts'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final database = health['database'] is Map<String, dynamic>
+        ? health['database'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final environment = health['environment'] is Map<String, dynamic>
+        ? health['environment'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final dbConnected = _boolValue(database['connected']);
+    final generatedAt = DateTime.tryParse(health['generatedAt']?.toString() ?? '');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1A0828), Color(0xFF3B0764), Color(0xFF08030F)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: AppColors.secondary.withOpacity(0.32)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.secondary.withOpacity(0.16),
+                blurRadius: 30,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 760;
+              final headline = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StatusPill(
+                    text: dbConnected ? 'Banco conectado' : 'Banco indisponível',
+                    color: dbConnected ? AppColors.success : AppColors.danger,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  const Text(
+                    'Operação segura para produção',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    generatedAt == null
+                        ? 'Valide saúde, exporte backup e siga o checklist antes de mexer em produção.'
+                        : 'Última validação em ${DateFormat('dd/MM/yyyy HH:mm').format(generatedAt)}.',
+                    style: const TextStyle(
+                      color: AppColors.textBody,
+                      fontWeight: FontWeight.w700,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              );
+
+              final actions = Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  FilledButton.icon(
+                    onPressed: saving ? null : onRefresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Atualizar saúde'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onDownloadGlobalBackup,
+                    icon: const Icon(Icons.download_for_offline_rounded),
+                    label: const Text('Baixar backup global'),
+                  ),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headline,
+                    const SizedBox(height: AppSpacing.lg),
+                    actions,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: headline),
+                  const SizedBox(width: AppSpacing.xl),
+                  actions,
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth > 960 ? 4 : constraints.maxWidth > 640 ? 2 : 1;
+            return GridView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppSpacing.md,
+                mainAxisSpacing: AppSpacing.md,
+                childAspectRatio: 2.55,
+              ),
+              children: [
+                _OperationKpi(
+                  icon: Icons.business_rounded,
+                  label: 'Empresas',
+                  value: '${_intValue(counts['accounts'])}',
+                ),
+                _OperationKpi(
+                  icon: Icons.people_rounded,
+                  label: 'Clientes',
+                  value: '${_intValue(counts['clients'])}',
+                ),
+                _OperationKpi(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Dívidas',
+                  value: '${_intValue(counts['debts'])}',
+                ),
+                _OperationKpi(
+                  icon: Icons.pix_rounded,
+                  label: 'Pix gerados',
+                  value: '${_intValue(counts['paymentIntents'])}',
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _OperationsPanel(
+          title: 'Checklist de pré-deploy',
+          icon: Icons.fact_check_rounded,
+          children: const [
+            _ChecklistLine(text: 'Gerar backup antes de qualquer deploy em produção.', done: true),
+            _ChecklistLine(text: 'Validar migrations sem remoção destrutiva de dados.', done: true),
+            _ChecklistLine(text: 'Testar login Super Admin, Admin e Cliente.', done: false),
+            _ChecklistLine(text: 'Testar criação de cliente, dívida, Pix e webhook.', done: false),
+            _ChecklistLine(text: 'Confirmar rollback no Railway antes de campanha de venda.', done: false),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _OperationsPanel(
+          title: 'Ambiente',
+          icon: Icons.dns_rounded,
+          children: [
+            _EnvironmentLine(label: 'DATABASE_URL', active: _boolValue(environment['hasDatabaseUrl'])),
+            _EnvironmentLine(label: 'JWT_SECRET', active: _boolValue(environment['hasJwtSecret'])),
+            _EnvironmentLine(label: 'BACKEND_PUBLIC_URL', active: _boolValue(environment['hasBackendPublicUrl'])),
+            _EnvironmentLine(label: 'MERCADO_PAGO_ACCESS_TOKEN', active: _boolValue(environment['hasMercadoPagoAccessToken'])),
+            _EnvironmentLine(label: 'MERCADO_PAGO_WEBHOOK_SECRET', active: _boolValue(environment['hasMercadoPagoWebhookSecret'])),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _OperationsPanel(
+          title: 'Backup por empresa',
+          icon: Icons.backup_table_rounded,
+          children: accounts.isEmpty
+              ? const [
+                  Text(
+                    'Nenhuma empresa carregada para backup individual.',
+                    style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+                  ),
+                ]
+              : accounts.take(8).map((account) {
+                  final id = _intValue(account['id']);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            account['name']?.toString() ?? 'Empresa $id',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: saving || onDownloadAccountBackup == null
+                              ? null
+                              : () => onDownloadAccountBackup!(id),
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Backup'),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _OperationKpi extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _OperationKpi({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: const Color(0xE6171222),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 44,
+            width: 44,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: AppColors.secondary),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 23,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OperationsPanel extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  const _OperationsPanel({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xE6171222),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 42,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: AppColors.secondary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistLine extends StatelessWidget {
+  final String text;
+  final bool done;
+
+  const _ChecklistLine({
+    required this.text,
+    required this.done,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            color: done ? AppColors.success : AppColors.textMuted,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: AppColors.textBody,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EnvironmentLine extends StatelessWidget {
+  final String label;
+  final bool active;
+
+  const _EnvironmentLine({
+    required this.label,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textBody,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _StatusPill(
+            text: active ? 'OK' : 'Pendente',
+            color: active ? AppColors.success : AppColors.warning,
           ),
         ],
       ),
