@@ -15,8 +15,8 @@
   <path d="M55 96H27" stroke="url(#neon)" stroke-width="8" stroke-linecap="round"/>
   <path d="M55 113H35" stroke="url(#neon)" stroke-width="8" stroke-linecap="round"/>
   <path d="M110 126L123 139L149 108" stroke="url(#neon)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="166" y="74" fill="#080613" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">Peguei</text>
-  <text x="326" y="74" fill="#7E22CE" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">&amp;</text>
-  <text x="374" y="74" fill="#080613" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="850">Paguei</text>
-  <text x="168" y="111" fill="#5B6474" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650" letter-spacing="1.4">FINTECH DE COBRANCA E CREDITO DIGITAL</text>
+  <text x="166" y="74" fill="#080613" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="800">Peguei</text>
+  <text x="326" y="74" fill="#7E22CE" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="800">&amp;</text>
+  <text x="374" y="74" fill="#080613" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="800">Paguei</text>
+  <text x="168" y="111" fill="#5B6474" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="1.4">FINTECH DE COBRANCA E CREDITO DIGITAL</text>
 </svg>
