@@ -15143,7 +15143,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       }
     } catch (e) {
       debugPrint('Falha ao sincronizar cliente no backend: $e');
-      if (showPendingFeedback && mounted) {
+      final blockedByPlan = e is ApiException &&
+          (e.statusCode == 402 || e.statusCode == 409);
+      if (isNewClient && blockedByPlan) {
+        _clients.removeWhere((item) => identical(item, client) || item.id == client.id);
+        await _saveClients();
+      }
+      if (showPendingFeedback && mounted && blockedByPlan) {
+        _showSnack(
+          e is ApiException ? e.message : 'Plano ou limite bloqueou este cadastro.',
+          tone: _FeedbackTone.error,
+          title: 'Plano ou limite',
+        );
+      } else if (showPendingFeedback && mounted) {
         _showSnack(
           'Não foi possível sincronizar este cliente com o backend.',
           tone: _FeedbackTone.warning,
