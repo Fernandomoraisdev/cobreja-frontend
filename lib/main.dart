@@ -6665,35 +6665,35 @@ class _SuperAdminPlansView extends StatelessWidget {
     {
       'code': 'MENSAL',
       'name': 'Mensal',
-      'price': 'R\$ 39,90',
+      'price': 'R\$ 49,90',
       'period': '/mes',
       'limit': '100 clientes',
     },
     {
       'code': 'TRIMESTRAL',
       'name': 'Trimestral',
-      'price': 'R\$ 99,90',
+      'price': 'R\$ 129,90',
       'period': '/trimestre',
       'limit': '250 clientes',
     },
     {
       'code': 'SEMESTRAL',
       'name': 'Semestral',
-      'price': 'R\$ 179,90',
+      'price': 'R\$ 249,90',
       'period': '/semestre',
       'limit': '500 clientes',
     },
     {
       'code': 'ANUAL',
       'name': 'Anual',
-      'price': 'R\$ 299,90',
+      'price': 'R\$ 449,90',
       'period': '/ano',
       'limit': 'clientes ilimitados',
     },
     {
       'code': 'VITALICIO',
       'name': 'Vitalicio',
-      'price': 'R\$ 997,00',
+      'price': 'R\$ 1.497,00',
       'period': 'pagamento unico',
       'limit': 'clientes ilimitados',
     },
@@ -11020,7 +11020,7 @@ class _SaasPlanPanel extends StatelessWidget {
         _MercadoPagoInfoCard(
           title: 'Contratacao de plano',
           subtitle:
-              'Planos a partir de R\$ 39,90. Escolha, pague com Pix e a liberacao acontece automaticamente quando o Mercado Pago confirmar.',
+              'Planos a partir de R\$ 49,90. Escolha, pague com Pix e a liberacao acontece automaticamente quando o Mercado Pago confirmar.',
           icon: Icons.auto_awesome_rounded,
           color: AppColors.primary,
           children: const [
@@ -11274,6 +11274,7 @@ class _SaasPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final features = (plan['features'] as List?)?.map((item) => item.toString()).toList() ??
         const <String>[];
     final limit = plan['clientLimit'];
@@ -11306,8 +11307,8 @@ class _SaasPlanCard extends StatelessWidget {
                 children: [
                   Text(
                     price,
-                    style: const TextStyle(
-                      color: AppColors.primary,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.primary,
                       fontWeight: FontWeight.w900,
                       fontSize: 22,
                     ),
@@ -11355,6 +11356,10 @@ class _SaasPlanCard extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: selected ? null : onSelect,
+                  style: FilledButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white.withOpacity(0.70),
+                  ),
                   icon: Icon(selected ? Icons.lock_rounded : (isPaid ? Icons.pix_rounded : Icons.upgrade_rounded)),
                   label: Text(selected ? 'Plano atual' : (isPaid ? 'Pagar com Pix' : 'Selecionar')),
                 ),
