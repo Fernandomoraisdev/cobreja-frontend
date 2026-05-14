@@ -410,6 +410,26 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> impersonateSuperAdminClient({
+    required String token,
+    int? accountId,
+  }) async {
+    final path = accountId == null
+        ? '$baseUrl/api/super-admin/impersonate-client'
+        : '$baseUrl/api/super-admin/accounts/$accountId/impersonate-client';
+    final response = await http.post(
+      Uri.parse(path),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> getPremiumSettings({
     required String token,
   }) async {
@@ -2753,6 +2773,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   bool _sessionIsSuperAdmin = false;
   bool _sessionIsImpersonating = false;
   String? _impersonatedCompanyName;
+  String? _superAdminPanelMode;
   AppAccentPreset _accentPreset = AppAccentPreset.cobreja;
   AppThemePreference _themePreference = AppThemePreference.claro;
   double _fontScale = 1.0;
@@ -2773,6 +2794,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     final savedIsSuperAdmin = prefs.getBool('session_is_super_admin') ?? false;
     final savedReturnToken = prefs.getString('super_admin_return_token');
     final savedImpersonatedCompany = prefs.getString('impersonated_company_name');
+    final savedSuperAdminPanelMode = prefs.getString('super_admin_panel_mode');
     final rawAccentPreset = prefs.getString('app_accent_preset');
     final rawThemePreference = prefs.getString('app_theme_preference');
     final rawFontScale = prefs.getDouble('app_font_scale');
@@ -2845,6 +2867,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
           await prefs.remove('super_admin_return_email');
           await prefs.remove('super_admin_return_name');
           await prefs.remove('impersonated_company_name');
+          await prefs.remove('super_admin_panel_mode');
         }
       }
     }
@@ -2879,6 +2902,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionIsSuperAdmin = sessionIsSuperAdmin;
       _sessionIsImpersonating = sessionIsImpersonating;
       _impersonatedCompanyName = savedImpersonatedCompany;
+      _superAdminPanelMode = savedSuperAdminPanelMode;
       _accentPreset = accentPreset;
       _themePreference = themePreference;
       _fontScale = fontScale;
@@ -2972,8 +2996,16 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         : payload['account'] is Map<String, dynamic>
             ? payload['account'] as Map<String, dynamic>
             : <String, dynamic>{};
+    final client = data['client'] is Map<String, dynamic>
+        ? data['client'] as Map<String, dynamic>
+        : payload['client'] is Map<String, dynamic>
+            ? payload['client'] as Map<String, dynamic>
+            : <String, dynamic>{};
     final email = user['email']?.toString() ?? '';
     final name = user['name']?.toString() ?? email;
+    final role = user['role']?.toString().toUpperCase() == 'CLIENT'
+        ? 'CLIENT'
+        : 'ADMIN';
     if (token.isEmpty || email.isEmpty) return;
 
     final account = UserAccount(name: name, email: email);
@@ -2984,7 +3016,9 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       await prefs.setString('super_admin_return_email', widgetSafeEmail(_account));
       await prefs.setString('super_admin_return_name', _account?.name ?? 'Super Admin');
     }
-    final companyName = company['name']?.toString() ?? 'Empresa selecionada';
+    final companyName = role == 'CLIENT'
+        ? 'Cliente ${client['name']?.toString().trim().isNotEmpty == true ? client['name'] : name}'
+        : company['name']?.toString() ?? 'Empresa selecionada';
     final nextAccounts = [..._accounts];
     final index = nextAccounts.indexWhere(
       (item) => _normalizeEmail(item.email) == _normalizeEmail(email),
@@ -2995,8 +3029,9 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       nextAccounts[index] = account;
     }
     await prefs.setString('token', token);
-    await prefs.setString('session_role', 'ADMIN');
+    await prefs.setString('session_role', role);
     await prefs.setBool('session_is_super_admin', false);
+    await prefs.remove('super_admin_panel_mode');
     await prefs.setString('session_email', _normalizeEmail(email));
     await prefs.setString('impersonated_company_name', companyName);
     await prefs.setString(
@@ -3010,11 +3045,42 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _accounts = nextAccounts;
       _account = account;
       _sessionAuthenticated = true;
-      _sessionRole = 'ADMIN';
+      _sessionRole = role;
       _sessionIsSuperAdmin = false;
       _sessionIsImpersonating = true;
       _impersonatedCompanyName = companyName;
+      _superAdminPanelMode = null;
     });
+  }
+
+  Future<void> _openAdminPanelFromSuperAdmin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentToken = prefs.getString('token');
+    if (currentToken != null && currentToken.isNotEmpty) {
+      await prefs.setString('super_admin_return_token', currentToken);
+      await prefs.setString('super_admin_return_email', widgetSafeEmail(_account));
+      await prefs.setString('super_admin_return_name', _account?.name ?? 'Super Admin');
+    }
+    await prefs.setString('super_admin_panel_mode', 'ADMIN');
+    await prefs.setString('session_role', 'ADMIN');
+    await prefs.setBool('session_is_super_admin', true);
+    await prefs.setString('impersonated_company_name', 'Painel admin principal');
+    if (!mounted) return;
+    setState(() {
+      _sessionRole = 'ADMIN';
+      _sessionIsSuperAdmin = true;
+      _sessionIsImpersonating = true;
+      _impersonatedCompanyName = 'Painel admin principal';
+      _superAdminPanelMode = 'ADMIN';
+    });
+  }
+
+  Future<void> _openClientPanelFromSuperAdmin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null || token.isEmpty) return;
+    final payload = await ApiService.impersonateSuperAdminClient(token: token);
+    await _applyImpersonatedAdminSession(payload);
   }
 
   String widgetSafeEmail(UserAccount? account) => account?.email ?? '';
@@ -3037,6 +3103,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('super_admin_return_email');
     await prefs.remove('super_admin_return_name');
     await prefs.remove('impersonated_company_name');
+    await prefs.remove('super_admin_panel_mode');
     if (!mounted) return;
     setState(() {
       _account = account;
@@ -3045,6 +3112,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionIsSuperAdmin = true;
       _sessionIsImpersonating = false;
       _impersonatedCompanyName = null;
+      _superAdminPanelMode = null;
     });
   }
 
@@ -3058,6 +3126,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('super_admin_return_email');
     await prefs.remove('super_admin_return_name');
     await prefs.remove('impersonated_company_name');
+    await prefs.remove('super_admin_panel_mode');
     if (!mounted) return;
     setState(() {
       _account = null;
@@ -3066,6 +3135,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionIsSuperAdmin = false;
       _sessionIsImpersonating = false;
       _impersonatedCompanyName = null;
+      _superAdminPanelMode = null;
     });
   }
 
@@ -3097,6 +3167,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
     await prefs.remove('super_admin_return_email');
     await prefs.remove('super_admin_return_name');
     await prefs.remove('impersonated_company_name');
+    await prefs.remove('super_admin_panel_mode');
     await prefs.remove('clients');
     await prefs.remove('custom_reminders');
 
@@ -3109,6 +3180,7 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
       _sessionIsSuperAdmin = false;
       _sessionIsImpersonating = false;
       _impersonatedCompanyName = null;
+      _superAdminPanelMode = null;
     });
   }
 
@@ -3116,6 +3188,8 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
   Widget build(BuildContext context) {
     final accentPrimary = _accentPreset.primaryColor;
     final accentSecondary = _accentPreset.secondaryColor;
+    final showSuperAdminPanel =
+        _sessionIsSuperAdmin && _superAdminPanelMode != 'ADMIN';
 
     return MaterialApp(
       title: 'Peguei & Paguei',
@@ -3362,12 +3436,17 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
                   ? ClientPortalPage(
                       account: account,
                       onLogout: _logout,
+                      onReturnToSuperAdmin: _sessionIsImpersonating
+                          ? _returnToSuperAdminSession
+                          : null,
                     )
-                  : _sessionIsSuperAdmin
+                  : showSuperAdminPanel
                       ? SuperAdminPage(
                           account: account,
                           onLogout: _logout,
                           onImpersonate: _applyImpersonatedAdminSession,
+                          onOpenAdminPanel: _openAdminPanelFromSuperAdmin,
+                          onOpenClientPanel: _openClientPanelFromSuperAdmin,
                         )
                   : MainNavigationPage(
                       account: account,
@@ -4688,12 +4767,16 @@ class SuperAdminPage extends StatefulWidget {
   final UserAccount account;
   final VoidCallback onLogout;
   final Future<void> Function(Map<String, dynamic> payload) onImpersonate;
+  final Future<void> Function() onOpenAdminPanel;
+  final Future<void> Function() onOpenClientPanel;
 
   const SuperAdminPage({
     super.key,
     required this.account,
     required this.onLogout,
     required this.onImpersonate,
+    required this.onOpenAdminPanel,
+    required this.onOpenClientPanel,
   });
 
   @override
@@ -5075,6 +5158,40 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  Future<void> _openAdminPanel() async {
+    setState(() => _saving = true);
+    try {
+      await widget.onOpenAdminPanel();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException ? e.message : 'Falha ao abrir painel admin.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openClientPanel() async {
+    setState(() => _saving = true);
+    try {
+      await widget.onOpenClientPanel();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException
+              ? e.message
+              : 'Nenhum cliente com acesso encontrado para abrir.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -5137,6 +5254,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                             account: widget.account,
                             onRefresh: _load,
                             onLogout: widget.onLogout,
+                            onOpenAdminPanel: _openAdminPanel,
+                            onOpenClientPanel: _openClientPanel,
                             busy: _saving,
                             sectionTitle: _titleForSection(_selectedSection),
                             sectionSubtitle:
@@ -6121,6 +6240,8 @@ class _SuperAdminHeader extends StatelessWidget {
   final UserAccount account;
   final VoidCallback onRefresh;
   final VoidCallback onLogout;
+  final VoidCallback onOpenAdminPanel;
+  final VoidCallback onOpenClientPanel;
   final bool busy;
   final String sectionTitle;
   final String sectionSubtitle;
@@ -6130,6 +6251,8 @@ class _SuperAdminHeader extends StatelessWidget {
     required this.account,
     required this.onRefresh,
     required this.onLogout,
+    required this.onOpenAdminPanel,
+    required this.onOpenClientPanel,
     required this.busy,
     required this.sectionTitle,
     required this.sectionSubtitle,
@@ -6209,6 +6332,12 @@ class _SuperAdminHeader extends StatelessWidget {
     final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _SuperAdminPanelSwitcher(
+          busy: busy,
+          onOpenAdminPanel: onOpenAdminPanel,
+          onOpenClientPanel: onOpenClientPanel,
+        ),
+        const SizedBox(width: AppSpacing.sm),
         _SuperAdminIconButton(
           icon: Icons.refresh_rounded,
           label: 'Atualizar',
@@ -6290,6 +6419,154 @@ class _SuperAdminSectionTitle extends StatelessWidget {
             color: AppColors.textMuted,
             fontWeight: FontWeight.w600,
             height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SuperAdminPanelSwitcher extends StatelessWidget {
+  final bool busy;
+  final VoidCallback onOpenAdminPanel;
+  final VoidCallback onOpenClientPanel;
+
+  const _SuperAdminPanelSwitcher({
+    required this.busy,
+    required this.onOpenAdminPanel,
+    required this.onOpenClientPanel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      enabled: !busy,
+      tooltip: 'Trocar painel',
+      color: const Color(0xFF171222),
+      surfaceTintColor: Colors.transparent,
+      elevation: 14,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      onSelected: (value) {
+        if (value == 'admin') onOpenAdminPanel();
+        if (value == 'client') onOpenClientPanel();
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem<String>(
+          enabled: false,
+          value: 'super',
+          child: _SuperAdminMenuItem(
+            icon: Icons.security_rounded,
+            title: 'Painel Super Admin',
+            subtitle: 'Voce esta aqui agora',
+          ),
+        ),
+        PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'admin',
+          child: _SuperAdminMenuItem(
+            icon: Icons.dashboard_customize_rounded,
+            title: 'Abrir painel Admin',
+            subtitle: 'Gestao da empresa principal',
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'client',
+          child: _SuperAdminMenuItem(
+            icon: Icons.person_rounded,
+            title: 'Abrir usuario comum',
+            subtitle: 'Entrar como cliente com acesso',
+          ),
+        ),
+      ],
+      child: Tooltip(
+        message: 'Trocar painel',
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF581C87), Color(0xFF8B1CF6)],
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFFB26CFF).withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8B1CF6).withOpacity(0.24),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Trocar painel',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuperAdminMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SuperAdminMenuItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xFF7E22CE).withOpacity(0.22),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: const Color(0xFFE9D5FF), size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -6914,11 +7191,13 @@ class _SuperAdminEmptyState extends StatelessWidget {
 class ClientPortalPage extends StatefulWidget {
   final UserAccount account;
   final VoidCallback onLogout;
+  final VoidCallback? onReturnToSuperAdmin;
 
   const ClientPortalPage({
     super.key,
     required this.account,
     required this.onLogout,
+    this.onReturnToSuperAdmin,
   });
 
   @override
@@ -7088,6 +7367,12 @@ class _ClientPortalPageState extends State<ClientPortalPage> {
           iconTheme: IconThemeData(color: portalHeaderColor),
           title: Text('Peguei & Paguei • $displayName'),
           actions: [
+            if (widget.onReturnToSuperAdmin != null)
+              IconButton(
+                tooltip: 'Voltar ao painel global',
+                onPressed: widget.onReturnToSuperAdmin,
+                icon: const Icon(Icons.admin_panel_settings_rounded),
+              ),
             IconButton(
               tooltip: 'Atualizar',
               onPressed: _isLoading ? null : _loadClientPortal,
