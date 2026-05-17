@@ -17717,7 +17717,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF080613), Color(0xFF22C55E)],
+                  colors: [Color(0xFF14071F), Color(0xFF8A22D8)],
                 ),
                 borderRadius: BorderRadius.circular(28),
               ),
@@ -19672,7 +19672,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF080613), Color(0xFF22C55E)],
+                          colors: [Color(0xFF14071F), Color(0xFF8A22D8)],
                         ),
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
