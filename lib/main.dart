@@ -5119,6 +5119,57 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   Future<void> _changePlan(Map<String, dynamic> account, String planCode) async {
     final token = await _token();
     if (token == null) return;
+    final plan = _superAdminPlanInfo(planCode);
+    final counts = account['counts'] is Map<String, dynamic>
+        ? account['counts'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final activeClients = _intValue(counts['clients']);
+    final limit = plan.limit;
+    if (limit != null && activeClients > limit) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Este plano permite ate $limit cliente(s), mas a empresa tem $activeClients ativo(s).',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Aplicar plano ${plan.name} agora?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Empresa: ${account['name'] ?? 'Empresa'}'),
+            const SizedBox(height: 8),
+            Text('Clientes ativos: $activeClients'),
+            Text('Limite do plano: ${limit == null ? 'ilimitado' : 'ate $limit clientes'}'),
+            const SizedBox(height: 12),
+            const Text(
+              'Como SUPER ADMIN, esta alteracao e aplicada imediatamente e fica registrada na auditoria.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.workspace_premium_rounded),
+            label: const Text('Aplicar agora'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     setState(() => _saving = true);
     try {
       await ApiService.changeSuperAdminAccountPlan(
@@ -5129,7 +5180,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Plano alterado para $planCode.')),
+        SnackBar(content: Text('Plano alterado para ${plan.name}.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -5141,6 +5192,18 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  ({String name, int? limit}) _superAdminPlanInfo(String planCode) {
+    return switch (planCode.toUpperCase()) {
+      'FREE' => (name: 'Gratis', limit: 10),
+      'MENSAL' => (name: 'Mensal', limit: 100),
+      'TRIMESTRAL' => (name: 'Trimestral', limit: 250),
+      'SEMESTRAL' => (name: 'Semestral', limit: 500),
+      'ANUAL' => (name: 'Anual', limit: null),
+      'VITALICIO' => (name: 'Vitalicio', limit: null),
+      _ => (name: planCode, limit: null),
+    };
   }
 
   Future<void> _renewSubscription(Map<String, dynamic> account) async {
@@ -7629,12 +7692,12 @@ class _SuperAdminAccountCard extends StatelessWidget {
                 tooltip: 'Trocar plano',
                 onSelected: onChangePlan,
                 itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'FREE', child: Text('Plano FREE')),
-                  PopupMenuItem(value: 'MENSAL', child: Text('Plano MENSAL')),
-                  PopupMenuItem(value: 'TRIMESTRAL', child: Text('Plano TRIMESTRAL')),
-                  PopupMenuItem(value: 'SEMESTRAL', child: Text('Plano SEMESTRAL')),
-                  PopupMenuItem(value: 'ANUAL', child: Text('Plano ANUAL')),
-                  PopupMenuItem(value: 'VITALICIO', child: Text('Plano VITALICIO')),
+                  PopupMenuItem(value: 'FREE', child: Text('Gratis agora - ate 10 clientes')),
+                  PopupMenuItem(value: 'MENSAL', child: Text('Mensal agora - ate 100 clientes')),
+                  PopupMenuItem(value: 'TRIMESTRAL', child: Text('Trimestral agora - ate 250 clientes')),
+                  PopupMenuItem(value: 'SEMESTRAL', child: Text('Semestral agora - ate 500 clientes')),
+                  PopupMenuItem(value: 'ANUAL', child: Text('Anual agora - ilimitado')),
+                  PopupMenuItem(value: 'VITALICIO', child: Text('Vitalicio agora - ilimitado')),
                 ],
                 child: _SuperAdminActionPill(
                   icon: Icons.workspace_premium_rounded,
