@@ -15353,6 +15353,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           e is ApiException ? e.message : 'Plano ou limite bloqueou este cadastro.',
           tone: _FeedbackTone.error,
           title: 'Plano ou limite',
+          actionLabel: 'Ver planos',
+          onAction: _openSaasPlanPanel,
         );
       } else if (showPendingFeedback && mounted) {
         _showSnack(
@@ -25031,6 +25033,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     String message, {
     _FeedbackTone tone = _FeedbackTone.info,
     String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
   }) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -25131,6 +25135,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     ],
                   ),
                 ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(width: 10),
+                  TextButton(
+                    onPressed: () {
+                      messenger.hideCurrentSnackBar();
+                      onAction();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: style.textColor,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    child: Text(actionLabel),
+                  ),
+                ],
               ],
             ),
           ),
