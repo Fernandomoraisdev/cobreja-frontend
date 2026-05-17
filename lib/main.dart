@@ -4855,6 +4855,35 @@ Future<bool> login(String identifier, String password) async {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (!_isRegisterMode) ...[
+                const SizedBox(height: 22),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF12071F),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      ),
+                      onPressed: _openSaasSignupDialog,
+                      icon: const Icon(Icons.workspace_premium_rounded),
+                      label: const Text('Começar como empresa'),
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: Colors.white.withOpacity(0.38)),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      ),
+                      onPressed: _openSaasSignupDialog,
+                      icon: const Icon(Icons.sell_rounded),
+                      label: const Text('Ver planos'),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
           Wrap(
