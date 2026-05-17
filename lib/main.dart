@@ -214,6 +214,23 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> fetchPublicSaasSignupStatus({
+    required int intentId,
+    required String externalReference,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/saas/public/signup-status/$intentId').replace(
+      queryParameters: {'externalReference': externalReference},
+    );
+    final response = await http.get(uri, headers: _jsonHeaders());
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
@@ -4316,6 +4333,7 @@ Future<bool> login(String identifier, String password) async {
     String selectedPlanCode = 'FREE';
     String paymentMethod = 'PIX';
     bool submitting = false;
+    bool checkingPayment = false;
     Map<String, dynamic>? result;
 
     await showDialog<void>(
@@ -4323,6 +4341,88 @@ Future<bool> login(String identifier, String password) async {
       barrierDismissible: !submitting,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
+          Future<void> completeSignupSession(Map<String, dynamic> payload) async {
+            final token = (payload['token'] ?? payload['data']?['token'] ?? '').toString();
+            final user = payload['user'] is Map<String, dynamic>
+                ? payload['user'] as Map<String, dynamic>
+                : payload['data'] is Map<String, dynamic> &&
+                        (payload['data'] as Map<String, dynamic>)['user'] is Map<String, dynamic>
+                    ? (payload['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>
+                    : <String, dynamic>{};
+            if (token.isEmpty) return;
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('token', token);
+            await prefs.setString('session_role', 'ADMIN');
+            await prefs.setBool('session_is_super_admin', false);
+            final account = UserAccount(
+              name: user['name']?.toString() ?? nameController.text.trim(),
+              email: user['email']?.toString() ?? emailController.text.trim(),
+            );
+            if (mounted) {
+              widget.onAuthenticated(account);
+              setState(() {
+                _sessionAccount = account;
+                _authenticated = true;
+              });
+            }
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          }
+
+          Future<void> checkSignupStatus() async {
+            if (checkingPayment) return;
+            final data = result?['data'] is Map<String, dynamic>
+                ? result!['data'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final intent = data['intent'] is Map<String, dynamic>
+                ? data['intent'] as Map<String, dynamic>
+                : <String, dynamic>{};
+            final intentId = (intent['id'] as num?)?.toInt();
+            final externalReference = intent['externalReference']?.toString() ?? '';
+
+            if (intentId == null || externalReference.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Nao foi possivel identificar a cobranca para conferir.')),
+              );
+              return;
+            }
+
+            setDialogState(() => checkingPayment = true);
+            try {
+              final payload = await ApiService.fetchPublicSaasSignupStatus(
+                intentId: intentId,
+                externalReference: externalReference,
+              );
+              result = {
+                ...?result,
+                'data': {
+                  ...data,
+                  ...((payload['data'] is Map<String, dynamic>)
+                      ? payload['data'] as Map<String, dynamic>
+                      : <String, dynamic>{}),
+                },
+              };
+              await completeSignupSession(payload);
+              if (mounted && !_authenticated) {
+                final status = payload['data'] is Map<String, dynamic>
+                    ? ((payload['data'] as Map<String, dynamic>)['status']?.toString() ?? 'PENDING')
+                    : 'PENDING';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(status == 'ACTIVE' ? 'Conta liberada.' : 'Pagamento ainda pendente.')),
+                );
+              }
+            } catch (e) {
+              final message = e is ApiException ? e.message : 'Nao foi possivel consultar o pagamento.';
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => checkingPayment = false);
+              }
+            }
+          }
+
           Future<void> submitSignup() async {
             if (submitting) return;
             if (nameController.text.trim().isEmpty ||
@@ -4348,32 +4448,8 @@ Future<bool> login(String identifier, String password) async {
                 paymentMethod: paymentMethod,
               );
               result = payload;
-              final token = (payload['token'] ?? payload['data']?['token'] ?? '').toString();
-              final user = payload['user'] is Map<String, dynamic>
-                  ? payload['user'] as Map<String, dynamic>
-                  : payload['data'] is Map<String, dynamic> &&
-                          (payload['data'] as Map<String, dynamic>)['user'] is Map<String, dynamic>
-                      ? (payload['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>
-                      : <String, dynamic>{};
-              if (token.isNotEmpty) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('token', token);
-                await prefs.setString('session_role', 'ADMIN');
-                await prefs.setBool('session_is_super_admin', false);
-                final account = UserAccount(
-                  name: user['name']?.toString() ?? nameController.text.trim(),
-                  email: user['email']?.toString() ?? emailController.text.trim(),
-                );
-                if (mounted) {
-                  widget.onAuthenticated(account);
-                  setState(() {
-                    _sessionAccount = account;
-                    _authenticated = true;
-                  });
-                }
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-                return;
-              }
+              await completeSignupSession(payload);
+              if (_authenticated) return;
             } catch (e) {
               final message = e is ApiException ? e.message : 'Nao foi possivel criar o cadastro SaaS.';
               if (mounted) {
@@ -4604,6 +4680,18 @@ Future<bool> login(String identifier, String password) async {
                                 label: const Text('Abrir checkout Mercado Pago'),
                               ),
                             ],
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: checkingPayment ? null : checkSignupStatus,
+                              icon: checkingPayment
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.verified_rounded),
+                              label: Text(checkingPayment ? 'Conferindo...' : 'Verificar liberacao'),
+                            ),
                           ],
                         ),
                       ),
