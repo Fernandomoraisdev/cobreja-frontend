@@ -17035,6 +17035,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       children: [
         _buildReminderStrip(),
         _buildDashboard(),
+        _buildSaasOnboardingCard(),
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
           child: _SettingsCard(
@@ -17066,6 +17067,71 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSaasOnboardingCard() {
+    final onboarding = (_saasStatus?['onboarding'] as Map<String, dynamic>?) ?? const {};
+    final steps = (onboarding['steps'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
+    final complete = onboarding['complete'] == true;
+    if (steps.isEmpty || complete) return const SizedBox.shrink();
+
+    final progress = ((onboarding['progress'] as num?)?.toDouble() ?? 0) / 100;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+      child: _SettingsCard(
+        icon: Icons.rocket_launch_rounded,
+        title: 'Primeiros passos',
+        subtitle: 'Finalize a configuracao inicial para vender e cobrar com mais seguranca.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 10,
+                value: progress.clamp(0.0, 1.0),
+                backgroundColor: AppColors.border,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: steps.map((step) {
+                final done = step['done'] == true;
+                return _StatusPill(
+                  text: '${done ? 'OK' : 'Pendente'} - ${step['title'] ?? step['key']}',
+                  color: done ? AppColors.success : AppColors.primary,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _selectSection(_MainSection.configuracoes),
+                  icon: const Icon(Icons.tune_rounded),
+                  label: const Text('Configurar empresa'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _openMercadoPagoPanel,
+                  icon: const Icon(Icons.pix_rounded),
+                  label: const Text('Conectar Mercado Pago'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _showAddClientDialog,
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  label: const Text('Criar cliente'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
