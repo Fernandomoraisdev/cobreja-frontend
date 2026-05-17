@@ -169,6 +169,51 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<List<Map<String, dynamic>>> fetchPublicSaasPlans() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/saas/public/plans'),
+      headers: _jsonHeaders(),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<Map<String, dynamic>> createPublicSaasSignup({
+    required String name,
+    required String company,
+    required String email,
+    required String phone,
+    required String password,
+    required String planCode,
+    required String paymentMethod,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/saas/public/signup'),
+      headers: _jsonHeaders(),
+      body: jsonEncode({
+        'name': name,
+        'company': company,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'planCode': planCode,
+        'paymentMethod': paymentMethod,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> login({
     required String identifier,
     required String password,
@@ -4261,6 +4306,346 @@ Future<bool> login(String identifier, String password) async {
     );
   }
 
+  Future<void> _openSaasSignupDialog() async {
+    final plansFuture = ApiService.fetchPublicSaasPlans();
+    final nameController = TextEditingController();
+    final companyController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final passwordController = TextEditingController();
+    String selectedPlanCode = 'FREE';
+    String paymentMethod = 'PIX';
+    bool submitting = false;
+    Map<String, dynamic>? result;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !submitting,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> submitSignup() async {
+            if (submitting) return;
+            if (nameController.text.trim().isEmpty ||
+                companyController.text.trim().isEmpty ||
+                emailController.text.trim().isEmpty ||
+                phoneController.text.trim().isEmpty ||
+                passwordController.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Preencha nome, empresa, email, telefone e senha.')),
+              );
+              return;
+            }
+
+            setDialogState(() => submitting = true);
+            try {
+              final payload = await ApiService.createPublicSaasSignup(
+                name: nameController.text.trim(),
+                company: companyController.text.trim(),
+                email: emailController.text.trim(),
+                phone: phoneController.text.trim(),
+                password: passwordController.text,
+                planCode: selectedPlanCode,
+                paymentMethod: paymentMethod,
+              );
+              result = payload;
+              final token = (payload['token'] ?? payload['data']?['token'] ?? '').toString();
+              final user = payload['user'] is Map<String, dynamic>
+                  ? payload['user'] as Map<String, dynamic>
+                  : payload['data'] is Map<String, dynamic> &&
+                          (payload['data'] as Map<String, dynamic>)['user'] is Map<String, dynamic>
+                      ? (payload['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>
+                      : <String, dynamic>{};
+              if (token.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('token', token);
+                await prefs.setString('session_role', 'ADMIN');
+                await prefs.setBool('session_is_super_admin', false);
+                final account = UserAccount(
+                  name: user['name']?.toString() ?? nameController.text.trim(),
+                  email: user['email']?.toString() ?? emailController.text.trim(),
+                );
+                if (mounted) {
+                  widget.onAuthenticated(account);
+                  setState(() {
+                    _sessionAccount = account;
+                    _authenticated = true;
+                  });
+                }
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                return;
+              }
+            } catch (e) {
+              final message = e is ApiException ? e.message : 'Nao foi possivel criar o cadastro SaaS.';
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => submitting = false);
+              }
+            }
+          }
+
+          final payment = result?['payment'] is Map<String, dynamic>
+              ? result!['payment'] as Map<String, dynamic>
+              : <String, dynamic>{};
+          final qrCode = payment['qrCode']?.toString() ?? '';
+          final checkoutUrl = payment['checkoutUrl']?.toString() ??
+              payment['sandboxCheckoutUrl']?.toString() ??
+              payment['ticketUrl']?.toString() ??
+              '';
+
+          return AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            contentPadding: const EdgeInsets.all(0),
+            content: Container(
+              width: 980,
+              constraints: const BoxConstraints(maxHeight: 760),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          height: 50,
+                          width: 50,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1A0833), Color(0xFF8B5CF6)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: SvgPicture.asset('assets/branding/peguei_paguei_mark.svg'),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Comecar com Peguei & Paguei',
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Escolha um plano, crie a empresa e libere o painel automaticamente.',
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: plansFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.done) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: _PegueiPagueiLoading(label: 'Carregando planos'),
+                          );
+                        }
+                        final plans = snapshot.data ?? [];
+                        if (plans.isEmpty) {
+                          return const Text('Nenhum plano disponivel agora.');
+                        }
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: plans.map((plan) {
+                            final code = plan['code']?.toString() ?? '';
+                            final selected = code == selectedPlanCode;
+                            final priceCents = (plan['priceCents'] as num?)?.toInt() ?? 0;
+                            final limit = plan['clientLimit'];
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => setDialogState(() => selectedPlanCode = code),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 210,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? const Color(0xFF27103E)
+                                      : const Color(0xFF100918),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: selected ? AppColors.primary : AppColors.border,
+                                    width: selected ? 1.8 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      plan['name']?.toString() ?? code,
+                                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      priceCents <= 0
+                                          ? 'Gratis por 30 dias'
+                                          : _currency(priceCents / 100),
+                                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      limit == null ? 'Clientes ilimitados' : 'Ate $limit clientes',
+                                      style: const TextStyle(color: AppColors.textMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final twoColumns = constraints.maxWidth >= 720;
+                        final fields = [
+                          TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Seu nome')),
+                          TextField(controller: companyController, decoration: const InputDecoration(labelText: 'Nome da empresa')),
+                          TextField(controller: emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email')),
+                          TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Telefone')),
+                          TextField(controller: passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
+                        ];
+                        if (!twoColumns) {
+                          return Column(
+                            children: fields
+                                .map((field) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: field,
+                                    ))
+                                .toList(),
+                          );
+                        }
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: fields
+                              .map((field) => SizedBox(
+                                    width: (constraints.maxWidth - 12) / 2,
+                                    child: field,
+                                  ))
+                              .toList(),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'PIX', label: Text('Pix'), icon: Icon(Icons.pix_rounded)),
+                        ButtonSegment(value: 'CARD', label: Text('Cartao'), icon: Icon(Icons.credit_card_rounded)),
+                      ],
+                      selected: {paymentMethod},
+                      onSelectionChanged: (values) {
+                        setDialogState(() => paymentMethod = values.first);
+                      },
+                    ),
+                    if (result != null) ...[
+                      const SizedBox(height: 18),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF160D21),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pagamento criado',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Quando o Mercado Pago aprovar, o painel admin sera liberado automaticamente.',
+                              style: TextStyle(color: AppColors.textMuted),
+                            ),
+                            if (qrCode.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              SelectableText(qrCode, maxLines: 4),
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: qrCode));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Codigo Pix copiado.')),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy_rounded),
+                                label: const Text('Copiar Pix copia e cola'),
+                              ),
+                            ],
+                            if (checkoutUrl.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              FilledButton.icon(
+                                onPressed: () => launchUrl(Uri.parse(checkoutUrl)),
+                                icon: const Icon(Icons.open_in_new_rounded),
+                                label: const Text('Abrir checkout Mercado Pago'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+                          child: const Text('Cancelar'),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton.icon(
+                          onPressed: submitting ? null : submitSignup,
+                          icon: submitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.rocket_launch_rounded),
+                          label: Text(submitting ? 'Criando...' : 'Criar empresa'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    nameController.dispose();
+    companyController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final saved = _sessionAccount ?? widget.savedAccount;
@@ -4716,6 +5101,17 @@ Future<bool> login(String identifier, String password) async {
               _isRegisterMode ? 'Já tenho cadastro' : 'Não tenho cadastro',
             ),
           ),
+          if (!_isRegisterMode) ...[
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openSaasSignupDialog,
+                icon: const Icon(Icons.workspace_premium_rounded),
+                label: const Text('Criar empresa SaaS'),
+              ),
+            ),
+          ],
         ],
       ),
     );
