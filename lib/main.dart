@@ -13663,7 +13663,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final appearance = (settings['appearance'] as Map<String, dynamic>?) ?? const {};
     final users = (settings['users'] as Map<String, dynamic>?) ?? const {};
     final audit = (settings['audit'] as Map<String, dynamic>?) ?? const {};
-    final normalizedInitialTabIndex = initialTabIndex.clamp(0, 11);
+    final normalizedInitialTabIndex = initialTabIndex.clamp(0, 12);
     String accentLabel(dynamic value) {
       final raw = value?.toString().trim() ?? '';
       if (raw.isEmpty || raw.toLowerCase() == 'cobreja') return 'Peguei & Paguei';
@@ -13727,7 +13727,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             title: const Text('Configurações da empresa'),
             content: DefaultTabController(
               initialIndex: normalizedInitialTabIndex,
-              length: 12,
+              length: 13,
               child: SizedBox(
                 width: 860,
                 height: 640,
@@ -13742,6 +13742,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         Tab(icon: Icon(Icons.chat_rounded), text: 'WhatsApp'),
                         Tab(icon: Icon(Icons.notifications_rounded), text: 'Notificações'),
                         Tab(icon: Icon(Icons.palette_rounded), text: 'Aparência'),
+                        Tab(icon: Icon(Icons.admin_panel_settings_rounded), text: 'Conta/Admin'),
                         Tab(icon: Icon(Icons.security_rounded), text: 'Segurança'),
                         Tab(icon: Icon(Icons.workspace_premium_rounded), text: 'SaaS'),
                         Tab(icon: Icon(Icons.group_rounded), text: 'Usuários'),
@@ -13815,6 +13816,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             ),
                           ),
                           SingleChildScrollView(
+                            padding: const EdgeInsets.only(top: 14),
                             child: Column(
                               children: [
                                 Wrap(
@@ -13973,6 +13975,32 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                           SingleChildScrollView(
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _SettingsReadOnlyPanel(
+                                  title: 'Conta/Admin',
+                                  lines: [
+                                    'Nome: ${widget.account.name}',
+                                    'Email: ${widget.account.email}',
+                                    'Perfil: administrador da conta',
+                                    'Foto de perfil: gerenciada pelo menu lateral',
+                                    'Sessoes ativas: sessao atual protegida por JWT',
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                _SettingsReadOnlyPanel(
+                                  title: 'Seguranca da conta',
+                                  lines: [
+                                    'Senha: alteracao pela area de seguranca',
+                                    'Acessos: tokens e sessoes serao detalhados aqui',
+                                    'Equipe: use Usuarios para preparar admins extras',
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
                               children: [
                                 SwitchListTile(
                                   contentPadding: EdgeInsets.zero,
@@ -14042,6 +14070,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             ),
                           ),
                           SingleChildScrollView(
+                            padding: const EdgeInsets.only(top: 14),
                             child: Column(
                               children: [
                                 TextField(
@@ -17767,12 +17796,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               'Notificacoes' => 4,
               'Aparencia' => 5,
               'Conta/Admin' => 6,
-              'Seguranca' => 6,
-              'SaaS' => 7,
-              'Usuarios' => 8,
-              'Auditoria' => 9,
-              'Suporte' => 10,
-              'Backup' => 11,
+              'Seguranca' => 7,
+              'SaaS' => 8,
+              'Usuarios' => 9,
+              'Auditoria' => 10,
+              'Suporte' => 11,
+              'Backup' => 12,
               _ => 0,
             };
             _openPremiumSettingsDialog(initialTabIndex: tabIndex);
@@ -17790,7 +17819,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               subtitle: 'Perfil, seguranca, sessoes ativas e foto.',
               icon: Icons.admin_panel_settings_rounded,
               status: 'Em estrutura',
-              color: AppColors.primary,
+              color: AppColors.warning,
             ),
             _PremiumFoundationSection(
               title: 'Seguranca',
@@ -17867,7 +17896,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               subtitle: 'Rotina, restauracao e historico de seguranca.',
               icon: Icons.backup_rounded,
               status: 'Manual',
-              color: AppColors.primary,
+              color: AppColors.warning,
             ),
           ],
         ),
@@ -25231,7 +25260,9 @@ class _MetricsActionCard extends StatelessWidget {
               width: 48,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF080613), Color(0xFF22C55E)],
+                  colors: [Color(0xFF14071F), Color(0xFF8A22D8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
