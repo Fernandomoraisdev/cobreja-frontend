@@ -12027,6 +12027,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   static const String _openClientIdKey = 'admin_open_client_id';
 
   final List<Client> _clients = [];
+  final ScrollController _clientListScrollController = ScrollController();
   TextEditingController? _searchController;
   List<CustomReminder>? _customReminders;
   bool _isLoading = true;
@@ -12084,6 +12085,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   bool _restoredClientSheetOpened = false;
   bool _showMobileHeader = true;
   DateTime _lastHeaderToggleAt = DateTime.fromMillisecondsSinceEpoch(0);
+  double _lastClientListScrollPixels = 0;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -12108,10 +12110,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       setState(() {
         _selectedSection = section;
         _showMobileHeader = true;
+        _lastClientListScrollPixels = 0;
       });
     } else {
       _selectedSection = section;
       _showMobileHeader = true;
+      _lastClientListScrollPixels = 0;
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_navigationSectionKey, section.name);
@@ -12473,6 +12477,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   @override
   void initState() {
     super.initState();
+    _clientListScrollController.addListener(_handleClientListScroll);
     _safeSearchController.addListener(() {
       final next = _safeSearchController.text.trim();
       if (next == _safeSearchQuery) return;
@@ -14553,6 +14558,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
+    _clientListScrollController
+      ..removeListener(_handleClientListScroll)
+      ..dispose();
     _searchController?.dispose();
     _paymentHistorySearchController?.dispose();
     super.dispose();
@@ -15971,6 +15979,30 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Color get _shellNavIconColor => AppColors.textMuted;
 
   Color get _shellSelectedNavColor => AppColors.secondary;
+
+  bool get _canAutoHideHeaderNow {
+    final width = MediaQuery.maybeSizeOf(context)?.width;
+    return width != null && width < 768;
+  }
+
+  void _handleClientListScroll() {
+    if (!_canAutoHideHeaderNow || !_clientListScrollController.hasClients) return;
+    final position = _clientListScrollController.position;
+    final pixels = position.pixels;
+    final delta = pixels - _lastClientListScrollPixels;
+    _lastClientListScrollPixels = pixels;
+
+    if (pixels <= 8) {
+      _setMobileHeaderVisibility(true);
+      return;
+    }
+
+    if (delta > 6) {
+      _setMobileHeaderVisibility(false);
+    } else if (delta < -6) {
+      _setMobileHeaderVisibility(true);
+    }
+  }
 
   void _handleMainScroll(ScrollNotification notification, {required bool autoHideHeader}) {
     if (!autoHideHeader || notification.depth != 0) return;
@@ -19215,6 +19247,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         tabType == 'devendo' && !_bulkSelectionMode;
 
     return ListView(
+      controller: _clientListScrollController,
+      primary: false,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
       children: groupEntries
           .expand((entry) {
