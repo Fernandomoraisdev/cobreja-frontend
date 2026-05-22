@@ -5622,20 +5622,6 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   Widget _buildCollapsibleSuperAdminHeader({
     required bool compact,
   }) {
-    if (!compact) {
-      return _SuperAdminHeader(
-        account: widget.account,
-        onRefresh: _load,
-        onLogout: widget.onLogout,
-        onOpenAdminPanel: _openAdminPanel,
-        onOpenClientPanel: _openClientPanel,
-        busy: _saving,
-        sectionTitle: _titleForSection(_selectedSection),
-        sectionSubtitle: _subtitleForSection(_selectedSection),
-        showMenuButton: compact,
-      );
-    }
-
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
       duration: const Duration(milliseconds: 260),
@@ -6011,21 +5997,21 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildCollapsibleSuperAdminHeader(compact: compact),
-                          if (!compact || _showMobileHeader)
+                          if (_showMobileHeader)
                             const SizedBox(height: AppSpacing.lg),
                           Expanded(
                             child: NotificationListener<ScrollNotification>(
                               onNotification: (notification) {
                                 _handleSuperAdminScroll(
                                   notification,
-                                  autoHideHeader: compact,
+                                  autoHideHeader: true,
                                 );
                                 return false;
                               },
                               child: content,
                             ),
                           ),
-                          if (!compact || _showMobileHeader) _SuperAdminFooter(),
+                          if (_showMobileHeader) _SuperAdminFooter(),
                         ],
                       ),
                     ),
@@ -16574,8 +16560,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Color get _shellSelectedNavColor => AppColors.secondary;
 
   bool get _canAutoHideHeaderNow {
-    final width = MediaQuery.maybeSizeOf(context)?.width;
-    return width != null && width < 980;
+    return true;
   }
 
   void _handleClientListScroll() {
@@ -16657,12 +16642,36 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 
+  Widget _buildCollapsibleSectionChrome({required Widget child}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return ClipRect(
+          child: Align(
+            heightFactor: value,
+            alignment: Alignment.topCenter,
+            child: Opacity(
+              opacity: value.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, -20 * (1 - value)),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 980;
-        final autoHideHeader = isCompact;
+        const autoHideHeader = true;
 
         return Scaffold(
           drawer: isCompact ? Drawer(child: _buildNavigationRailContent(compact: true)) : null,
@@ -17099,7 +17108,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return Column(
       children: [
         if (title != null || subtitle != null)
-          Padding(
+          _buildCollapsibleSectionChrome(
+            child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 2, 18, 4),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -17174,7 +17184,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               ),
             ),
           ),
-        if (showSearch) _buildSearchBar(),
+        ),
+        if (showSearch)
+          _buildCollapsibleSectionChrome(child: _buildSearchBar()),
         Expanded(child: _buildSectionContent()),
       ],
     );
