@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12594,6 +12595,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Timer? _autoRefreshTimer;
   String? _pendingRestoredClientId;
   bool _restoredClientSheetOpened = false;
+  bool _showMobileHeader = true;
+  DateTime _lastHeaderToggleAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
   AppPlan get _safeSelectedPlan => _selectedPlan ??= AppPlan.basic;
@@ -12617,9 +12620,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (mounted) {
       setState(() {
         _selectedSection = section;
+        _showMobileHeader = true;
       });
     } else {
       _selectedSection = section;
+      _showMobileHeader = true;
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_navigationSectionKey, section.name);
@@ -16480,11 +16485,72 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Color get _shellSelectedNavColor => AppColors.secondary;
 
+  void _handleMainScroll(ScrollNotification notification, {required bool autoHideHeader}) {
+    if (!autoHideHeader || notification.depth != 0) return;
+
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      if (delta.abs() < 8) return;
+      final shouldShow = delta < 0 || notification.metrics.pixels <= 8;
+      _setMobileHeaderVisibility(shouldShow);
+      return;
+    }
+
+    if (notification is UserScrollNotification) {
+      if (notification.direction == ScrollDirection.reverse) {
+        _setMobileHeaderVisibility(false);
+      } else if (notification.direction == ScrollDirection.forward ||
+          notification.metrics.pixels <= 8) {
+        _setMobileHeaderVisibility(true);
+      }
+    }
+  }
+
+  void _setMobileHeaderVisibility(bool visible) {
+    if (_showMobileHeader == visible || !mounted) return;
+    final now = DateTime.now();
+    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 120) return;
+    _lastHeaderToggleAt = now;
+    setState(() {
+      _showMobileHeader = visible;
+    });
+  }
+
+  Widget _buildCollapsibleTopBar({
+    required bool showMenuButton,
+    required bool autoHideHeader,
+  }) {
+    if (!autoHideHeader) return _buildTopBar(showMenuButton: showMenuButton);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return ClipRect(
+          child: Align(
+            heightFactor: value,
+            alignment: Alignment.topCenter,
+            child: Opacity(
+              opacity: value.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, -32 * (1 - value)),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: _buildTopBar(showMenuButton: showMenuButton),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 980;
+        final autoHideHeader = constraints.maxWidth < 768;
 
         return Scaffold(
           drawer: isCompact ? Drawer(child: _buildNavigationRailContent(compact: true)) : null,
@@ -16516,9 +16582,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         Expanded(
                           child: Column(
                             children: [
-                              _buildTopBar(showMenuButton: isCompact),
-                              Expanded(child: _buildSectionBody()),
-                              _buildDeveloperFooter(),
+                              _buildCollapsibleTopBar(
+                                showMenuButton: isCompact,
+                                autoHideHeader: autoHideHeader,
+                              ),
+                              Expanded(
+                                child: NotificationListener<ScrollNotification>(
+                                  onNotification: (notification) {
+                                    _handleMainScroll(
+                                      notification,
+                                      autoHideHeader: autoHideHeader,
+                                    );
+                                    return false;
+                                  },
+                                  child: _buildSectionBody(),
+                                ),
+                              ),
+                              if (!autoHideHeader || _showMobileHeader)
+                                _buildDeveloperFooter(compact: autoHideHeader),
                             ],
                           ),
                         ),
@@ -16539,14 +16620,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 
-  Widget _buildDeveloperFooter() {
+  Widget _buildDeveloperFooter({bool compact = false}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      padding: EdgeInsets.fromLTRB(18, 0, 18, compact ? 4 : 12),
       child: Text(
         '© Peguei & Paguei • Fernando Morais • 2026',
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: compact ? 10 : 11,
           color: _shellMutedTextColor,
           fontWeight: FontWeight.w700,
         ),
