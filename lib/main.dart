@@ -5361,6 +5361,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  bool _showMobileHeader = true;
+  DateTime _lastHeaderToggleAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   void initState() {
@@ -5583,10 +5585,87 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }
 
   void _selectSection(_SuperAdminSection section) {
-    setState(() => _selectedSection = section);
+    setState(() {
+      _selectedSection = section;
+      _showMobileHeader = true;
+    });
     SystemNavigator.routeInformationUpdated(
       location: _pathForSection(section),
       replace: false,
+    );
+  }
+
+  void _setMobileHeaderVisibility(bool visible) {
+    if (_showMobileHeader == visible || !mounted) return;
+    final now = DateTime.now();
+    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 120) return;
+    _lastHeaderToggleAt = now;
+    setState(() => _showMobileHeader = visible);
+  }
+
+  void _handleSuperAdminScroll(ScrollNotification notification, {required bool autoHideHeader}) {
+    if (!autoHideHeader || notification.metrics.axis != Axis.vertical) return;
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      if (delta.abs() < 8) return;
+      _setMobileHeaderVisibility(delta < 0 || notification.metrics.pixels <= 8);
+    } else if (notification is UserScrollNotification) {
+      if (notification.direction == ScrollDirection.reverse) {
+        _setMobileHeaderVisibility(false);
+      } else if (notification.direction == ScrollDirection.forward ||
+          notification.metrics.pixels <= 8) {
+        _setMobileHeaderVisibility(true);
+      }
+    }
+  }
+
+  Widget _buildCollapsibleSuperAdminHeader({
+    required bool compact,
+  }) {
+    if (!compact) {
+      return _SuperAdminHeader(
+        account: widget.account,
+        onRefresh: _load,
+        onLogout: widget.onLogout,
+        onOpenAdminPanel: _openAdminPanel,
+        onOpenClientPanel: _openClientPanel,
+        busy: _saving,
+        sectionTitle: _titleForSection(_selectedSection),
+        sectionSubtitle: _subtitleForSection(_selectedSection),
+        showMenuButton: compact,
+      );
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return ClipRect(
+          child: Align(
+            heightFactor: value,
+            alignment: Alignment.topCenter,
+            child: Opacity(
+              opacity: value.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, -32 * (1 - value)),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      child: _SuperAdminHeader(
+        account: widget.account,
+        onRefresh: _load,
+        onLogout: widget.onLogout,
+        onOpenAdminPanel: _openAdminPanel,
+        onOpenClientPanel: _openClientPanel,
+        busy: _saving,
+        sectionTitle: _titleForSection(_selectedSection),
+        sectionSubtitle: _subtitleForSection(_selectedSection),
+        showMenuButton: compact,
+      ),
     );
   }
 
@@ -5931,21 +6010,22 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _SuperAdminHeader(
-                            account: widget.account,
-                            onRefresh: _load,
-                            onLogout: widget.onLogout,
-                            onOpenAdminPanel: _openAdminPanel,
-                            onOpenClientPanel: _openClientPanel,
-                            busy: _saving,
-                            sectionTitle: _titleForSection(_selectedSection),
-                            sectionSubtitle:
-                                _subtitleForSection(_selectedSection),
-                            showMenuButton: compact,
+                          _buildCollapsibleSuperAdminHeader(compact: compact),
+                          if (!compact || _showMobileHeader)
+                            const SizedBox(height: AppSpacing.lg),
+                          Expanded(
+                            child: NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                _handleSuperAdminScroll(
+                                  notification,
+                                  autoHideHeader: compact,
+                                );
+                                return false;
+                              },
+                              child: content,
+                            ),
                           ),
-                          const SizedBox(height: AppSpacing.lg),
-                          Expanded(child: content),
-                          _SuperAdminFooter(),
+                          if (!compact || _showMobileHeader) _SuperAdminFooter(),
                         ],
                       ),
                     ),
@@ -16495,7 +16575,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   bool get _canAutoHideHeaderNow {
     final width = MediaQuery.maybeSizeOf(context)?.width;
-    return width != null && width < 768;
+    return width != null && width < 980;
   }
 
   void _handleClientListScroll() {
@@ -16518,7 +16598,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   void _handleMainScroll(ScrollNotification notification, {required bool autoHideHeader}) {
-    if (!autoHideHeader || notification.depth != 0) return;
+    if (!autoHideHeader || notification.metrics.axis != Axis.vertical) return;
 
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
@@ -16582,7 +16662,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 980;
-        final autoHideHeader = constraints.maxWidth < 768;
+        final autoHideHeader = isCompact;
 
         return Scaffold(
           drawer: isCompact ? Drawer(child: _buildNavigationRailContent(compact: true)) : null,
