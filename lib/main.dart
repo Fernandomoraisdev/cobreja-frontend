@@ -5095,10 +5095,10 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   void _applySuperAdminHeaderScrollIntent(double intent) {
     if (intent.abs() < 2) return;
-    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-96.0, 96.0);
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-120.0, 120.0);
     if (_headerScrollIntent >= 58) {
       _setMobileHeaderVisibility(false);
-    } else if (_headerScrollIntent <= -34) {
+    } else if (_headerScrollIntent <= -72) {
       _setMobileHeaderVisibility(true);
     }
   }
@@ -16136,10 +16136,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _applyMainHeaderScrollIntent(double intent) {
     if (intent.abs() < 2) return;
-    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-96.0, 96.0);
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-120.0, 120.0);
     if (_headerScrollIntent >= 58) {
       _setMobileHeaderVisibility(false);
-    } else if (_headerScrollIntent <= -34) {
+    } else if (_headerScrollIntent <= -72) {
       _setMobileHeaderVisibility(true);
     }
   }
