@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
@@ -5619,6 +5620,23 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  void _handleSuperAdminPointerMove(PointerMoveEvent event) {
+    final delta = event.delta.dy;
+    if (delta.abs() < 5) return;
+    if (delta < 0) {
+      _setMobileHeaderVisibility(false);
+    } else {
+      _setMobileHeaderVisibility(true);
+    }
+  }
+
+  void _handleSuperAdminPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    final delta = event.scrollDelta.dy;
+    if (delta.abs() < 4) return;
+    _setMobileHeaderVisibility(delta < 0);
+  }
+
   Widget _buildCollapsibleSuperAdminHeader({
     required bool compact,
   }) {
@@ -5993,26 +6011,31 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                         compact ? 14 : 24,
                         14,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildCollapsibleSuperAdminHeader(compact: compact),
-                          if (_showMobileHeader)
-                            const SizedBox(height: AppSpacing.lg),
-                          Expanded(
-                            child: NotificationListener<ScrollNotification>(
-                              onNotification: (notification) {
-                                _handleSuperAdminScroll(
-                                  notification,
-                                  autoHideHeader: true,
-                                );
-                                return false;
-                              },
-                              child: content,
+                      child: Listener(
+                        behavior: HitTestBehavior.translucent,
+                        onPointerMove: _handleSuperAdminPointerMove,
+                        onPointerSignal: _handleSuperAdminPointerSignal,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildCollapsibleSuperAdminHeader(compact: compact),
+                            if (_showMobileHeader)
+                              const SizedBox(height: AppSpacing.lg),
+                            Expanded(
+                              child: NotificationListener<ScrollNotification>(
+                                onNotification: (notification) {
+                                  _handleSuperAdminScroll(
+                                    notification,
+                                    autoHideHeader: true,
+                                  );
+                                  return false;
+                                },
+                                child: content,
+                              ),
                             ),
-                          ),
-                          if (_showMobileHeader) _SuperAdminFooter(),
-                        ],
+                            if (_showMobileHeader) _SuperAdminFooter(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -16603,6 +16626,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  void _handleMainPointerMove(PointerMoveEvent event) {
+    if (!_canAutoHideHeaderNow) return;
+    final delta = event.delta.dy;
+    if (delta.abs() < 5) return;
+    if (delta < 0) {
+      _setMobileHeaderVisibility(false);
+    } else {
+      _setMobileHeaderVisibility(true);
+    }
+  }
+
+  void _handleMainPointerSignal(PointerSignalEvent event) {
+    if (!_canAutoHideHeaderNow || event is! PointerScrollEvent) return;
+    final delta = event.scrollDelta.dy;
+    if (delta.abs() < 4) return;
+    _setMobileHeaderVisibility(delta < 0);
+  }
+
   void _setMobileHeaderVisibility(bool visible) {
     if (_showMobileHeader == visible || !mounted) return;
     final now = DateTime.now();
@@ -16701,27 +16742,32 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             ),
                           ),
                         Expanded(
-                          child: Column(
-                            children: [
-                              _buildCollapsibleTopBar(
-                                showMenuButton: isCompact,
-                                autoHideHeader: autoHideHeader,
-                              ),
-                              Expanded(
-                                child: NotificationListener<ScrollNotification>(
-                                  onNotification: (notification) {
-                                    _handleMainScroll(
-                                      notification,
-                                      autoHideHeader: autoHideHeader,
-                                    );
-                                    return false;
-                                  },
-                                  child: _buildSectionBody(),
+                          child: Listener(
+                            behavior: HitTestBehavior.translucent,
+                            onPointerMove: _handleMainPointerMove,
+                            onPointerSignal: _handleMainPointerSignal,
+                            child: Column(
+                              children: [
+                                _buildCollapsibleTopBar(
+                                  showMenuButton: isCompact,
+                                  autoHideHeader: autoHideHeader,
                                 ),
-                              ),
-                              if (!autoHideHeader || _showMobileHeader)
-                                _buildDeveloperFooter(compact: autoHideHeader),
-                            ],
+                                Expanded(
+                                  child: NotificationListener<ScrollNotification>(
+                                    onNotification: (notification) {
+                                      _handleMainScroll(
+                                        notification,
+                                        autoHideHeader: autoHideHeader,
+                                      );
+                                      return false;
+                                    },
+                                    child: _buildSectionBody(),
+                                  ),
+                                ),
+                                if (!autoHideHeader || _showMobileHeader)
+                                  _buildDeveloperFooter(compact: autoHideHeader),
+                              ],
+                            ),
                           ),
                         ),
                       ],
