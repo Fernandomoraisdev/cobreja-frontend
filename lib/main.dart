@@ -4851,6 +4851,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   String? _error;
   bool _showMobileHeader = true;
   DateTime _lastHeaderToggleAt = DateTime.fromMillisecondsSinceEpoch(0);
+  double _headerScrollIntent = 0;
 
   @override
   void initState() {
@@ -5086,42 +5087,45 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   void _setMobileHeaderVisibility(bool visible) {
     if (_showMobileHeader == visible || !mounted) return;
     final now = DateTime.now();
-    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 120) return;
+    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 220) return;
     _lastHeaderToggleAt = now;
+    _headerScrollIntent = 0;
     setState(() => _showMobileHeader = visible);
+  }
+
+  void _applySuperAdminHeaderScrollIntent(double intent) {
+    if (intent.abs() < 2) return;
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-96.0, 96.0);
+    if (_headerScrollIntent >= 58) {
+      _setMobileHeaderVisibility(false);
+    } else if (_headerScrollIntent <= -34) {
+      _setMobileHeaderVisibility(true);
+    }
   }
 
   void _handleSuperAdminScroll(ScrollNotification notification, {required bool autoHideHeader}) {
     if (!autoHideHeader || notification.metrics.axis != Axis.vertical) return;
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (delta.abs() < 8) return;
-      _setMobileHeaderVisibility(delta < 0 || notification.metrics.pixels <= 8);
+      if (notification.metrics.pixels <= 8) {
+        _setMobileHeaderVisibility(true);
+        return;
+      }
+      _applySuperAdminHeaderScrollIntent(delta);
     } else if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.reverse) {
-        _setMobileHeaderVisibility(false);
-      } else if (notification.direction == ScrollDirection.forward ||
-          notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 8) {
         _setMobileHeaderVisibility(true);
       }
     }
   }
 
   void _handleSuperAdminPointerMove(PointerMoveEvent event) {
-    final delta = event.delta.dy;
-    if (delta.abs() < 5) return;
-    if (delta < 0) {
-      _setMobileHeaderVisibility(false);
-    } else {
-      _setMobileHeaderVisibility(true);
-    }
+    _applySuperAdminHeaderScrollIntent(-event.delta.dy);
   }
 
   void _handleSuperAdminPointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
-    final delta = event.scrollDelta.dy;
-    if (delta.abs() < 4) return;
-    _setMobileHeaderVisibility(delta < 0);
+    _applySuperAdminHeaderScrollIntent(event.scrollDelta.dy);
   }
 
   Widget _buildCollapsibleSuperAdminHeader({
@@ -5129,8 +5133,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
       builder: (context, value, child) {
         return ClipRect(
           child: Align(
@@ -12174,6 +12178,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   bool _restoredClientSheetOpened = false;
   bool _showMobileHeader = true;
   DateTime _lastHeaderToggleAt = DateTime.fromMillisecondsSinceEpoch(0);
+  double _headerScrollIntent = 0;
   double _lastClientListScrollPixels = 0;
 
   TextEditingController get _safeSearchController => _searchController ??= TextEditingController();
@@ -16085,11 +16090,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       return;
     }
 
-    if (delta > 6) {
-      _setMobileHeaderVisibility(false);
-    } else if (delta < -6) {
-      _setMobileHeaderVisibility(true);
-    }
+    _applyMainHeaderScrollIntent(delta);
   }
 
   void _handleMainScroll(ScrollNotification notification, {required bool autoHideHeader}) {
@@ -16097,17 +16098,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (delta.abs() < 8) return;
-      final shouldShow = delta < 0 || notification.metrics.pixels <= 8;
-      _setMobileHeaderVisibility(shouldShow);
+      if (notification.metrics.pixels <= 8) {
+        _setMobileHeaderVisibility(true);
+        return;
+      }
+      _applyMainHeaderScrollIntent(delta);
       return;
     }
 
     if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.reverse) {
-        _setMobileHeaderVisibility(false);
-      } else if (notification.direction == ScrollDirection.forward ||
-          notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 8) {
         _setMobileHeaderVisibility(true);
       }
     }
@@ -16115,30 +16115,33 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _handleMainPointerMove(PointerMoveEvent event) {
     if (!_canAutoHideHeaderNow) return;
-    final delta = event.delta.dy;
-    if (delta.abs() < 5) return;
-    if (delta < 0) {
-      _setMobileHeaderVisibility(false);
-    } else {
-      _setMobileHeaderVisibility(true);
-    }
+    _applyMainHeaderScrollIntent(-event.delta.dy);
   }
 
   void _handleMainPointerSignal(PointerSignalEvent event) {
     if (!_canAutoHideHeaderNow || event is! PointerScrollEvent) return;
-    final delta = event.scrollDelta.dy;
-    if (delta.abs() < 4) return;
-    _setMobileHeaderVisibility(delta < 0);
+    _applyMainHeaderScrollIntent(event.scrollDelta.dy);
   }
 
   void _setMobileHeaderVisibility(bool visible) {
     if (_showMobileHeader == visible || !mounted) return;
     final now = DateTime.now();
-    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 120) return;
+    if (now.difference(_lastHeaderToggleAt).inMilliseconds < 220) return;
     _lastHeaderToggleAt = now;
+    _headerScrollIntent = 0;
     setState(() {
       _showMobileHeader = visible;
     });
+  }
+
+  void _applyMainHeaderScrollIntent(double intent) {
+    if (intent.abs() < 2) return;
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-96.0, 96.0);
+    if (_headerScrollIntent >= 58) {
+      _setMobileHeaderVisibility(false);
+    } else if (_headerScrollIntent <= -34) {
+      _setMobileHeaderVisibility(true);
+    }
   }
 
   Widget _buildCollapsibleTopBar({
@@ -16149,8 +16152,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeInOutCubic,
       builder: (context, value, child) {
         return ClipRect(
           child: Align(
@@ -16173,8 +16176,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildCollapsibleSectionChrome({required Widget child}) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _showMobileHeader ? 1 : 0),
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeInOutCubic,
       builder: (context, value, child) {
         return ClipRect(
           child: Align(
