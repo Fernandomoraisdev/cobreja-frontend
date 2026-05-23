@@ -5093,12 +5093,16 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     setState(() => _showMobileHeader = visible);
   }
 
-  void _applySuperAdminHeaderScrollIntent(double intent) {
+  void _applySuperAdminHeaderScrollIntent(
+    double intent, {
+    bool allowReveal = true,
+  }) {
     if (intent.abs() < 2) return;
-    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-120.0, 120.0);
+    if (intent < 0 && !allowReveal) return;
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-260.0, 120.0);
     if (_headerScrollIntent >= 58) {
       _setMobileHeaderVisibility(false);
-    } else if (_headerScrollIntent <= -72) {
+    } else if (_headerScrollIntent <= -180) {
       _setMobileHeaderVisibility(true);
     }
   }
@@ -5107,25 +5111,25 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     if (!autoHideHeader || notification.metrics.axis != Axis.vertical) return;
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 36) {
         _setMobileHeaderVisibility(true);
         return;
       }
       _applySuperAdminHeaderScrollIntent(delta);
     } else if (notification is UserScrollNotification) {
-      if (notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 36) {
         _setMobileHeaderVisibility(true);
       }
     }
   }
 
   void _handleSuperAdminPointerMove(PointerMoveEvent event) {
-    _applySuperAdminHeaderScrollIntent(-event.delta.dy);
+    _applySuperAdminHeaderScrollIntent(-event.delta.dy, allowReveal: false);
   }
 
   void _handleSuperAdminPointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
-    _applySuperAdminHeaderScrollIntent(event.scrollDelta.dy);
+    _applySuperAdminHeaderScrollIntent(event.scrollDelta.dy, allowReveal: false);
   }
 
   Widget _buildCollapsibleSuperAdminHeader({
@@ -16085,7 +16089,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final delta = pixels - _lastClientListScrollPixels;
     _lastClientListScrollPixels = pixels;
 
-    if (pixels <= 8) {
+    if (pixels <= 36) {
       _setMobileHeaderVisibility(true);
       return;
     }
@@ -16098,7 +16102,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 36) {
         _setMobileHeaderVisibility(true);
         return;
       }
@@ -16107,7 +16111,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
 
     if (notification is UserScrollNotification) {
-      if (notification.metrics.pixels <= 8) {
+      if (notification.metrics.pixels <= 36) {
         _setMobileHeaderVisibility(true);
       }
     }
@@ -16115,12 +16119,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _handleMainPointerMove(PointerMoveEvent event) {
     if (!_canAutoHideHeaderNow) return;
-    _applyMainHeaderScrollIntent(-event.delta.dy);
+    _applyMainHeaderScrollIntent(-event.delta.dy, allowReveal: false);
   }
 
   void _handleMainPointerSignal(PointerSignalEvent event) {
     if (!_canAutoHideHeaderNow || event is! PointerScrollEvent) return;
-    _applyMainHeaderScrollIntent(event.scrollDelta.dy);
+    _applyMainHeaderScrollIntent(event.scrollDelta.dy, allowReveal: false);
   }
 
   void _setMobileHeaderVisibility(bool visible) {
@@ -16134,12 +16138,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     });
   }
 
-  void _applyMainHeaderScrollIntent(double intent) {
+  void _applyMainHeaderScrollIntent(
+    double intent, {
+    bool allowReveal = true,
+  }) {
     if (intent.abs() < 2) return;
-    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-120.0, 120.0);
+    if (intent < 0 && !allowReveal) return;
+    _headerScrollIntent = (_headerScrollIntent + intent).clamp(-260.0, 120.0);
     if (_headerScrollIntent >= 58) {
       _setMobileHeaderVisibility(false);
-    } else if (_headerScrollIntent <= -72) {
+    } else if (_headerScrollIntent <= -180) {
       _setMobileHeaderVisibility(true);
     }
   }
