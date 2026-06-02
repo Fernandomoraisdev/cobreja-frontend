@@ -2682,9 +2682,11 @@ class FinanceService {
     // (principal + juros do ciclo), para não subestimar a mora.
     final monthlyInterestAmount =
         _resolveMonthlyInterestAmount(client, remainingPrincipal);
+    final monthlyCyclesDue = 1 + (overdueDays ~/ 30);
     final cycleInterest = math.max(
       0.0,
-      monthlyInterestAmount - client.interestPaidCurrentCycle,
+      (monthlyInterestAmount * monthlyCyclesDue) -
+          client.interestPaidCurrentCycle,
     ).toDouble();
     final dailyBase = (remainingPrincipal + cycleInterest).toDouble();
     final lateInterestPerDay = _resolveDailyInterestAmount(client, dailyBase);
@@ -2697,7 +2699,7 @@ class FinanceService {
       lateInterest: lateInterest,
       totalInterestDue: totalInterest,
       totalDebt: remainingPrincipal + totalInterest,
-      monthlyCyclesDue: 1,
+      monthlyCyclesDue: monthlyCyclesDue,
       overdueDays: overdueDays,
       isOverdue: overdueDays > 0,
       isDueToday: reference == dueDate,
@@ -5099,7 +5101,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }) {
     if (intent.abs() < 2) return;
     if (intent < 0 && !allowReveal) return;
-    _setSuperAdminHeaderProgress(_mobileHeaderProgress - (intent / 220));
+    _setSuperAdminHeaderProgress(_mobileHeaderProgress - (intent / 420));
   }
 
   void _handleSuperAdminScroll(ScrollNotification notification, {required bool autoHideHeader}) {
@@ -5119,7 +5121,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }
 
   void _handleSuperAdminPointerMove(PointerMoveEvent event) {
-    _applySuperAdminHeaderScrollIntent(-event.delta.dy);
+    // Touch scrolling also emits ScrollUpdateNotification. Counting pointer
+    // movement here makes the header move twice as fast on mobile.
   }
 
   void _handleSuperAdminPointerSignal(PointerSignalEvent event) {
@@ -5132,7 +5135,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _mobileHeaderProgress),
-      duration: const Duration(milliseconds: 90),
+      duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       builder: (context, value, child) {
         return ClipRect(
@@ -16115,7 +16118,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _handleMainPointerMove(PointerMoveEvent event) {
     if (!_canAutoHideHeaderNow) return;
-    _applyMainHeaderScrollIntent(-event.delta.dy);
+    // Touch scrolling also emits ScrollUpdateNotification. Counting pointer
+    // movement here makes the header move twice as fast on mobile.
   }
 
   void _handleMainPointerSignal(PointerSignalEvent event) {
@@ -16138,7 +16142,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }) {
     if (intent.abs() < 2) return;
     if (intent < 0 && !allowReveal) return;
-    _setMainHeaderProgress(_mobileHeaderProgress - (intent / 220));
+    _setMainHeaderProgress(_mobileHeaderProgress - (intent / 420));
   }
 
   Widget _buildCollapsibleTopBar({
@@ -16149,7 +16153,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _mobileHeaderProgress),
-      duration: const Duration(milliseconds: 90),
+      duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       builder: (context, value, child) {
         return ClipRect(
@@ -16173,7 +16177,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildCollapsibleSectionChrome({required Widget child}) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 1, end: _mobileHeaderProgress),
-      duration: const Duration(milliseconds: 90),
+      duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       builder: (context, value, child) {
         return ClipRect(
