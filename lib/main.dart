@@ -5104,12 +5104,25 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     _setSuperAdminHeaderProgress(_mobileHeaderProgress - (intent / 420));
   }
 
+  void _revealSuperAdminHeaderNearTop(double pixels) {
+    const revealDistance = 180.0;
+    final progress = 1 - (pixels / revealDistance);
+    _setSuperAdminHeaderProgress(progress);
+  }
+
   void _handleSuperAdminScroll(ScrollNotification notification, {required bool autoHideHeader}) {
     if (!autoHideHeader || notification.metrics.axis != Axis.vertical) return;
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (notification.metrics.pixels <= 36) {
+      final pixels = notification.metrics.pixels;
+      if (pixels <= 36) {
         _setSuperAdminHeaderProgress(1);
+        return;
+      }
+      if (delta < 0) {
+        if (pixels <= 180) {
+          _revealSuperAdminHeaderNearTop(pixels);
+        }
         return;
       }
       _applySuperAdminHeaderScrollIntent(delta);
@@ -5127,7 +5140,10 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   void _handleSuperAdminPointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
-    _applySuperAdminHeaderScrollIntent(event.scrollDelta.dy);
+    _applySuperAdminHeaderScrollIntent(
+      event.scrollDelta.dy,
+      allowReveal: false,
+    );
   }
 
   Widget _buildCollapsibleSuperAdminHeader({
@@ -16093,6 +16109,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       return;
     }
 
+    if (delta < 0) {
+      if (pixels <= 180) {
+        _revealMainHeaderNearTop(pixels);
+      }
+      return;
+    }
+
     _applyMainHeaderScrollIntent(delta);
   }
 
@@ -16101,8 +16124,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (notification.metrics.pixels <= 36) {
+      final pixels = notification.metrics.pixels;
+      if (pixels <= 36) {
         _setMainHeaderProgress(1);
+        return;
+      }
+      if (delta < 0) {
+        if (pixels <= 180) {
+          _revealMainHeaderNearTop(pixels);
+        }
         return;
       }
       _applyMainHeaderScrollIntent(delta);
@@ -16124,7 +16154,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _handleMainPointerSignal(PointerSignalEvent event) {
     if (!_canAutoHideHeaderNow || event is! PointerScrollEvent) return;
-    _applyMainHeaderScrollIntent(event.scrollDelta.dy);
+    _applyMainHeaderScrollIntent(
+      event.scrollDelta.dy,
+      allowReveal: false,
+    );
   }
 
   void _setMainHeaderProgress(double value) {
@@ -16143,6 +16176,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (intent.abs() < 2) return;
     if (intent < 0 && !allowReveal) return;
     _setMainHeaderProgress(_mobileHeaderProgress - (intent / 420));
+  }
+
+  void _revealMainHeaderNearTop(double pixels) {
+    const revealDistance = 180.0;
+    final progress = 1 - (pixels / revealDistance);
+    _setMainHeaderProgress(progress);
   }
 
   Widget _buildCollapsibleTopBar({
