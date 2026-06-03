@@ -5101,11 +5101,12 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   }) {
     if (intent.abs() < 2) return;
     if (intent < 0 && !allowReveal) return;
-    _setSuperAdminHeaderProgress(_mobileHeaderProgress - (intent / 420));
+    final divisor = intent > 0 ? 260.0 : 620.0;
+    _setSuperAdminHeaderProgress(_mobileHeaderProgress - (intent / divisor));
   }
 
   void _revealSuperAdminHeaderNearTop(double pixels) {
-    const revealDistance = 180.0;
+    const revealDistance = 72.0;
     final progress = 1 - (pixels / revealDistance);
     _setSuperAdminHeaderProgress(progress);
   }
@@ -5115,19 +5116,19 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
       final pixels = notification.metrics.pixels;
-      if (pixels <= 36) {
+      if (pixels <= 8) {
         _setSuperAdminHeaderProgress(1);
         return;
       }
       if (delta < 0) {
-        if (pixels <= 180) {
+        if (pixels <= 72) {
           _revealSuperAdminHeaderNearTop(pixels);
         }
         return;
       }
       _applySuperAdminHeaderScrollIntent(delta);
     } else if (notification is UserScrollNotification) {
-      if (notification.metrics.pixels <= 36) {
+      if (notification.metrics.pixels <= 8) {
         _setSuperAdminHeaderProgress(1);
       }
     }
@@ -16104,13 +16105,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final delta = pixels - _lastClientListScrollPixels;
     _lastClientListScrollPixels = pixels;
 
-    if (pixels <= 36) {
+    if (pixels <= 8) {
       _setMainHeaderProgress(1);
       return;
     }
 
     if (delta < 0) {
-      if (pixels <= 180) {
+      if (pixels <= 72) {
         _revealMainHeaderNearTop(pixels);
       }
       return;
@@ -16125,12 +16126,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
       final pixels = notification.metrics.pixels;
-      if (pixels <= 36) {
+      if (pixels <= 8) {
         _setMainHeaderProgress(1);
         return;
       }
       if (delta < 0) {
-        if (pixels <= 180) {
+        if (pixels <= 72) {
           _revealMainHeaderNearTop(pixels);
         }
         return;
@@ -16140,7 +16141,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
 
     if (notification is UserScrollNotification) {
-      if (notification.metrics.pixels <= 36) {
+      if (notification.metrics.pixels <= 8) {
         _setMainHeaderProgress(1);
       }
     }
@@ -16175,11 +16176,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }) {
     if (intent.abs() < 2) return;
     if (intent < 0 && !allowReveal) return;
-    _setMainHeaderProgress(_mobileHeaderProgress - (intent / 420));
+    final divisor = intent > 0 ? 260.0 : 620.0;
+    _setMainHeaderProgress(_mobileHeaderProgress - (intent / divisor));
   }
 
   void _revealMainHeaderNearTop(double pixels) {
-    const revealDistance = 180.0;
+    const revealDistance = 72.0;
     final progress = 1 - (pixels / revealDistance);
     _setMainHeaderProgress(progress);
   }
