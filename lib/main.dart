@@ -1520,6 +1520,12 @@ class ApiService {
     required int clientId,
     required double newTotal,
     required DateTime newDueDate,
+    double? multiplier,
+    required int installmentCount,
+    required DateTime startedAt,
+    String? dailyInterestMode,
+    double? dailyInterestValue,
+    String? note,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/renegotiation'),
@@ -1530,7 +1536,12 @@ class ApiService {
         'newTotal': newTotal,
         'firstDueDate': newDueDate.toIso8601String(),
         'newDueDate': newDueDate.toIso8601String(),
-        'installmentCount': 1,
+        'installmentCount': installmentCount,
+        'startedAt': startedAt.toIso8601String(),
+        if (multiplier != null && multiplier > 0) 'multiplier': multiplier,
+        if (dailyInterestMode != null) 'dailyInterestMode': dailyInterestMode,
+        if (dailyInterestValue != null) 'dailyInterestValue': dailyInterestValue,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -12295,11 +12306,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         .whereType<Map<String, dynamic>>()
         .toList();
     final tabs = (details['tabs'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
-    final activeDebts = debts.where((debt) {
+    final rawActiveDebts = debts.where((debt) {
       final status = debt['status']?.toString().toUpperCase();
       final deletedAt = debt['deletedAt'];
       return status == 'ACTIVE' && (deletedAt == null || deletedAt.toString().isEmpty);
     }).toList();
+    final activeRenegotiatedDebts = rawActiveDebts
+        .where((debt) => debt['kind']?.toString().toUpperCase() == 'RENEGOTIATED')
+        .toList();
+    final activeDebts =
+        activeRenegotiatedDebts.isNotEmpty ? activeRenegotiatedDebts : rawActiveDebts;
 
     // UI legacy: ainda usamos um "debt principal" para preencher o card.
     // Quando houver múltiplas dívidas, escolhemos a primeira ativa (ordenada pelo backend por dueDate asc).
@@ -12307,19 +12323,73 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (activeDebts.isNotEmpty
             ? activeDebts.first
             : (debts.isNotEmpty ? debts.first : <String, dynamic>{}));
+    final primaryDebtId = _optionalInt(primaryDebt['id']);
+    final primaryRenegotiationId = _optionalInt(primaryDebt['renegotiationId']);
+    final isPrimaryNegotiated =
+        primaryDebt['kind']?.toString().toUpperCase() == 'RENEGOTIATED';
+    final renegotiations = (details['renegotiations'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    Map<String, dynamic>? activeRenegotiation;
+    if (isPrimaryNegotiated || tabs['renegociados'] == true) {
+      for (final renegotiation in renegotiations) {
+        final status = renegotiation['status']?.toString().toUpperCase();
+        final id = _optionalInt(renegotiation['id']);
+        final matchesDebt =
+            primaryRenegotiationId == null || id == primaryRenegotiationId;
+        if (status == 'ACTIVE' && matchesDebt) {
+          activeRenegotiation = renegotiation;
+          break;
+        }
+      }
+      activeRenegotiation ??= renegotiations
+          .where((item) => item['status']?.toString().toUpperCase() == 'ACTIVE')
+          .cast<Map<String, dynamic>?>()
+          .firstWhere((item) => item != null, orElse: () => null);
+      activeRenegotiation ??=
+          renegotiations.isNotEmpty ? renegotiations.first : null;
+    }
+
+    final renegotiationInstallments =
+        (activeRenegotiation?['installments'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList()
+          ..sort((a, b) {
+            final numberA = _optionalInt(a['installmentNumber']) ?? 0;
+            final numberB = _optionalInt(b['installmentNumber']) ?? 0;
+            return numberA.compareTo(numberB);
+          });
+    bool isInstallmentPaid(Map<String, dynamic> installment) {
+      final status = installment['status']?.toString().toUpperCase();
+      final amount = _readDouble(installment['amount']);
+      final paidAmount = _readDouble(installment['paidAmount']);
+      return status == 'PAID' || (amount > 0 && paidAmount >= amount - 0.01);
+    }
+
+    final paidInstallments =
+        renegotiationInstallments.where(isInstallmentPaid).length;
+    final nextInstallment = renegotiationInstallments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (installment) => installment != null && !isInstallmentPaid(installment),
+          orElse: () => null,
+        );
 
     final principalAmount = _readDouble(primaryDebt['principalAmount']);
     final principalOutstanding = _readDouble(primaryDebt['principalOutstanding']);
 
-    final borrowedAt = DateTime.tryParse(primaryDebt['borrowedAt']?.toString() ?? '') ??
+    final borrowedAt = _optionalDate(activeRenegotiation?['startedAt']) ??
+        DateTime.tryParse(primaryDebt['borrowedAt']?.toString() ?? '') ??
         previous?.borrowedDate ??
         DateTime.now();
-    final dueDate = DateTime.tryParse(primaryDebt['dueDate']?.toString() ?? '') ??
+    final dueDate = _optionalDate(nextInstallment?['dueDate']) ??
+        _optionalDate(activeRenegotiation?['firstDueDate']) ??
+        DateTime.tryParse(primaryDebt['dueDate']?.toString() ?? '') ??
         previous?.dueDate ??
         DateTime.now().add(const Duration(days: 30));
 
     final backendPrimaryDebtId =
-        (primaryDebt['id'] as num?)?.toInt() ?? previous?.backendPrimaryDebtId;
+        primaryDebtId ?? previous?.backendPrimaryDebtId;
 
     final monthlyMode = primaryDebt['monthlyInterestMode']?.toString().toUpperCase();
     final monthlyValue = _readDouble(primaryDebt['monthlyInterestValue']);
@@ -12361,7 +12431,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final payments = (details['payments'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
-    final selectedDebtId = _optionalInt(primaryDebt['id']);
+    final selectedDebtId = primaryDebtId;
     final paymentHistory = payments
         .where((payment) {
           if (selectedDebtId == null) return true;
@@ -12451,15 +12521,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       statusBeforeDeletion: previous?.statusBeforeDeletion,
       status: status,
       pagouJuros: tabs['jurosPagos'] == true,
-      isNegotiated: primaryDebt['kind']?.toString().toUpperCase() == 'RENEGOTIATED' ||
+      isNegotiated: isPrimaryNegotiated ||
           (selectedDebt == null && tabs['renegociados'] == true) ||
           (previous?.isNegotiated ?? false),
       isMarkedAsLost: previous?.isMarkedAsLost ?? false,
-      installmentCount: previous?.installmentCount ?? 0,
-      installmentsPaid: previous?.installmentsPaid ?? 0,
-      installmentAmount: previous?.installmentAmount ?? 0,
-      renegotiatedAt: previous?.renegotiatedAt,
-      installmentStartDate: previous?.installmentStartDate,
+      installmentCount:
+          (_optionalInt(activeRenegotiation?['installmentCount']) ?? 0) > 0
+              ? _optionalInt(activeRenegotiation?['installmentCount'])!
+              : (previous?.installmentCount ?? 0),
+      installmentsPaid: renegotiationInstallments.isNotEmpty
+          ? paidInstallments
+          : (previous?.installmentsPaid ?? 0),
+      installmentAmount:
+          _readDouble(activeRenegotiation?['installmentAmount']) > 0
+              ? _readDouble(activeRenegotiation?['installmentAmount'])
+              : (previous?.installmentAmount ?? 0),
+      renegotiatedAt:
+          _optionalDate(activeRenegotiation?['startedAt']) ?? previous?.renegotiatedAt,
+      installmentStartDate:
+          _optionalDate(activeRenegotiation?['firstDueDate']) ??
+              previous?.installmentStartDate,
       lastInterestPaidAt: DateTime.tryParse(primaryDebt['lastInterestPaidAt']?.toString() ?? '') ??
           previous?.lastInterestPaidAt,
       interestPaidCurrentCycle: _readDouble(primaryDebt['currentCycleInterestPaid']),
@@ -12487,12 +12568,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         final debts = (item['debts'] as List<dynamic>? ?? const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .toList();
-        final activeDebts = debts.where((debt) {
+        final rawActiveDebts = debts.where((debt) {
           final status = debt['status']?.toString().toUpperCase();
           final deletedAt = debt['deletedAt'];
           return status == 'ACTIVE' &&
               (deletedAt == null || deletedAt.toString().isEmpty);
         }).toList();
+        final activeRenegotiatedDebts = rawActiveDebts
+            .where((debt) => debt['kind']?.toString().toUpperCase() == 'RENEGOTIATED')
+            .toList();
+        final activeDebts =
+            activeRenegotiatedDebts.isNotEmpty ? activeRenegotiatedDebts : rawActiveDebts;
 
         if (activeDebts.length > 1) {
           expandedClients.addAll(
@@ -24447,13 +24533,34 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     client.installmentStartDate = firstInstallmentDate;
     client.status = 'devendo';
 
-    _syncClient(client);
+    final index = _clients.indexWhere((item) => item.id == client.id);
+    if (index == -1) {
+      _clients.add(client);
+    } else {
+      _clients[index] = client;
+    }
+    _saveClients();
+    if (mounted) {
+      setState(() {});
+    }
+
     final clientId = int.tryParse(client.id);
     if (clientId != null) {
       _syncRenegotiationToBackend(
         clientId: clientId,
         newTotal: negotiatedTotal,
         newDueDate: firstInstallmentDate,
+        multiplier: customNegotiatedTotal != null && customNegotiatedTotal > 0
+            ? null
+            : multiplier,
+        installmentCount: installmentCount,
+        startedAt: renegotiatedAt,
+        dailyInterestMode:
+            renegotiationDailyInterestType == InterestValueType.fixedAmount
+                ? 'FIXED'
+                : 'PERCENTAGE',
+        dailyInterestValue: renegotiationDailyInterestValue,
+        note: dailyLateRule,
       );
     }
     _showSnack('A renegociacao foi aplicada e o novo acordo já esta valendo.', tone: _FeedbackTone.success, title: 'Dívida renegociada');
@@ -24652,6 +24759,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     required int clientId,
     required double newTotal,
     required DateTime newDueDate,
+    double? multiplier,
+    required int installmentCount,
+    required DateTime startedAt,
+    required String dailyInterestMode,
+    required double dailyInterestValue,
+    String? note,
   }) async {
     try {
       final token = await _readAuthToken();
@@ -24661,6 +24774,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         clientId: clientId,
         newTotal: newTotal,
         newDueDate: newDueDate,
+        multiplier: multiplier,
+        installmentCount: installmentCount,
+        startedAt: startedAt,
+        dailyInterestMode: dailyInterestMode,
+        dailyInterestValue: dailyInterestValue,
+        note: note,
       );
       await _refreshClientsFromBackend();
       await fetchDashboard();
