@@ -1520,6 +1520,7 @@ class ApiService {
     required int clientId,
     required double newTotal,
     required DateTime newDueDate,
+    List<int> debtIds = const [],
     double? multiplier,
     required int installmentCount,
     required DateTime startedAt,
@@ -1538,6 +1539,7 @@ class ApiService {
         'newDueDate': newDueDate.toIso8601String(),
         'installmentCount': installmentCount,
         'startedAt': startedAt.toIso8601String(),
+        if (debtIds.isNotEmpty) 'debtIds': debtIds,
         if (multiplier != null && multiplier > 0) 'multiplier': multiplier,
         if (dailyInterestMode != null) 'dailyInterestMode': dailyInterestMode,
         if (dailyInterestValue != null) 'dailyInterestValue': dailyInterestValue,
@@ -19655,6 +19657,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             return _groupFromLocal();
           },
           openDebtDetails: (client) => _showClientDetails(client),
+          renegotiateDebts: (client, selectedDebts) async {
+            _showRenegotiateDialog(client, selectedDebts: selectedDebts);
+          },
         ),
       ),
     );
@@ -24176,7 +24181,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
   }
 
-  void _showRenegotiateDialog(Client client) {
+  void _showRenegotiateDialog(
+    Client client, {
+    List<Client>? selectedDebts,
+  }) {
     if (!_hasPlanAccess(AppPlan.professional)) {
       _ensurePlanAccess(
         requiredPlan: AppPlan.professional,
@@ -24187,9 +24195,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       return;
     }
 
-    final debt = FinanceService.calculateDebt(client);
+    final renegotiationDebts =
+        (selectedDebts == null || selectedDebts.isEmpty)
+            ? [client]
+            : selectedDebts;
+    final baseDebtTotal = renegotiationDebts.fold<double>(
+      0,
+      (sum, item) => sum + FinanceService.calculateDebt(item).totalDebt,
+    );
+    final debtIds = renegotiationDebts
+        .map((item) => item.backendPrimaryDebtId)
+        .whereType<int>()
+        .toList();
     final multiplierController = TextEditingController(text: '1');
     final installmentsController = TextEditingController(text: '10');
+    final extraAmountController = TextEditingController();
     final customTotalController = TextEditingController();
     final dailyLateController = TextEditingController(
       text: client.dailyInterestType == InterestValueType.fixedAmount
@@ -24211,9 +24231,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dívida atual: ${_currency(debt.totalDebt)}',
+                  renegotiationDebts.length > 1
+                      ? '${renegotiationDebts.length} dívidas selecionadas: ${_currency(baseDebtTotal)}'
+                      : 'Dívida atual: ${_currency(baseDebtTotal)}',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
+                if (renegotiationDebts.length > 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    renegotiationDebts
+                        .map(
+                          (item) =>
+                              '${DateFormat('dd/MM/yyyy').format(item.dueDate)} • ${_currency(FinanceService.calculateDebt(item).totalDebt)}',
+                        )
+                        .join('\n'),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextField(
                   controller: multiplierController,
@@ -24236,12 +24273,22 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
+                  controller: extraAmountController,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setDialog(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor extra no acordo (opcional)',
+                    hintText: 'Ex.: taxa, ajuste ou novo valor combinado',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: customTotalController,
                   keyboardType: TextInputType.number,
                   onChanged: (_) => setDialog(() {}),
                   decoration: const InputDecoration(
-                    labelText: 'Valor final da dívida (opcional)',
-                    hintText: 'Se preencher, ele substitui o multiplicador',
+                    labelText: 'Valor final manual (opcional)',
+                    hintText: 'Se preencher, substitui soma, extra e multiplicador',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -24251,12 +24298,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     final installments =
                         int.tryParse(installmentsController.text.trim()) ?? 0;
                     final dailyLateValue = _readDouble(dailyLateController.text);
+                    final extraAmount = _readDouble(extraAmountController.text);
                     final customTotal = _readDouble(customTotalController.text);
                     final negotiatedTotal = customTotal > 0
                         ? customTotal
-                        : multiplier <= 0
-                            ? debt.totalDebt
-                            : debt.totalDebt * multiplier;
+                        : (baseDebtTotal *
+                                (multiplier <= 0 ? 1 : multiplier)) +
+                            extraAmount;
                     final installmentValue = installments <= 0
                         ? 0.0
                         : negotiatedTotal / installments;
@@ -24279,7 +24327,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          Text('Dívida atual: ${_currency(debt.totalDebt)}'),
+                          Text('Total selecionado: ${_currency(baseDebtTotal)}'),
+                          if (extraAmount > 0) ...[
+                            const SizedBox(height: 6),
+                            Text('Valor extra: ${_currency(extraAmount)}'),
+                          ],
                           const SizedBox(height: 6),
                           Text(
                             customTotal > 0
@@ -24417,17 +24469,25 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final multiplier = _readDouble(multiplierController.text);
                 final installments =
                     int.tryParse(installmentsController.text.trim()) ?? 0;
+                final extraAmount = _readDouble(extraAmountController.text);
                 final customTotal = _readDouble(customTotalController.text);
+                final negotiatedTotal = customTotal > 0
+                    ? customTotal
+                    : (baseDebtTotal * (multiplier <= 0 ? 1 : multiplier)) +
+                        extraAmount;
 
-                if ((multiplier <= 0 && customTotal <= 0) || installments <= 0) {
-                  _showSnack('Informe um valor final da dívida ou um multiplicador, além da quantidade de parcelas.', tone: _FeedbackTone.warning, title: 'Dados inválidos');
+                if (negotiatedTotal <= 0 || installments <= 0) {
+                  _showSnack('Informe quantidade de parcelas e um valor válido para o acordo.', tone: _FeedbackTone.warning, title: 'Dados inválidos');
                   return;
                 }
 
                 _renegotiateClient(
                   client: client,
                   multiplier: multiplier,
+                  baseDebtTotal: baseDebtTotal,
+                  extraAmount: extraAmount,
                   customNegotiatedTotal: customTotal > 0 ? customTotal : null,
+                  debtIds: debtIds,
                   installmentCount: installments,
                   renegotiatedAt: renegotiationDate,
                   firstInstallmentDate: firstInstallmentDate,
@@ -24463,18 +24523,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   void _renegotiateClient({
     required Client client,
     required double multiplier,
+    required double baseDebtTotal,
+    required double extraAmount,
     double? customNegotiatedTotal,
+    List<int> debtIds = const [],
     required int installmentCount,
     required DateTime renegotiatedAt,
     required DateTime firstInstallmentDate,
     required InterestValueType renegotiationDailyInterestType,
     required double renegotiationDailyInterestValue,
   }) {
-    final debt = FinanceService.calculateDebt(client);
     final negotiatedTotal =
         customNegotiatedTotal != null && customNegotiatedTotal > 0
             ? customNegotiatedTotal
-            : debt.totalDebt * multiplier;
+            : (baseDebtTotal * (multiplier <= 0 ? 1 : multiplier)) +
+                extraAmount;
     final installmentAmount = negotiatedTotal / installmentCount;
     final now = DateTime.now();
     final dailyLateRule = renegotiationDailyInterestValue <= 0
@@ -24491,6 +24554,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     : 0,
             suffix: 'a.d.',
           );
+    final double safeMultiplier = multiplier <= 0 ? 1.0 : multiplier;
+    final renegotiationNote =
+        'Renegociação ${debtIds.length > 1 ? 'de ${debtIds.length} dívidas' : 'de dívida'} em ${installmentCount}x de ${_currency(installmentAmount)}. Total selecionado: ${_currency(baseDebtTotal)}. Total novo: ${_currency(negotiatedTotal)}.${extraAmount > 0 ? ' Valor extra: ${_currency(extraAmount)}.' : ''}${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${safeMultiplier.toStringAsFixed(safeMultiplier.truncateToDouble() == safeMultiplier ? 0 : 2)}x.'} Início: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diário: $dailyLateRule.';
 
     client.paymentHistory = [
       PaymentRecord(
@@ -24500,8 +24566,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         interestPaid: 0,
         principalPaid: 0,
         type: 'Renegociacao',
-        note:
-            'Dívida renegociada em ${installmentCount}x de ${_currency(installmentAmount)}. Total novo: ${_currency(negotiatedTotal)}.${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${multiplier.toStringAsFixed(multiplier.truncateToDouble() == multiplier ? 0 : 2)}x.'} Início: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diário: $dailyLateRule.',
+        note: renegotiationNote,
       ),
       ...client.paymentHistory,
     ];
@@ -24550,9 +24615,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         clientId: clientId,
         newTotal: negotiatedTotal,
         newDueDate: firstInstallmentDate,
+        debtIds: debtIds,
         multiplier: customNegotiatedTotal != null && customNegotiatedTotal > 0
             ? null
-            : multiplier,
+            : safeMultiplier,
         installmentCount: installmentCount,
         startedAt: renegotiatedAt,
         dailyInterestMode:
@@ -24560,7 +24626,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 ? 'FIXED'
                 : 'PERCENTAGE',
         dailyInterestValue: renegotiationDailyInterestValue,
-        note: dailyLateRule,
+        note: renegotiationNote,
       );
     }
     _showSnack('A renegociacao foi aplicada e o novo acordo já esta valendo.', tone: _FeedbackTone.success, title: 'Dívida renegociada');
@@ -24759,6 +24825,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     required int clientId,
     required double newTotal,
     required DateTime newDueDate,
+    List<int> debtIds = const [],
     double? multiplier,
     required int installmentCount,
     required DateTime startedAt,
@@ -24774,6 +24841,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         clientId: clientId,
         newTotal: newTotal,
         newDueDate: newDueDate,
+        debtIds: debtIds,
         multiplier: multiplier,
         installmentCount: installmentCount,
         startedAt: startedAt,
@@ -26256,6 +26324,8 @@ class _AdminClientGroupProfilePage extends StatefulWidget {
   final List<Client> initialClients;
   final Future<List<Client>> Function() loadLatest;
   final Future<void> Function(Client client) openDebtDetails;
+  final Future<void> Function(Client client, List<Client> selectedDebts)
+      renegotiateDebts;
 
   const _AdminClientGroupProfilePage({
     required this.nameKey,
@@ -26263,6 +26333,7 @@ class _AdminClientGroupProfilePage extends StatefulWidget {
     required this.initialClients,
     required this.loadLatest,
     required this.openDebtDetails,
+    required this.renegotiateDebts,
   });
 
   @override
@@ -26276,6 +26347,7 @@ class _AdminClientGroupProfilePageState
   String? _error;
   late List<Client> _clients;
   _ClientProfileFilter _filter = _ClientProfileFilter.ativas;
+  final Set<int> _selectedDebtIds = {};
 
   @override
   void initState() {
@@ -26294,6 +26366,8 @@ class _AdminClientGroupProfilePageState
       if (!mounted) return;
       setState(() {
         _clients = [...latest];
+        final validKeys = _clients.map(_debtSelectionKey).toSet();
+        _selectedDebtIds.removeWhere((key) => !validKeys.contains(key));
         _isLoading = false;
       });
     } catch (e) {
@@ -26320,9 +26394,41 @@ class _AdminClientGroupProfilePageState
     }
   }
 
+  int _debtSelectionKey(Client client) =>
+      client.backendPrimaryDebtId ?? int.tryParse(client.id) ?? client.hashCode;
+
+  bool _isActiveNegotiableDebt(Client client) =>
+      client.status == 'devendo' && client.remainingPrincipal > 0.009;
+
+  List<Client> _activeNegotiableDebts() =>
+      _clients.where(_isActiveNegotiableDebt).toList();
+
+  List<Client> _selectedDebts() {
+    final selected = _activeNegotiableDebts()
+        .where((client) => _selectedDebtIds.contains(_debtSelectionKey(client)))
+        .toList();
+    selected.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    return selected;
+  }
+
+  double _sumDebts(List<Client> debts) => debts.fold<double>(
+        0,
+        (sum, client) => sum + FinanceService.calculateDebt(client).totalDebt,
+      );
+
+  Future<void> _startRenegotiation(List<Client> debts) async {
+    if (debts.isEmpty) return;
+    await widget.renegotiateDebts(debts.first, debts);
+    setState(() => _selectedDebtIds.clear());
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = _filteredClients();
+    final negotiableDebts = _activeNegotiableDebts();
+    final selectedDebts = _selectedDebts();
+    final selectedTotal = _sumDebts(selectedDebts);
+    final allNegotiableTotal = _sumDebts(negotiableDebts);
 
     final summaries = _clients
         .where((client) => client.status != 'excluido' && client.status != 'excluído')
@@ -26450,6 +26556,67 @@ class _AdminClientGroupProfilePageState
               ],
             ),
             const SizedBox(height: 10),
+            if (negotiableDebts.length > 1) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      selectedDebts.isEmpty
+                          ? 'Selecione uma ou mais dividas para renegociar parcialmente.'
+                          : '${selectedDebts.length} selecionada(s) • ${_currency(selectedTotal)}',
+                      style: const TextStyle(
+                        color: AppColors.textBody,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: selectedDebts.isEmpty
+                          ? null
+                          : () => _startRenegotiation(selectedDebts),
+                      icon: const Icon(Icons.currency_exchange_rounded),
+                      label: const Text('Renegociar selecionadas'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _startRenegotiation(negotiableDebts),
+                      icon: const Icon(Icons.all_inclusive_rounded),
+                      label: Text(
+                        'Renegociar todas (${_currency(allNegotiableTotal)})',
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          if (_selectedDebtIds.length == negotiableDebts.length) {
+                            _selectedDebtIds.clear();
+                          } else {
+                            _selectedDebtIds
+                              ..clear()
+                              ..addAll(negotiableDebts.map(_debtSelectionKey));
+                          }
+                        });
+                      },
+                      icon: const Icon(Icons.checklist_rounded),
+                      label: Text(
+                        _selectedDebtIds.length == negotiableDebts.length
+                            ? 'Limpar selecao'
+                            : 'Selecionar todas',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -26496,7 +26663,20 @@ class _AdminClientGroupProfilePageState
                   onCharge: () {},
                   onChargeAll: () {},
                   tooltip: 'Abrir detalhes de ${client.name}',
-                  onToggleSelected: () {},
+                  selectable: _isActiveNegotiableDebt(client),
+                  selected:
+                      _selectedDebtIds.contains(_debtSelectionKey(client)),
+                  onToggleSelected: () {
+                    if (!_isActiveNegotiableDebt(client)) return;
+                    final key = _debtSelectionKey(client);
+                    setState(() {
+                      if (_selectedDebtIds.contains(key)) {
+                        _selectedDebtIds.remove(key);
+                      } else {
+                        _selectedDebtIds.add(key);
+                      }
+                    });
+                  },
                 );
               }),
             ],
