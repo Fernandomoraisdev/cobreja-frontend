@@ -19660,6 +19660,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           renegotiateDebts: (client, selectedDebts) async {
             _showRenegotiateDialog(client, selectedDebts: selectedDebts);
           },
+          settleDebts: (selectedDebts) =>
+              _settleSelectedClientDebts(selectedDebts),
         ),
       ),
     );
@@ -24084,6 +24086,88 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  Future<void> _settleSelectedClientDebts(List<Client> selectedDebts) async {
+    final activeDebts = selectedDebts.where((client) {
+      final debt = FinanceService.calculateDebt(client);
+      return client.status == 'devendo' && debt.totalDebt > 0.009;
+    }).toList();
+
+    if (activeDebts.isEmpty) {
+      _showSnack(
+        'Selecione pelo menos uma divida ativa para quitar.',
+        tone: _FeedbackTone.info,
+        title: 'Nada selecionado',
+      );
+      return;
+    }
+
+    final totalToSettle = activeDebts.fold<double>(
+      0,
+      (sum, client) => sum + FinanceService.calculateDebt(client).totalDebt,
+    );
+
+    final confirmed = await _confirmDestructiveAction(
+      title: 'Quitar dividas selecionadas',
+      message:
+          'Isso vai registrar a quitacao de ${activeDebts.length} divida(s), '
+          'no total de ${_currency(totalToSettle)}. Deseja continuar?',
+      confirmLabel: 'Quitar',
+    );
+    if (!confirmed) return;
+
+    final token = await _readAuthToken();
+    if (token == null || token.isEmpty) {
+      _showSnack(
+        'Nao foi possivel validar sua sessao para registrar a quitacao.',
+        tone: _FeedbackTone.error,
+        title: 'Sessao indisponivel',
+      );
+      return;
+    }
+
+    final paidAt = DateTime.now();
+    var settledCount = 0;
+
+    try {
+      for (final client in activeDebts) {
+        final clientId = int.tryParse(client.id);
+        final debt = FinanceService.calculateDebt(client, now: paidAt);
+        if (clientId == null || debt.totalDebt <= 0.009) continue;
+
+        await ApiService.createPayment(
+          token: token,
+          clientId: clientId,
+          debtId: client.backendPrimaryDebtId,
+          amount: debt.totalDebt,
+          type: 'total',
+          date: paidAt,
+          note: 'Quitacao em lote.',
+        );
+        settledCount++;
+      }
+
+      await _refreshClientsFromBackend(updateLoading: true);
+      await fetchDashboard();
+
+      if (!mounted) return;
+      _showSnack(
+        settledCount == 1
+            ? 'A divida selecionada foi quitada com sucesso.'
+            : '$settledCount dividas foram quitadas com sucesso.',
+        tone: _FeedbackTone.success,
+        title: 'Quitacao registrada',
+      );
+    } catch (e) {
+      debugPrint('Falha ao quitar dividas em lote: $e');
+      if (!mounted) return;
+      _showSnack(
+        'Nao foi possivel registrar todas as quitacoes no backend. Tente novamente.',
+        tone: _FeedbackTone.error,
+        title: 'Falha ao quitar',
+      );
+    }
+  }
+
   void _showPaymentDialog(Client client) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
@@ -26326,6 +26410,7 @@ class _AdminClientGroupProfilePage extends StatefulWidget {
   final Future<void> Function(Client client) openDebtDetails;
   final Future<void> Function(Client client, List<Client> selectedDebts)
       renegotiateDebts;
+  final Future<void> Function(List<Client> selectedDebts) settleDebts;
 
   const _AdminClientGroupProfilePage({
     required this.nameKey,
@@ -26334,6 +26419,7 @@ class _AdminClientGroupProfilePage extends StatefulWidget {
     required this.loadLatest,
     required this.openDebtDetails,
     required this.renegotiateDebts,
+    required this.settleDebts,
   });
 
   @override
@@ -26420,6 +26506,14 @@ class _AdminClientGroupProfilePageState
     if (debts.isEmpty) return;
     await widget.renegotiateDebts(debts.first, debts);
     setState(() => _selectedDebtIds.clear());
+  }
+
+  Future<void> _settleSelected(List<Client> debts) async {
+    if (debts.isEmpty) return;
+    await widget.settleDebts(debts);
+    if (!mounted) return;
+    setState(() => _selectedDebtIds.clear());
+    await _refresh();
   }
 
   @override
@@ -26585,6 +26679,13 @@ class _AdminClientGroupProfilePageState
                           : () => _startRenegotiation(selectedDebts),
                       icon: const Icon(Icons.currency_exchange_rounded),
                       label: const Text('Renegociar selecionadas'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: selectedDebts.isEmpty
+                          ? null
+                          : () => _settleSelected(selectedDebts),
+                      icon: const Icon(Icons.check_circle_rounded),
+                      label: const Text('Quitar selecionadas'),
                     ),
                     FilledButton.icon(
                       onPressed: () => _startRenegotiation(negotiableDebts),
