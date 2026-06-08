@@ -26992,7 +26992,7 @@ class _ClientCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(28),
-            onTap: selectable ? onToggleSelected : onOpen,
+            onTap: onOpen,
             child: Padding(
               padding: EdgeInsets.all(compact ? 14 : 18),
               child: Row(
@@ -27146,8 +27146,7 @@ class _ClientCard extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (!selectable)
-                      PopupMenuButton<String>(
+                    PopupMenuButton<String>(
                         tooltip: 'Opções de cobrança no WhatsApp',
                         onSelected: (value) {
                           if (value == 'single') {
@@ -27182,10 +27181,8 @@ class _ClientCard extends StatelessWidget {
                           size: compact ? 24 : 28,
                         ),
                       ),
-                    if (!selectable) ...[
-                      const SizedBox(height: 10),
-                      const Icon(Icons.chevron_right_rounded),
-                    ],
+                    const SizedBox(height: 10),
+                    const Icon(Icons.chevron_right_rounded),
                   ],
                 ),
               ],
