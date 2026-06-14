@@ -12473,6 +12473,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (tabs['excluded'] == true);
     final selectedDebtStatus =
         primaryDebt['status']?.toString().toUpperCase() ?? '';
+    final isRenegotiatedSourceDebt =
+        selectedDebtStatus == 'RENEGOTIATED' && !isPrimaryNegotiated;
     final isQuitadoBackend =
         selectedDebtStatus == 'SETTLED' ||
         selectedDebtStatus == 'PAID' ||
@@ -12483,7 +12485,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     final status = isExcludedBackend
         ? 'excluído'
-        : (isQuitadoBackend ? 'quitado' : (isDevendoBackend ? 'devendo' : (details.isEmpty ? (previous?.status ?? 'devendo') : 'ativo')));
+        : (isRenegotiatedSourceDebt ? 'renegociado' : (isQuitadoBackend ? 'quitado' : (isDevendoBackend ? 'devendo' : (details.isEmpty ? (previous?.status ?? 'devendo') : 'ativo'))));
 
     final backendUserId =
         _optionalInt(details['userId'] ?? clientItem['userId']) ?? previous?.backendUserId;
@@ -12523,9 +12525,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       statusBeforeDeletion: previous?.statusBeforeDeletion,
       status: status,
       pagouJuros: tabs['jurosPagos'] == true,
-      isNegotiated: isPrimaryNegotiated ||
-          (selectedDebt == null && tabs['renegociados'] == true) ||
-          (previous?.isNegotiated ?? false),
+      isNegotiated: !isRenegotiatedSourceDebt &&
+          (isPrimaryNegotiated ||
+              (selectedDebt == null && tabs['renegociados'] == true) ||
+              (selectedDebt == null && (previous?.isNegotiated ?? false))),
       isMarkedAsLost: previous?.isMarkedAsLost ?? false,
       installmentCount:
           (_optionalInt(activeRenegotiation?['installmentCount']) ?? 0) > 0
@@ -12581,10 +12584,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             .toList();
         final activeDebts =
             activeRenegotiatedDebts.isNotEmpty ? activeRenegotiatedDebts : rawActiveDebts;
+        final renegotiatedSourceDebts = debts.where((debt) {
+          final status = debt['status']?.toString().toUpperCase();
+          final kind = debt['kind']?.toString().toUpperCase();
+          final deletedAt = debt['deletedAt'];
+          return status == 'RENEGOTIATED' &&
+              kind != 'RENEGOTIATED' &&
+              (deletedAt == null || deletedAt.toString().isEmpty);
+        }).toList();
+        final displayDebts = activeRenegotiatedDebts.isNotEmpty
+            ? [...activeRenegotiatedDebts, ...renegotiatedSourceDebts]
+            : activeDebts;
 
-        if (activeDebts.length > 1) {
+        if (displayDebts.length > 1) {
           expandedClients.addAll(
-            activeDebts.map(
+            displayDebts.map(
               (debt) => _clientFromBackendDetails(
                 clientItem: item,
                 details: item,
@@ -12599,7 +12613,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               clientItem: item,
               details: item,
               previous: localById[id],
-              selectedDebt: activeDebts.length == 1 ? activeDebts.first : null,
+              selectedDebt: displayDebts.length == 1 ? displayDebts.first : null,
             ),
           );
         }
@@ -14855,6 +14869,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case 'excluido':
           filteredClients = _clients.where(_isExcludedClient).toList();
           break;
+        case 'renegociados':
+          filteredClients = _clients
+              .where(
+                (item) =>
+                    !_isExcludedClient(item) &&
+                    !_isQuitadoClient(item) &&
+                    item.isNegotiated,
+              )
+              .toList();
+          break;
         default:
           filteredClients = _clients.where((item) => item.status == tabType).toList();
       }
@@ -14921,11 +14945,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           overrideFilter: _ClientQuickFilter.venceHoje,
         );
       case _MainSection.renegociados:
-        return _clientsForSection(
-          'todos',
-          includeAllActive: true,
-          overrideFilter: _ClientQuickFilter.renegociados,
-        );
+        return _clientsForSection('renegociados');
       case _MainSection.solicitacoes:
         return const [];
       case _MainSection.metricas:
@@ -24392,13 +24412,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     final installmentValue = installments <= 0
                         ? 0.0
                         : negotiatedTotal / installments;
+                    final multiplierLabel = multiplier > 0
+                        ? multiplier.toStringAsFixed(
+                            multiplier.truncateToDouble() == multiplier
+                                ? 0
+                                : 2,
+                          )
+                        : '1';
+                    final installmentLabel = installments > 0
+                        ? '$installments x de ${_currency(installmentValue)}'
+                        : 'Defina a quantidade de parcelas';
                     return Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAFF),
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFDCE9FF)),
+                        border: Border.all(color: AppColors.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -24407,11 +24437,30 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             'Prévia da renegociação',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF111827),
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Cliente vai pagar: $installmentLabel',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Total final do acordo: ${_currency(negotiatedTotal)}',
+                            style: const TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                           const SizedBox(height: 10),
                           Text('Total selecionado: ${_currency(baseDebtTotal)}'),
+                          const SizedBox(height: 6),
+                          Text('Multiplicador informado: ${multiplierLabel}x'),
                           if (extraAmount > 0) ...[
                             const SizedBox(height: 6),
                             Text('Valor extra: ${_currency(extraAmount)}'),
@@ -24534,6 +24583,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 TextField(
                   controller: dailyLateController,
                   keyboardType: TextInputType.number,
+                  onChanged: (_) => setDialog(() {}),
                   decoration: InputDecoration(
                     labelText: dailyLateType == InterestValueType.fixedAmount
                         ? 'Juros diário por atraso (R\$)'
@@ -26235,7 +26285,7 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-enum _ClientProfileFilter { todas, ativas, emAtraso, quitadas }
+enum _ClientProfileFilter { todas, ativas, emAtraso, renegociadas, quitadas }
 
 class _ClientGroupCard extends StatelessWidget {
   final String name;
@@ -26475,6 +26525,8 @@ class _AdminClientGroupProfilePageState
         return _clients
             .where((client) => FinanceService.calculateDebt(client).isOverdue)
             .toList();
+      case _ClientProfileFilter.renegociadas:
+        return _clients.where((client) => client.status == 'renegociado').toList();
       case _ClientProfileFilter.quitadas:
         return _clients.where((client) => client.status == 'quitado').toList();
     }
@@ -26641,6 +26693,11 @@ class _AdminClientGroupProfilePageState
                   label: 'Em atraso',
                   selected: _filter == _ClientProfileFilter.emAtraso,
                   onTap: () => setState(() => _filter = _ClientProfileFilter.emAtraso),
+                ),
+                _ProfileFilterChip(
+                  label: 'Pausadas',
+                  selected: _filter == _ClientProfileFilter.renegociadas,
+                  onTap: () => setState(() => _filter = _ClientProfileFilter.renegociadas),
                 ),
                 _ProfileFilterChip(
                   label: 'Quitadas',
@@ -26935,11 +26992,14 @@ class _ClientCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
-    final highlightColor = client.status == 'quitado'
-        ? const Color(0xFF16A34A)
-        : debt.isOverdue
-            ? const Color(0xFFDC2626)
-            : AppColors.success;
+    final isRenegotiatedSource = client.status == 'renegociado';
+    final highlightColor = isRenegotiatedSource
+        ? const Color(0xFF9CA3AF)
+        : client.status == 'quitado'
+            ? const Color(0xFF16A34A)
+            : debt.isOverdue
+                ? const Color(0xFFDC2626)
+                : AppColors.success;
     const titleColor = Colors.white;
     const bodyColor = AppColors.textBody;
     const mutedColor = AppColors.textMuted;
@@ -26952,10 +27012,17 @@ class _ClientCard extends StatelessWidget {
 
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
-        : client.status == 'quitado'
-            ? 'Recebido: ${_currency(client.totalInterestCollected + client.totalPrincipalCollected)}'
-            : 'Total: ${_currency(debt.totalDebt)}';
-    final ratesText = client.isNegotiated
+        : isRenegotiatedSource
+            ? 'Renegociada: ${_currency(client.borrowedAmount)}'
+            : client.status == 'quitado'
+                ? 'Recebido: ${_currency(client.totalInterestCollected + client.totalPrincipalCollected)}'
+                : 'Total: ${_currency(debt.totalDebt)}';
+    final nextInstallmentIndex = client.installmentCount > 0
+        ? math.min(client.installmentsPaid + 1, client.installmentCount)
+        : 0;
+    final ratesText = isRenegotiatedSource
+        ? 'Dívida original pausada pelo novo acordo'
+        : client.isNegotiated
         ? 'Acordo parcelado • atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
         : '${_formatInterestRule(type: client.monthlyInterestType, percentageValue: client.monthlyInterestRate, amountValue: client.monthlyInterestAmount, suffix: 'a.m.')} • ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}';
     final hasInterestBreakdown =
@@ -27043,6 +27110,18 @@ class _ClientCard extends StatelessWidget {
                               color: titleColor,
                             ),
                           ),
+                          if (isRenegotiatedSource)
+                            const _StatusPill(
+                              text: 'Renegociada',
+                              color: Color(0xFF9CA3AF),
+                            ),
+                          if (client.isNegotiated &&
+                              client.installmentCount > 0)
+                            _StatusPill(
+                              text:
+                                  'Parcela ${math.min(client.installmentsPaid + 1, client.installmentCount)}/${client.installmentCount}',
+                              color: const Color(0xFF8B5CF6),
+                            ),
                           if (tabType == 'juros')
                             const _StatusPill(
                               text: 'Juros pago',
@@ -27085,6 +27164,19 @@ class _ClientCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      if (client.isNegotiated &&
+                          client.installmentCount > 0 &&
+                          client.installmentAmount > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Parcela atual: $nextInstallmentIndex/${client.installmentCount} - ${_currency(client.installmentAmount)}',
+                          style: TextStyle(
+                            color: const Color(0xFFC4B5FD),
+                            fontSize: compact ? 12 : 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                       if (debt.isOverdue && client.status == 'devendo') ...[
                         const SizedBox(height: 4),
                         Text(
