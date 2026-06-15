@@ -1553,6 +1553,22 @@ class ApiService {
       );
     }
   }
+
+  static Future<void> cancelRenegotiation({
+    required String token,
+    required int renegotiationId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/renegotiation/$renegotiationId/cancel'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+  }
 }
 
 InterestValueType _interestValueTypeFromString(String? raw) {
@@ -2161,6 +2177,7 @@ class Client {
   String? email;
   String? avatarUrl;
   int? backendPrimaryDebtId;
+  int? backendRenegotiationId;
   String name;
   String phone;
   double borrowedAmount;
@@ -2203,6 +2220,7 @@ class Client {
     this.email,
     this.avatarUrl,
     this.backendPrimaryDebtId,
+    this.backendRenegotiationId,
     required this.name,
     required this.phone,
     required this.borrowedAmount,
@@ -2250,6 +2268,7 @@ class Client {
       'email': email,
       'avatarUrl': avatarUrl,
       'backendPrimaryDebtId': backendPrimaryDebtId,
+      'backendRenegotiationId': backendRenegotiationId,
       'name': name,
       'phone': phone,
       'borrowedAmount': borrowedAmount,
@@ -2302,6 +2321,14 @@ class Client {
       backendPrimaryDebtId = int.tryParse(rawDebtId.toString());
     }
 
+    int? backendRenegotiationId;
+    final rawRenegotiationId = map['backendRenegotiationId'];
+    if (rawRenegotiationId is num) {
+      backendRenegotiationId = rawRenegotiationId.toInt();
+    } else if (rawRenegotiationId != null) {
+      backendRenegotiationId = int.tryParse(rawRenegotiationId.toString());
+    }
+
     int? backendUserId;
     final rawUserId = map['backendUserId'] ?? map['userId'];
     if (rawUserId is num) {
@@ -2318,6 +2345,7 @@ class Client {
       email: map['email']?.toString(),
       avatarUrl: map['avatarUrl']?.toString(),
       backendPrimaryDebtId: backendPrimaryDebtId,
+      backendRenegotiationId: backendRenegotiationId,
       name: map['name']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
       borrowedAmount: _readDouble(map['borrowedAmount']),
@@ -12505,6 +12533,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       email: email,
       avatarUrl: avatarUrl,
       backendPrimaryDebtId: backendPrimaryDebtId,
+      backendRenegotiationId:
+          _optionalInt(activeRenegotiation?['id']) ?? previous?.backendRenegotiationId,
       name: clientItem['name']?.toString() ?? previous?.name ?? '',
       phone: clientItem['phone']?.toString() ?? previous?.phone ?? '',
       borrowedAmount: principalAmount,
@@ -21597,6 +21627,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             },
           ),
 
+          if (client.isNegotiated && client.backendRenegotiationId != null)
+            _ActionChip(
+              icon: Icons.undo_rounded,
+              label: 'Cancelar acordo',
+              color: const Color(0xFF9CA3AF),
+              onTap: () {
+                Navigator.pop(context);
+                _cancelRenegotiation(client);
+              },
+            ),
+
           _ActionChip(
             icon: Icons.copy_all_rounded,
             label: 'Duplicar e editar',
@@ -24764,6 +24805,50 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       );
     }
     _showSnack('A renegociacao foi aplicada e o novo acordo já esta valendo.', tone: _FeedbackTone.success, title: 'Dívida renegociada');
+  }
+
+  Future<void> _cancelRenegotiation(Client client) async {
+    final renegotiationId = client.backendRenegotiationId;
+    if (renegotiationId == null) {
+      _showSnack(
+        'Nao encontrei o codigo da renegociacao para cancelar.',
+        tone: _FeedbackTone.warning,
+        title: 'Renegociacao indisponivel',
+      );
+      return;
+    }
+
+    final confirmed = await _confirmDestructiveAction(
+      title: 'Cancelar renegociacao',
+      message:
+          'O acordo atual sera cancelado e as dividas originais voltarao para a carteira ativa com calculo atualizado pela data. Deseja continuar?',
+      confirmLabel: 'Cancelar acordo',
+    );
+    if (!confirmed) return;
+
+    try {
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        throw ApiException(statusCode: 401, message: 'Sessao expirada');
+      }
+
+      await ApiService.cancelRenegotiation(
+        token: token,
+        renegotiationId: renegotiationId,
+      );
+      await _refreshClientsFromBackend(updateLoading: false);
+      _showSnack(
+        'A renegociacao foi cancelada e as dividas originais foram reativadas.',
+        tone: _FeedbackTone.success,
+        title: 'Acordo cancelado',
+      );
+    } catch (e) {
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel cancelar o acordo.',
+        tone: _FeedbackTone.error,
+        title: 'Falha ao cancelar',
+      );
+    }
   }
 
   PaymentRecord? _applyPayment({
