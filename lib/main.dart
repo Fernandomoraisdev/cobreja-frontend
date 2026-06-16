@@ -1522,6 +1522,7 @@ class ApiService {
     required DateTime newDueDate,
     List<int> debtIds = const [],
     double? multiplier,
+    List<Map<String, dynamic>> splitPayments = const [],
     required int installmentCount,
     required DateTime startedAt,
     String? dailyInterestMode,
@@ -1541,6 +1542,7 @@ class ApiService {
         'startedAt': startedAt.toIso8601String(),
         if (debtIds.isNotEmpty) 'debtIds': debtIds,
         if (multiplier != null && multiplier > 0) 'multiplier': multiplier,
+        if (splitPayments.isNotEmpty) 'splitPayments': splitPayments,
         if (dailyInterestMode != null) 'dailyInterestMode': dailyInterestMode,
         if (dailyInterestValue != null) 'dailyInterestValue': dailyInterestValue,
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
@@ -9517,6 +9519,10 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                     final amount = _readDouble(installment['amount']);
                     final status =
                         installment['status']?.toString().toUpperCase() ?? 'PENDING';
+                    final splits =
+                        (installment['splits'] as List<dynamic>? ?? const [])
+                            .whereType<Map<String, dynamic>>()
+                            .toList();
                     final remaining = math.max(0, amount - paidAmount).toDouble();
                     final statusLabel = switch (status) {
                       'PAID' => 'Paga',
@@ -9529,9 +9535,12 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                         installmentDueDate != null &&
                         installmentDueDate.isAfter(DateTime.now());
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Row(
+                            children: [
                           Expanded(
                             child: Text(
                               'Parcela ${installment['installmentNumber']} • ${installmentDueDate == null ? 'sem vencimento' : DateFormat('dd/MM/yyyy').format(installmentDueDate)}',
@@ -9561,6 +9570,39 @@ class _ClientDebtsListState extends State<_ClientDebtsList> {
                               icon: const Icon(Icons.pix_rounded, size: 18),
                               label: const Text('Pagar Pix'),
                             ),
+                            ],
+                            ],
+                          ),
+                          if (splits.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...splits.map((split) {
+                              final splitDueDate = DateTime.tryParse(
+                                split['dueDate']?.toString() ?? '',
+                              );
+                              final splitAmount = _readDouble(split['amount']);
+                              final splitPaid = _readDouble(split['paidAmount']);
+                              final splitRemaining =
+                                  math.max(0, splitAmount - splitPaid).toDouble();
+                              final splitStatus =
+                                  split['status']?.toString().toUpperCase() ?? 'PENDING';
+                              final splitLabel = switch (splitStatus) {
+                                'PAID' => 'Paga',
+                                'OVERDUE' => 'Em atraso',
+                                'PARTIAL' => 'Parcial',
+                                _ => 'Pendente',
+                              };
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 4, left: 12),
+                                child: Text(
+                                  'Parte ${split['splitNumber']} - ${splitDueDate == null ? 'sem vencimento' : DateFormat('dd/MM/yyyy').format(splitDueDate)} - ${_currency(splitRemaining)} - $splitLabel',
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              );
+                            }),
                           ],
                         ],
                       ),
@@ -24356,12 +24398,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final installmentsController = TextEditingController(text: '10');
     final extraAmountController = TextEditingController();
     final customTotalController = TextEditingController();
+    final splitFirstDayController = TextEditingController(text: '5');
+    final splitSecondDayController = TextEditingController(text: '20');
     final dailyLateController = TextEditingController(
       text: client.dailyInterestType == InterestValueType.fixedAmount
           ? client.dailyInterestAmount.toStringAsFixed(2)
           : client.dailyInterestRate.toStringAsFixed(2),
     );
     InterestValueType dailyLateType = client.dailyInterestType;
+    bool splitInstallments = false;
     DateTime renegotiationDate = DateTime.now();
     DateTime firstInstallmentDate = DateTime.now().add(const Duration(days: 30));
 
@@ -24417,6 +24462,46 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: splitInstallments,
+                  onChanged: (value) => setDialog(() => splitInstallments = value),
+                  title: const Text('Dividir cada parcela em duas datas'),
+                  subtitle: const Text(
+                    'Ex.: metade no dia 5 e metade no dia 20 do mesmo mes.',
+                  ),
+                ),
+                if (splitInstallments) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: splitFirstDayController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setDialog(() {}),
+                          decoration: const InputDecoration(
+                            labelText: '1a data do mes',
+                            hintText: '5',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: splitSecondDayController,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setDialog(() {}),
+                          decoration: const InputDecoration(
+                            labelText: '2a data do mes',
+                            hintText: '20',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
                 TextField(
                   controller: extraAmountController,
                   keyboardType: TextInputType.number,
@@ -24453,6 +24538,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     final installmentValue = installments <= 0
                         ? 0.0
                         : negotiatedTotal / installments;
+                    final firstSplitDay =
+                        int.tryParse(splitFirstDayController.text.trim()) ?? 5;
+                    final secondSplitDay =
+                        int.tryParse(splitSecondDayController.text.trim()) ?? 20;
+                    final splitValue = installmentValue / 2;
                     final multiplierLabel = multiplier > 0
                         ? multiplier.toStringAsFixed(
                             multiplier.truncateToDouble() == multiplier
@@ -24490,6 +24580,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
+                          if (splitInstallments && installmentValue > 0) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Dividido em: ${_currency(splitValue)} no dia $firstSplitDay + ${_currency(splitValue)} no dia $secondSplitDay',
+                              style: const TextStyle(
+                                color: Color(0xFFC4B5FD),
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 6),
                           Text(
                             'Total final do acordo: ${_currency(negotiatedTotal)}',
@@ -24645,6 +24745,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final installments =
                     int.tryParse(installmentsController.text.trim()) ?? 0;
                 final extraAmount = _readDouble(extraAmountController.text);
+                final firstSplitDay =
+                    int.tryParse(splitFirstDayController.text.trim()) ?? 0;
+                final secondSplitDay =
+                    int.tryParse(splitSecondDayController.text.trim()) ?? 0;
                 final customTotal = _readDouble(customTotalController.text);
                 final negotiatedTotal = customTotal > 0
                     ? customTotal
@@ -24656,6 +24760,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   return;
                 }
 
+                if (splitInstallments &&
+                    (firstSplitDay < 1 ||
+                        firstSplitDay > 31 ||
+                        secondSplitDay < 1 ||
+                        secondSplitDay > 31 ||
+                        firstSplitDay == secondSplitDay)) {
+                  _showSnack(
+                    'Informe duas datas diferentes entre 1 e 31 para dividir a parcela.',
+                    tone: _FeedbackTone.warning,
+                    title: 'Datas invalidas',
+                  );
+                  return;
+                }
+
                 _renegotiateClient(
                   client: client,
                   multiplier: multiplier,
@@ -24664,6 +24782,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   customNegotiatedTotal: customTotal > 0 ? customTotal : null,
                   debtIds: debtIds,
                   installmentCount: installments,
+                  splitPayments: splitInstallments
+                      ? [
+                          {'dayOfMonth': firstSplitDay},
+                          {'dayOfMonth': secondSplitDay},
+                        ]
+                      : const [],
                   renegotiatedAt: renegotiationDate,
                   firstInstallmentDate: firstInstallmentDate,
                   renegotiationDailyInterestType: dailyLateType,
@@ -24703,6 +24827,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     double? customNegotiatedTotal,
     List<int> debtIds = const [],
     required int installmentCount,
+    List<Map<String, dynamic>> splitPayments = const [],
     required DateTime renegotiatedAt,
     required DateTime firstInstallmentDate,
     required InterestValueType renegotiationDailyInterestType,
@@ -24730,8 +24855,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             suffix: 'a.d.',
           );
     final double safeMultiplier = multiplier <= 0 ? 1.0 : multiplier;
+    final splitScheduleNote = splitPayments.isEmpty
+        ? ''
+        : ' Parcelas divididas nos dias ${splitPayments.map((item) => item['dayOfMonth']).join(' e ')} de cada mes.';
     final renegotiationNote =
-        'Renegociação ${debtIds.length > 1 ? 'de ${debtIds.length} dívidas' : 'de dívida'} em ${installmentCount}x de ${_currency(installmentAmount)}. Total selecionado: ${_currency(baseDebtTotal)}. Total novo: ${_currency(negotiatedTotal)}.${extraAmount > 0 ? ' Valor extra: ${_currency(extraAmount)}.' : ''}${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${safeMultiplier.toStringAsFixed(safeMultiplier.truncateToDouble() == safeMultiplier ? 0 : 2)}x.'} Início: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diário: $dailyLateRule.';
+        'Renegociação ${debtIds.length > 1 ? 'de ${debtIds.length} dívidas' : 'de dívida'} em ${installmentCount}x de ${_currency(installmentAmount)}. Total selecionado: ${_currency(baseDebtTotal)}. Total novo: ${_currency(negotiatedTotal)}.${extraAmount > 0 ? ' Valor extra: ${_currency(extraAmount)}.' : ''}${customNegotiatedTotal != null && customNegotiatedTotal > 0 ? ' Valor final definido manualmente.' : ' Multiplicador aplicado: ${safeMultiplier.toStringAsFixed(safeMultiplier.truncateToDouble() == safeMultiplier ? 0 : 2)}x.'}$splitScheduleNote Início: ${DateFormat('dd/MM/yyyy').format(renegotiatedAt)}. Primeiro vencimento: ${DateFormat('dd/MM/yyyy').format(firstInstallmentDate)}. Atraso diário: $dailyLateRule.';
 
     client.paymentHistory = [
       PaymentRecord(
@@ -24795,6 +24923,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             ? null
             : safeMultiplier,
         installmentCount: installmentCount,
+        splitPayments: splitPayments,
         startedAt: renegotiatedAt,
         dailyInterestMode:
             renegotiationDailyInterestType == InterestValueType.fixedAmount
@@ -25047,6 +25176,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     List<int> debtIds = const [],
     double? multiplier,
     required int installmentCount,
+    List<Map<String, dynamic>> splitPayments = const [],
     required DateTime startedAt,
     required String dailyInterestMode,
     required double dailyInterestValue,
@@ -25063,6 +25193,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         debtIds: debtIds,
         multiplier: multiplier,
         installmentCount: installmentCount,
+        splitPayments: splitPayments,
         startedAt: startedAt,
         dailyInterestMode: dailyInterestMode,
         dailyInterestValue: dailyInterestValue,
