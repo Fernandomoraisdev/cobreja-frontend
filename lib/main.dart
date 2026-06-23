@@ -5568,25 +5568,34 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                         behavior: HitTestBehavior.translucent,
                         onPointerMove: _handleSuperAdminPointerMove,
                         onPointerSignal: _handleSuperAdminPointerSignal,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Stack(
                           children: [
-                            _buildCollapsibleSuperAdminHeader(compact: compact),
-                            if (_showMobileHeader)
-                              const SizedBox(height: AppSpacing.lg),
-                            Expanded(
-                              child: NotificationListener<ScrollNotification>(
-                                onNotification: (notification) {
-                                  _handleSuperAdminScroll(
-                                    notification,
-                                    autoHideHeader: true,
-                                  );
-                                  return false;
-                                },
-                                child: content,
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildCollapsibleSuperAdminHeader(compact: compact),
+                                if (_showMobileHeader)
+                                  const SizedBox(height: AppSpacing.lg),
+                                Expanded(
+                                  child: NotificationListener<ScrollNotification>(
+                                    onNotification: (notification) {
+                                      _handleSuperAdminScroll(
+                                        notification,
+                                        autoHideHeader: true,
+                                      );
+                                      return false;
+                                    },
+                                    child: content,
+                                  ),
+                                ),
+                              ],
                             ),
-                            if (_showMobileHeader) _SuperAdminFooter(),
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: IgnorePointer(child: _SuperAdminFooter()),
+                            ),
                           ],
                         ),
                       ),
@@ -5621,6 +5630,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       onRefresh: _load,
       color: AppColors.secondary,
       child: ListView(
+        padding: const EdgeInsets.only(bottom: 82),
         children: [
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -16458,26 +16468,36 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             behavior: HitTestBehavior.translucent,
                             onPointerMove: _handleMainPointerMove,
                             onPointerSignal: _handleMainPointerSignal,
-                            child: Column(
+                            child: Stack(
                               children: [
-                                _buildCollapsibleTopBar(
-                                  showMenuButton: isCompact,
-                                  autoHideHeader: autoHideHeader,
+                                Column(
+                                  children: [
+                                    _buildCollapsibleTopBar(
+                                      showMenuButton: isCompact,
+                                      autoHideHeader: autoHideHeader,
+                                    ),
+                                    Expanded(
+                                      child: NotificationListener<ScrollNotification>(
+                                        onNotification: (notification) {
+                                          _handleMainScroll(
+                                            notification,
+                                            autoHideHeader: autoHideHeader,
+                                          );
+                                          return false;
+                                        },
+                                        child: _buildSectionBody(),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Expanded(
-                                  child: NotificationListener<ScrollNotification>(
-                                    onNotification: (notification) {
-                                      _handleMainScroll(
-                                        notification,
-                                        autoHideHeader: autoHideHeader,
-                                      );
-                                      return false;
-                                    },
-                                    child: _buildSectionBody(),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: IgnorePointer(
+                                    child: _buildDeveloperFooter(compact: true),
                                   ),
                                 ),
-                                if (!autoHideHeader || _showMobileHeader)
-                                  _buildDeveloperFooter(compact: autoHideHeader),
                               ],
                             ),
                           ),
