@@ -61,7 +61,10 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = 'https://cobreja-backend-production.up.railway.app';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://cobreja-backend-production.up.railway.app',
+  );
 
   static String _errorMessageFromBody(String body) {
     try {
@@ -116,6 +119,7 @@ class ApiService {
     required String password,
     String? cpf,
     String? phone,
+    String? adminSignupCode,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/register'),
@@ -126,6 +130,8 @@ class ApiService {
         'password': password,
         if (cpf != null && cpf.trim().isNotEmpty) 'cpf': cpf.trim(),
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (adminSignupCode != null && adminSignupCode.trim().isNotEmpty)
+          'adminSignupCode': adminSignupCode.trim(),
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -2180,6 +2186,7 @@ class Client {
   String? avatarUrl;
   int? backendPrimaryDebtId;
   int? backendRenegotiationId;
+  int? backendCurrentInstallmentId;
   String name;
   String phone;
   double borrowedAmount;
@@ -2223,6 +2230,7 @@ class Client {
     this.avatarUrl,
     this.backendPrimaryDebtId,
     this.backendRenegotiationId,
+    this.backendCurrentInstallmentId,
     required this.name,
     required this.phone,
     required this.borrowedAmount,
@@ -2271,6 +2279,7 @@ class Client {
       'avatarUrl': avatarUrl,
       'backendPrimaryDebtId': backendPrimaryDebtId,
       'backendRenegotiationId': backendRenegotiationId,
+      'backendCurrentInstallmentId': backendCurrentInstallmentId,
       'name': name,
       'phone': phone,
       'borrowedAmount': borrowedAmount,
@@ -2331,6 +2340,14 @@ class Client {
       backendRenegotiationId = int.tryParse(rawRenegotiationId.toString());
     }
 
+    int? backendCurrentInstallmentId;
+    final rawCurrentInstallmentId = map['backendCurrentInstallmentId'];
+    if (rawCurrentInstallmentId is num) {
+      backendCurrentInstallmentId = rawCurrentInstallmentId.toInt();
+    } else if (rawCurrentInstallmentId != null) {
+      backendCurrentInstallmentId = int.tryParse(rawCurrentInstallmentId.toString());
+    }
+
     int? backendUserId;
     final rawUserId = map['backendUserId'] ?? map['userId'];
     if (rawUserId is num) {
@@ -2348,6 +2365,7 @@ class Client {
       avatarUrl: map['avatarUrl']?.toString(),
       backendPrimaryDebtId: backendPrimaryDebtId,
       backendRenegotiationId: backendRenegotiationId,
+      backendCurrentInstallmentId: backendCurrentInstallmentId,
       name: map['name']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
       borrowedAmount: _readDouble(map['borrowedAmount']),
@@ -3853,7 +3871,8 @@ class _AuthGatePageState extends State<AuthGatePage> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _registerAsClient = true;
+  bool _registerAsClient = false;
+  bool _registerAsSuperAdmin = false;
   int _failedAttempts = 0;
   DateTime? _lockedUntil;
   UserAccount? _sessionAccount;
@@ -3865,6 +3884,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _inviteCodeController = TextEditingController();
+  final _adminSignupCodeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -3894,11 +3914,13 @@ void _showError(String msg) {
       _inviteCodeController.text = inviteFromUrl.trim().toUpperCase();
       _isRegisterMode = true;
       _registerAsClient = true;
+      _registerAsSuperAdmin = false;
       _clientInviteMode = true;
     }
     if (_inviteAccountId != null) {
       _isRegisterMode = true;
       _registerAsClient = true;
+      _registerAsSuperAdmin = false;
       _clientInviteMode = true;
     }
     if (widget.savedAccount != null) {
@@ -3909,7 +3931,14 @@ void _showError(String msg) {
 // Cadastro remoto usado pela tela de login.
 Future<bool> register(String name, String email, String password) async {
   try {
-    await ApiService.register(name: name, email: email, password: password);
+    await ApiService.register(
+      name: name,
+      email: email,
+      password: password,
+      cpf: _cpfController.text.trim(),
+      phone: _phoneController.text.trim(),
+      adminSignupCode: _adminSignupCodeController.text.trim(),
+    );
     _lastAuthError = null;
     return true;
   } catch (e) {
@@ -4044,6 +4073,7 @@ Future<bool> login(String identifier, String password) async {
     _phoneController.dispose();
     _addressController.dispose();
     _inviteCodeController.dispose();
+    _adminSignupCodeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -4103,6 +4133,12 @@ Future<bool> login(String identifier, String password) async {
         );
         return;
       }
+    } else if (_adminSignupCodeController.text.trim().isEmpty) {
+      _showAuthMessage(
+        'Codigo obrigatorio',
+        'Informe o codigo de cadastro admin configurado no backend.',
+      );
+      return;
     }
     if (!_isStrongPassword(password)) {
       _showAuthMessage(
@@ -4594,18 +4630,36 @@ Future<bool> login(String identifier, String password) async {
                 ),
               )
             else
-              SegmentedButton<bool>(
+              SegmentedButton<String>(
                 segments: const [
-                  ButtonSegment<bool>(
-                    value: true,
+                  ButtonSegment<String>(
+                    value: 'SUPER_ADMIN',
+                    label: Text('Super Admin'),
+                    icon: Icon(Icons.workspace_premium_rounded),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'ADMIN',
+                    label: Text('Admin'),
+                    icon: Icon(Icons.admin_panel_settings_rounded),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'CLIENT',
                     label: Text('Cliente'),
                     icon: Icon(Icons.person_rounded),
                   ),
                 ],
-                selected: {_registerAsClient},
+                selected: {
+                  _registerAsClient
+                      ? 'CLIENT'
+                      : _registerAsSuperAdmin
+                          ? 'SUPER_ADMIN'
+                          : 'ADMIN',
+                },
                 onSelectionChanged: (values) {
+                  final value = values.first;
                   setState(() {
-                    _registerAsClient = true;
+                    _registerAsClient = value == 'CLIENT';
+                    _registerAsSuperAdmin = value == 'SUPER_ADMIN';
                   });
                 },
               ),
@@ -4646,6 +4700,44 @@ Future<bool> login(String identifier, String password) async {
                   hintText: 'Enviado pelo administrador',
                 ),
               ),
+              const SizedBox(height: 12),
+            ] else ...[
+              TextField(
+                controller: _cpfController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'CPF (opcional)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(labelText: 'Telefone (opcional)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _adminSignupCodeController,
+                obscureText: true,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: _registerAsSuperAdmin
+                      ? 'Codigo de cadastro super admin'
+                      : 'Codigo de cadastro admin',
+                  hintText: 'Mesmo valor configurado em ADMIN_SIGNUP_CODE',
+                ),
+              ),
+              if (_registerAsSuperAdmin) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Para entrar como Super Admin, este email tambem precisa estar em SUPER_ADMIN_EMAILS no backend.',
+                  style: TextStyle(
+                    color: Color(0xFFB8B2C7),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
             ],
           ],
@@ -12587,6 +12679,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       backendPrimaryDebtId: backendPrimaryDebtId,
       backendRenegotiationId:
           _optionalInt(activeRenegotiation?['id']) ?? previous?.backendRenegotiationId,
+      backendCurrentInstallmentId:
+          _optionalInt(nextInstallment?['id']) ?? previous?.backendCurrentInstallmentId,
       name: clientItem['name']?.toString() ?? previous?.name ?? '',
       phone: clientItem['phone']?.toString() ?? previous?.phone ?? '',
       borrowedAmount: principalAmount,
@@ -14957,7 +15051,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 (item) =>
                     !_isExcludedClient(item) &&
                     !_isQuitadoClient(item) &&
-                    item.isNegotiated,
+                    (item.isNegotiated || item.status == 'renegociado'),
               )
               .toList();
           break;
@@ -14985,7 +15079,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case _ClientQuickFilter.renegociados:
           return !_isExcludedClient(client) &&
               !_isQuitadoClient(client) &&
-              client.isNegotiated;
+              (client.isNegotiated || client.status == 'renegociado');
       }
     }).toList();
 
@@ -21649,50 +21743,55 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               },
             ),
 
-          _ActionChip(
-            icon: Icons.currency_exchange_rounded,
-            label: 'Pagou juros',
-            color: AppColors.warning,
-            onTap: () {
-              Navigator.pop(context);
-              _registerInterestSettlement(client);
-            },
-          ),
+          if (client.status != 'renegociado') ...[
+            _ActionChip(
+              icon: Icons.currency_exchange_rounded,
+              label: 'Pagou juros',
+              color: AppColors.warning,
+              onTap: () {
+                Navigator.pop(context);
+                _registerInterestSettlement(client);
+              },
+            ),
 
-          _ActionChip(
-            icon: Icons.payments_rounded,
-            label: 'Pagamento parcial',
-            color: const Color(0xFF080613),
-            onTap: () {
-              Navigator.pop(context);
-              _showPaymentDialog(client);
-            },
-          ),
+            _ActionChip(
+              icon: Icons.payments_rounded,
+              label: 'Pagamento parcial',
+              color: const Color(0xFF080613),
+              onTap: () {
+                Navigator.pop(context);
+                _showPaymentDialog(client);
+              },
+            ),
 
-          _ActionChip(
-            icon: Icons.check_circle_rounded,
-            label: 'Quitar agora',
-            color: const Color(0xFF16A34A),
-            onTap: () {
-              Navigator.pop(context);
-              _settleClient(client);
-            },
-          ),
+            _ActionChip(
+              icon: Icons.check_circle_rounded,
+              label: 'Quitar agora',
+              color: const Color(0xFF16A34A),
+              onTap: () {
+                Navigator.pop(context);
+                _settleClient(client);
+              },
+            ),
 
-          _ActionChip(
-            icon: Icons.restart_alt_rounded,
-            label: 'Renegociar',
-            color: const Color(0xFF7C3AED),
-            onTap: () {
-              Navigator.pop(context);
-              _showRenegotiateDialog(client);
-            },
-          ),
+            _ActionChip(
+              icon: Icons.restart_alt_rounded,
+              label: 'Renegociar',
+              color: const Color(0xFF7C3AED),
+              onTap: () {
+                Navigator.pop(context);
+                _showRenegotiateDialog(client);
+              },
+            ),
+          ],
 
-          if (client.isNegotiated && client.backendRenegotiationId != null)
+          if ((client.isNegotiated || client.status == 'renegociado') &&
+              client.backendRenegotiationId != null)
             _ActionChip(
               icon: Icons.undo_rounded,
-              label: 'Cancelar acordo',
+              label: client.status == 'renegociado'
+                  ? 'Descongelar e recalcular'
+                  : 'Cancelar acordo',
               color: const Color(0xFF9CA3AF),
               onTap: () {
                 Navigator.pop(context);
@@ -21710,7 +21809,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             },
           ),
 
-          _ActionChip(
+          if (client.status != 'renegociado')
+            _ActionChip(
             icon: Icons.message_rounded,
             label: 'Cobrar automático',
             color: const Color(0xFF22C55E),
@@ -24296,6 +24396,26 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final noteController = TextEditingController();
     PaymentMode mode = PaymentMode.automatic;
     final debt = FinanceService.calculateDebt(client);
+    final currentInstallmentId = client.isNegotiated
+        ? client.backendCurrentInstallmentId
+        : null;
+    final currentInstallmentNumber = client.installmentCount <= 0
+        ? 0
+        : math.min(client.installmentsPaid + 1, client.installmentCount);
+    final paidBeforeCurrentInstallment =
+        client.installmentsPaid * client.installmentAmount;
+    final paidInCurrentInstallment =
+        client.isNegotiated && client.installmentAmount > 0
+            ? (client.activePrincipalCollected - paidBeforeCurrentInstallment)
+                .clamp(0.0, client.installmentAmount)
+                .toDouble()
+            : 0.0;
+    final currentInstallmentRemaining =
+        client.isNegotiated && client.installmentAmount > 0
+            ? math.max(0.0, client.installmentAmount - paidInCurrentInstallment)
+            : 0.0;
+    final amountToCloseCurrentInstallment =
+        currentInstallmentRemaining + debt.totalInterestDue;
 
     showDialog(
       context: context,
@@ -24312,8 +24432,35 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
+                if (client.isNegotiated && client.installmentCount > 0) ...[
+                  Text(
+                    'Parcela atual: $currentInstallmentNumber/${client.installmentCount} - ${_currency(client.installmentAmount)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ja pago nesta parcela: ${_currency(paidInCurrentInstallment)} - Falta principal: ${_currency(currentInstallmentRemaining)}',
+                    style: const TextStyle(color: Color(0xFF6B7280)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Para fechar esta parcela hoje: ${_currency(amountToCloseCurrentInstallment)}',
+                    style: const TextStyle(
+                      color: Color(0xFF9333EA),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (currentInstallmentId == null) ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Atualize a tela antes de registrar: esta parcela ainda nao esta vinculada ao backend.',
+                      style: TextStyle(color: Color(0xFFDC2626)),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
                 Text(
-                  'Apenas juros: ${_currency(debt.totalInterestDue)} • '
+                  'Apenas juros: ${_currency(debt.totalInterestDue)} - '
                   'Principal: ${_currency(debt.remainingPrincipal)}',
                   style: const TextStyle(color: Color(0xFF6B7280)),
                 ),
@@ -24373,6 +24520,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   amount: amount,
                   mode: mode,
                   note: noteController.text.trim(),
+                  installmentId: currentInstallmentId,
                 );
                 Navigator.pop(context);
                 _showSnack('O pagamento foi registrado com sucesso no histórico do cliente.', tone: _FeedbackTone.success, title: 'Pagamento salvo');
@@ -24958,6 +25106,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   Future<void> _cancelRenegotiation(Client client) async {
     final renegotiationId = client.backendRenegotiationId;
+    final isFrozenSourceDebt = client.status == 'renegociado';
     if (renegotiationId == null) {
       _showSnack(
         'Nao encontrei o codigo da renegociacao para cancelar.',
@@ -24968,10 +25117,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
 
     final confirmed = await _confirmDestructiveAction(
-      title: 'Cancelar renegociacao',
-      message:
-          'O acordo atual sera cancelado e as dividas originais voltarao para a carteira ativa com calculo atualizado pela data. Deseja continuar?',
-      confirmLabel: 'Cancelar acordo',
+      title: isFrozenSourceDebt ? 'Descongelar dividas' : 'Cancelar renegociacao',
+      message: isFrozenSourceDebt
+          ? 'O acordo atual sera cancelado e as dividas originais voltarao para a carteira ativa com calculo recalculado pela data. Deseja continuar?'
+          : 'O acordo atual sera cancelado e as dividas originais voltarao para a carteira ativa com calculo atualizado pela data. Deseja continuar?',
+      confirmLabel: isFrozenSourceDebt ? 'Descongelar' : 'Cancelar acordo',
     );
     if (!confirmed) return;
 
@@ -24987,9 +25137,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       );
       await _refreshClientsFromBackend(updateLoading: false);
       _showSnack(
-        'A renegociacao foi cancelada e as dividas originais foram reativadas.',
+        isFrozenSourceDebt
+            ? 'As dividas foram descongeladas e voltaram para a carteira ativa.'
+            : 'A renegociacao foi cancelada e as dividas originais foram reativadas.',
         tone: _FeedbackTone.success,
-        title: 'Acordo cancelado',
+        title: isFrozenSourceDebt ? 'Dividas descongeladas' : 'Acordo cancelado',
       );
     } catch (e) {
       _showSnack(
@@ -25005,6 +25157,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     required double amount,
     required PaymentMode mode,
     String note = '',
+    int? installmentId,
   }) {
     final now = DateTime.now();
     final debt = FinanceService.calculateDebt(client, now: now);
@@ -25137,6 +25290,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         amount: paymentRecord.amount,
         type: _backendPaymentType(mode),
         date: paymentRecord.date,
+        installmentId: installmentId,
         note: note,
       );
     }
@@ -26762,7 +26916,9 @@ class _AdminClientGroupProfilePageState
             .where((client) => FinanceService.calculateDebt(client).isOverdue)
             .toList();
       case _ClientProfileFilter.renegociadas:
-        return _clients.where((client) => client.status == 'renegociado').toList();
+        return _clients
+            .where((client) => client.status == 'renegociado' || client.isNegotiated)
+            .toList();
       case _ClientProfileFilter.quitadas:
         return _clients.where((client) => client.status == 'quitado').toList();
     }
@@ -27249,7 +27405,7 @@ class _ClientCard extends StatelessWidget {
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
         : isRenegotiatedSource
-            ? 'Renegociada: ${_currency(client.borrowedAmount)}'
+            ? 'Congelada: fora dos totais'
             : client.status == 'quitado'
                 ? 'Recebido: ${_currency(client.totalInterestCollected + client.totalPrincipalCollected)}'
                 : 'Total: ${_currency(debt.totalDebt)}';
@@ -27257,13 +27413,14 @@ class _ClientCard extends StatelessWidget {
         ? math.min(client.installmentsPaid + 1, client.installmentCount)
         : 0;
     final ratesText = isRenegotiatedSource
-        ? 'Dívida original pausada pelo novo acordo'
+        ? 'Divida original congelada pelo novo acordo'
         : client.isNegotiated
         ? 'Acordo parcelado • atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
         : '${_formatInterestRule(type: client.monthlyInterestType, percentageValue: client.monthlyInterestRate, amountValue: client.monthlyInterestAmount, suffix: 'a.m.')} • ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}';
     final hasInterestBreakdown =
         tabType != 'juros' &&
         client.status != 'quitado' &&
+        !isRenegotiatedSource &&
         (debt.totalInterestDue > 0.009 || debt.lateInterest > 0.009);
     final principalBreakdownText =
         'Principal: ${_currency(debt.remainingPrincipal)} • Juros: ${_currency(debt.cycleInterest)}';
@@ -27348,7 +27505,7 @@ class _ClientCard extends StatelessWidget {
                           ),
                           if (isRenegotiatedSource)
                             const _StatusPill(
-                              text: 'Renegociada',
+                              text: 'Congelada',
                               color: Color(0xFF9CA3AF),
                             ),
                           if (client.isNegotiated &&
@@ -27459,6 +27616,8 @@ class _ClientCard extends StatelessWidget {
                         style: TextStyle(
                           color: tabType == 'juros'
                               ? AppColors.warning
+                              : isRenegotiatedSource
+                                  ? const Color(0xFF9CA3AF)
                               : client.status == 'quitado'
                                   ? const Color(0xFF16A34A)
                                   : debt.isOverdue
@@ -27474,7 +27633,8 @@ class _ClientCard extends StatelessWidget {
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    PopupMenuButton<String>(
+                    if (!isRenegotiatedSource)
+                      PopupMenuButton<String>(
                         tooltip: 'Opções de cobrança no WhatsApp',
                         onSelected: (value) {
                           if (value == 'single') {
@@ -27509,7 +27669,8 @@ class _ClientCard extends StatelessWidget {
                           size: compact ? 24 : 28,
                         ),
                       ),
-                    const SizedBox(height: 10),
+                    if (!isRenegotiatedSource)
+                      const SizedBox(height: 10),
                     const Icon(Icons.chevron_right_rounded),
                   ],
                 ),
