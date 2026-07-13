@@ -382,6 +382,24 @@ class ApiService {
     return response.body;
   }
 
+  static Future<Map<String, dynamic>> restoreSuperAdminOperationsBackup({
+    required String token,
+    required Map<String, dynamic> backup,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/super-admin/operations/restore'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({'backup': backup}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<Map<String, dynamic>> updateSuperAdminAccountStatus({
     required String token,
     required int accountId,
@@ -5601,6 +5619,132 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
     }
   }
 
+  Future<void> _restoreOperationsBackupFromContent(String rawBackup) async {
+    final token = await _token();
+    if (token == null) return;
+
+    final raw = rawBackup.trim();
+    if (raw.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cole ou selecione um backup antes de restaurar.')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Backup invalido.');
+      }
+
+      final result = await ApiService.restoreSuperAdminOperationsBackup(
+        token: token,
+        backup: decoded,
+      );
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? 'Backup restaurado com sucesso.'),
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e is ApiException
+              ? e.message
+              : 'Nao foi possivel restaurar esse backup.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickOperationsBackupFile(TextEditingController controller) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.single;
+      final content = file.bytes == null ? null : utf8.decode(file.bytes!);
+      if (content == null || content.trim().isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nao foi possivel ler esse arquivo de backup.')),
+        );
+        return;
+      }
+      controller.text = content;
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao selecionar o arquivo de backup.')),
+      );
+    }
+  }
+
+  Future<void> _showRestoreOperationsBackupDialog() async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Restaurar backup global'),
+          content: SizedBox(
+            width: 620,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'A restauracao substitui os dados atuais pelo backup global selecionado.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : () => _pickOperationsBackupFile(controller),
+                  icon: const Icon(Icons.upload_file_rounded),
+                  label: const Text('Selecionar arquivo .json'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: controller,
+                  minLines: 7,
+                  maxLines: 10,
+                  decoration: const InputDecoration(
+                    labelText: 'Ou cole o JSON do backup global',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _saving ? null : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: _saving
+                  ? null
+                  : () => _restoreOperationsBackupFromContent(controller.text),
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Restaurar'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -5773,6 +5917,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
           onDownloadAccountBackup: _saving
               ? null
               : (accountId) => _downloadOperationsBackup(accountId: accountId),
+          onRestoreGlobalBackup:
+              _saving ? null : _showRestoreOperationsBackupDialog,
         );
       case _SuperAdminSection.empresas:
         return _SuperAdminCompaniesSection(
@@ -6235,6 +6381,7 @@ class _SuperAdminOperationsView extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback? onDownloadGlobalBackup;
   final Future<void> Function(int accountId)? onDownloadAccountBackup;
+  final VoidCallback? onRestoreGlobalBackup;
 
   const _SuperAdminOperationsView({
     required this.health,
@@ -6243,6 +6390,7 @@ class _SuperAdminOperationsView extends StatelessWidget {
     required this.onRefresh,
     required this.onDownloadGlobalBackup,
     required this.onDownloadAccountBackup,
+    required this.onRestoreGlobalBackup,
   });
 
   int _intValue(dynamic value) {
@@ -6334,6 +6482,11 @@ class _SuperAdminOperationsView extends StatelessWidget {
                     onPressed: onDownloadGlobalBackup,
                     icon: const Icon(Icons.download_for_offline_rounded),
                     label: const Text('Baixar backup global'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onRestoreGlobalBackup,
+                    icon: const Icon(Icons.restore_rounded),
+                    label: const Text('Restaurar backup'),
                   ),
                 ],
               );
