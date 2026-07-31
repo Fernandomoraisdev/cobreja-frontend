@@ -1420,6 +1420,7 @@ class ApiService {
     required double principalAmount,
     required DateTime borrowedAt,
     required DateTime dueDate,
+    String? debtType,
     String? title,
     String? monthlyInterestMode,
     double? monthlyInterestValue,
@@ -1434,6 +1435,8 @@ class ApiService {
         'principalAmount': principalAmount,
         'borrowedAt': borrowedAt.toIso8601String(),
         'dueDate': dueDate.toIso8601String(),
+        if (debtType != null && debtType.trim().isNotEmpty)
+          'debtType': debtType.trim(),
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (monthlyInterestMode != null && monthlyInterestMode.trim().isNotEmpty)
           'monthlyInterestMode': monthlyInterestMode.trim(),
@@ -1460,6 +1463,7 @@ class ApiService {
     required double principalAmount,
     required DateTime borrowedAt,
     required DateTime dueDate,
+    String? debtType,
     String? title,
     String? monthlyInterestMode,
     double? monthlyInterestValue,
@@ -1473,6 +1477,8 @@ class ApiService {
         'principalAmount': principalAmount,
         'borrowedAt': borrowedAt.toIso8601String(),
         'dueDate': dueDate.toIso8601String(),
+        if (debtType != null && debtType.trim().isNotEmpty)
+          'debtType': debtType.trim(),
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (monthlyInterestMode != null && monthlyInterestMode.trim().isNotEmpty)
           'monthlyInterestMode': monthlyInterestMode.trim(),
@@ -2292,6 +2298,7 @@ class Client {
   int? backendPrimaryDebtId;
   int? backendRenegotiationId;
   int? backendCurrentInstallmentId;
+  DebtBusinessType debtType;
   String name;
   String phone;
   double borrowedAmount;
@@ -2337,6 +2344,7 @@ class Client {
     this.backendPrimaryDebtId,
     this.backendRenegotiationId,
     this.backendCurrentInstallmentId,
+    this.debtType = DebtBusinessType.loan,
     required this.name,
     required this.phone,
     required this.borrowedAmount,
@@ -2387,6 +2395,7 @@ class Client {
       'backendPrimaryDebtId': backendPrimaryDebtId,
       'backendRenegotiationId': backendRenegotiationId,
       'backendCurrentInstallmentId': backendCurrentInstallmentId,
+      'debtType': debtType.backendValue,
       'name': name,
       'phone': phone,
       'borrowedAmount': borrowedAmount,
@@ -2473,6 +2482,7 @@ class Client {
       backendPrimaryDebtId: backendPrimaryDebtId,
       backendRenegotiationId: backendRenegotiationId,
       backendCurrentInstallmentId: backendCurrentInstallmentId,
+      debtType: _debtBusinessTypeFromString(map['debtType']?.toString()),
       name: map['name']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
       borrowedAmount: _readDouble(map['borrowedAmount']),
@@ -2527,6 +2537,40 @@ class Client {
 enum PaymentMode { interestOnly, principalOnly, automatic, settlement }
 
 enum InterestValueType { percentage, fixedAmount }
+
+enum DebtBusinessType { loan, installmentSale, service, manualAgreement }
+
+extension DebtBusinessTypeExtension on DebtBusinessType {
+  String get backendValue => switch (this) {
+    DebtBusinessType.loan => 'LOAN',
+    DebtBusinessType.installmentSale => 'INSTALLMENT_SALE',
+    DebtBusinessType.service => 'SERVICE',
+    DebtBusinessType.manualAgreement => 'MANUAL_AGREEMENT',
+  };
+
+  String get label => switch (this) {
+    DebtBusinessType.loan => 'Emprestimo',
+    DebtBusinessType.installmentSale => 'Venda parcelada',
+    DebtBusinessType.service => 'Servico',
+    DebtBusinessType.manualAgreement => 'Acordo manual',
+  };
+
+  bool get allowsMonthlyInterest => this == DebtBusinessType.loan;
+}
+
+DebtBusinessType _debtBusinessTypeFromString(String? value) {
+  switch ((value ?? '').trim().toUpperCase()) {
+    case 'INSTALLMENT_SALE':
+      return DebtBusinessType.installmentSale;
+    case 'SERVICE':
+      return DebtBusinessType.service;
+    case 'MANUAL_AGREEMENT':
+      return DebtBusinessType.manualAgreement;
+    case 'LOAN':
+    default:
+      return DebtBusinessType.loan;
+  }
+}
 
 enum _FeedbackTone { success, warning, error, info }
 
@@ -13169,6 +13213,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           _optionalInt(activeRenegotiation?['id']) ?? previous?.backendRenegotiationId,
       backendCurrentInstallmentId:
           _optionalInt(nextInstallment?['id']) ?? previous?.backendCurrentInstallmentId,
+      debtType: _debtBusinessTypeFromString(primaryDebt['debtType']?.toString()),
       name: clientItem['name']?.toString() ?? previous?.name ?? '',
       phone: clientItem['phone']?.toString() ?? previous?.phone ?? '',
       borrowedAmount: principalAmount,
@@ -16269,6 +16314,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 principalAmount: client.borrowedAmount,
                 borrowedAt: client.borrowedDate,
                 dueDate: client.dueDate,
+                debtType: client.debtType.backendValue,
                 monthlyInterestMode: monthlyMode,
                 monthlyInterestValue: monthlyValue,
                 dailyInterestMode: dailyMode,
@@ -16304,6 +16350,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   principalAmount: client.borrowedAmount,
                   borrowedAt: client.borrowedDate,
                   dueDate: client.dueDate,
+                  debtType: client.debtType.backendValue,
                   monthlyInterestMode: monthlyMode,
                   monthlyInterestValue: monthlyValue,
                   dailyInterestMode: dailyMode,
@@ -16316,6 +16363,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   principalAmount: client.borrowedAmount,
                   borrowedAt: client.borrowedDate,
                   dueDate: client.dueDate,
+                  debtType: client.debtType.backendValue,
                   monthlyInterestMode: monthlyMode,
                   monthlyInterestValue: monthlyValue,
                   dailyInterestMode: dailyMode,
@@ -16408,6 +16456,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         principalAmount: client.borrowedAmount,
         borrowedAt: client.borrowedDate,
         dueDate: client.dueDate,
+        debtType: client.debtType.backendValue,
         monthlyInterestMode: monthlyMode,
         monthlyInterestValue: monthlyValue,
         dailyInterestMode: dailyMode,
@@ -21054,6 +21103,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         baseClient?.monthlyInterestType ?? InterestValueType.percentage;
     InterestValueType dailyInterestType =
         baseClient?.dailyInterestType ?? InterestValueType.percentage;
+    DebtBusinessType selectedDebtType =
+        baseClient?.debtType ?? DebtBusinessType.loan;
     DateTime selectedBorrowedDate = baseClient?.borrowedDate ?? DateTime.now();
     DateTime selectedDueDate =
         baseClient?.dueDate ?? DateTime.now().add(const Duration(days: 30));
@@ -21123,8 +21174,40 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   controller: amountController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Valor emprestado',
+                    labelText: 'Valor',
                   ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Tipo da divida',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: const [
+                    DebtBusinessType.loan,
+                    DebtBusinessType.installmentSale,
+                    DebtBusinessType.service,
+                  ].map((type) {
+                    return _buildModeChip(
+                      label: type.label,
+                      selected: selectedDebtType == type,
+                      onTap: () => setDialog(() {
+                        selectedDebtType = type;
+                        if (!type.allowsMonthlyInterest) {
+                          monthlyInterestType = InterestValueType.fixedAmount;
+                          monthlyController.text = '0';
+                        }
+                      }),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 12),
                 Align(
@@ -21144,16 +21227,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     _buildModeChip(
                       label: 'Em %',
                       selected: monthlyInterestType == InterestValueType.percentage,
-                      onTap: () => setDialog(
+                      onTap: selectedDebtType.allowsMonthlyInterest
+                          ? () => setDialog(
                         () => monthlyInterestType = InterestValueType.percentage,
-                      ),
+                      )
+                          : null,
                     ),
                     _buildModeChip(
                       label: 'Em R\$',
                       selected: monthlyInterestType == InterestValueType.fixedAmount,
-                      onTap: () => setDialog(
+                      onTap: selectedDebtType.allowsMonthlyInterest
+                          ? () => setDialog(
                         () => monthlyInterestType = InterestValueType.fixedAmount,
-                      ),
+                      )
+                          : null,
                     ),
                   ],
                 ),
@@ -21161,10 +21248,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 TextField(
                   controller: monthlyController,
                   keyboardType: TextInputType.number,
+                  enabled: selectedDebtType.allowsMonthlyInterest,
                   decoration: InputDecoration(
                     labelText: monthlyInterestType == InterestValueType.fixedAmount
                         ? 'Juros mensal (R\$)'
                         : 'Juros mensal (%)',
+                    helperText: selectedDebtType.allowsMonthlyInterest
+                        ? null
+                        : 'Este tipo nao usa juros mensal.',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -21547,6 +21638,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final normalizedEmail = emailController.text.trim();
                 final normalizedAddress = addressController.text.trim();
                 final normalizedAvatar = avatarController.text.trim();
+                final allowsMonthlyInterest =
+                    selectedDebtType.allowsMonthlyInterest;
                 final client = Client(
                   id: isEditing
                       ? baseClient!.id
@@ -21559,18 +21652,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   email: normalizedEmail.isEmpty ? null : normalizedEmail,
                   address: normalizedAddress.isEmpty ? null : normalizedAddress,
                   avatarUrl: normalizedAvatar.isEmpty ? null : normalizedAvatar,
+                  debtType: selectedDebtType,
                   name: nameController.text.trim(),
                   phone: phoneController.text.trim(),
                   borrowedAmount: _readDouble(amountController.text),
                   monthlyInterestRate:
-                      monthlyInterestType == InterestValueType.percentage
+                      allowsMonthlyInterest &&
+                              monthlyInterestType == InterestValueType.percentage
                           ? _readDouble(monthlyController.text)
                           : 0,
                   monthlyInterestAmount:
-                      monthlyInterestType == InterestValueType.fixedAmount
+                      allowsMonthlyInterest &&
+                              monthlyInterestType == InterestValueType.fixedAmount
                           ? _readDouble(monthlyController.text)
                           : 0,
-                  monthlyInterestType: monthlyInterestType,
+                  monthlyInterestType: allowsMonthlyInterest
+                      ? monthlyInterestType
+                      : InterestValueType.fixedAmount,
                   dailyInterestRate:
                       dailyInterestType == InterestValueType.percentage
                           ? _readDouble(dailyController.text)
@@ -22195,7 +22293,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildSummaryGrid(Client client, DebtSummary debt) {
       final items = [
         _SummaryItem(
-          debt.isNegotiated ? 'Empréstimo original' : 'Empréstimo',
+          debt.isNegotiated ? 'Inicio do acordo' : client.debtType.label,
           DateFormat('dd/MM/yyyy').format(client.borrowedDate),
         ),
         _SummaryItem('Principal em aberto', _currency(debt.remainingPrincipal)),
@@ -22203,6 +22301,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         _SummaryItem('Juros por atraso', _currency(debt.lateInterest)),
         _SummaryItem('Apenas juros', _currency(debt.totalInterestDue)),
         _SummaryItem('Total atualizado', _currency(debt.totalDebt)),
+        if (!debt.isNegotiated)
+          _SummaryItem('Tipo', client.debtType.label),
         if (!debt.isNegotiated)
           _SummaryItem(
             'Juros mensal',
@@ -25924,14 +26024,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   Widget _buildModeChip({
     required String label,
     required bool selected,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return Tooltip(
-      message: 'Selecionar: $label',
+      message: onTap == null ? '$label indisponivel para este tipo' : 'Selecionar: $label',
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
-        onSelected: (_) => onTap(),
+        onSelected: onTap == null ? null : (_) => onTap(),
       ),
     );
   }
@@ -28523,6 +28623,11 @@ class _ClientCard extends StatelessWidget {
         : client.isNegotiated
         ? 'Acordo parcelado • atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
         : '${_formatInterestRule(type: client.monthlyInterestType, percentageValue: client.monthlyInterestRate, amountValue: client.monthlyInterestAmount, suffix: 'a.m.')} • ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}';
+    final displayRatesText = !isRenegotiatedSource &&
+            !client.isNegotiated &&
+            !client.debtType.allowsMonthlyInterest
+        ? '${client.debtType.label} - sem juros mensal - atraso ${_formatInterestRule(type: client.dailyInterestType, percentageValue: client.dailyInterestRate, amountValue: client.dailyInterestAmount, suffix: 'a.d.')}'
+        : ratesText;
     final hasInterestBreakdown =
         tabType != 'juros' &&
         client.status != 'quitado' &&
@@ -28614,6 +28719,11 @@ class _ClientCard extends StatelessWidget {
                               text: 'Congelada',
                               color: Color(0xFF9CA3AF),
                             ),
+                          if (!client.isNegotiated && !isRenegotiatedSource)
+                            _StatusPill(
+                              text: client.debtType.label,
+                              color: const Color(0xFF38BDF8),
+                            ),
                           if (client.isNegotiated &&
                               client.installmentCount > 0)
                             _StatusPill(
@@ -28656,7 +28766,7 @@ class _ClientCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        ratesText,
+                        displayRatesText,
                         style: TextStyle(
                           color: mutedColor,
                           fontSize: compact ? 11 : 12,
