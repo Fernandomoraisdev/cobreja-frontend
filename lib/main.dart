@@ -382,6 +382,43 @@ class ApiService {
     return response.body;
   }
 
+  static Future<List<Map<String, dynamic>>> fetchSuperAdminOperationsBackups({
+    required String token,
+    int? accountId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/super-admin/operations/backups').replace(
+      queryParameters: accountId == null ? null : {'accountId': '$accountId'},
+    );
+    final response = await http.get(
+      uri,
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadList(response.body);
+  }
+
+  static Future<String> downloadSuperAdminOperationsBackupSnapshot({
+    required String token,
+    required int snapshotId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/super-admin/operations/backups/$snapshotId/download'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return response.body;
+  }
+
   static Future<Map<String, dynamic>> restoreSuperAdminOperationsBackup({
     required String token,
     required Map<String, dynamic> backup,
@@ -390,6 +427,23 @@ class ApiService {
       Uri.parse('$baseUrl/api/super-admin/operations/restore'),
       headers: _jsonHeaders(token: token),
       body: jsonEncode({'backup': backup}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
+  static Future<Map<String, dynamic>> restoreSuperAdminOperationsBackupSnapshot({
+    required String token,
+    required int snapshotId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/super-admin/operations/backups/$snapshotId/restore'),
+      headers: _jsonHeaders(token: token),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
@@ -1453,6 +1507,23 @@ class ApiService {
         message: _errorMessageFromBody(response.body),
       );
     }
+  }
+
+  static Future<Map<String, dynamic>> restoreDebt({
+    required String token,
+    required int debtId,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/debt/$debtId/restore'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
   }
 
   static Future<Map<String, dynamic>> createPayment({
@@ -5015,6 +5086,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
   List<Map<String, dynamic>> _supportTickets = [];
   List<Map<String, dynamic>> _logs = [];
   List<Map<String, dynamic>> _webhooks = [];
+  List<Map<String, dynamic>> _backupSnapshots = [];
   Map<String, dynamic>? _operationsHealth;
   _SuperAdminSection _selectedSection = _SuperAdminSection.painel;
   bool _loading = true;
@@ -5074,6 +5146,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         optional('Logs', ApiService.fetchSuperAdminLogs(token: token)),
         optional('Webhooks', ApiService.fetchSuperAdminWebhooks(token: token)),
         optional('Operacoes', ApiService.fetchSuperAdminOperationsHealth(token: token)),
+        optional('Backups', ApiService.fetchSuperAdminOperationsBackups(token: token)),
       ]);
       if (!mounted) return;
       setState(() {
@@ -5104,6 +5177,9 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         _operationsHealth = results[8] is Map<String, dynamic>
             ? results[8] as Map<String, dynamic>
             : _operationsHealth;
+        _backupSnapshots = ((results[9] as List<dynamic>?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
         _loading = false;
         _error = results[0] == null && (_overview?.isEmpty ?? true)
             ? (loadErrors.isEmpty ? 'Falha ao carregar painel global.' : loadErrors.first)
@@ -5709,6 +5785,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
 
   Future<void> _showRestoreOperationsBackupDialog() async {
     final controller = TextEditingController();
+    final confirmController = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -5739,6 +5816,13 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
                     alignLabelWithHint: true,
                   ),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                const Text('Digite RESTAURAR para confirmar a substituicao dos dados atuais.'),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: confirmController,
+                  decoration: const InputDecoration(labelText: 'Confirmacao'),
+                ),
               ],
             ),
           ),
@@ -5750,7 +5834,15 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
             FilledButton.icon(
               onPressed: _saving
                   ? null
-                  : () => _restoreOperationsBackupFromContent(controller.text),
+                  : () {
+                      if (confirmController.text.trim() != 'RESTAURAR') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Confirmacao invalida.')),
+                        );
+                        return;
+                      }
+                      _restoreOperationsBackupFromContent(controller.text);
+                    },
               icon: const Icon(Icons.restore_rounded),
               label: const Text('Restaurar'),
             ),
@@ -5759,6 +5851,121 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
       },
     );
     controller.dispose();
+    confirmController.dispose();
+  }
+
+  int? _optionalInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value == null) return null;
+    return int.tryParse(value.toString());
+  }
+
+  Future<void> _downloadOperationsBackupSnapshot(Map<String, dynamic> snapshot) async {
+    final token = await _token();
+    final id = _optionalInt(snapshot['id']);
+    if (token == null || id == null) return;
+
+    setState(() => _saving = true);
+    try {
+      final content = await ApiService.downloadSuperAdminOperationsBackupSnapshot(
+        token: token,
+        snapshotId: id,
+      );
+      final fileName = snapshot['fileName']?.toString().trim().isNotEmpty == true
+          ? snapshot['fileName'].toString()
+          : _operationsBackupFileName();
+      final path = await saveFileBytes(
+        bytes: Uint8List.fromList(utf8.encode(content)),
+        fileName: fileName,
+        mimeType: 'application/json',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(path == null ? 'Backup baixado.' : 'Backup salvo em $path')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message : 'Falha ao baixar backup.')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _restoreOperationsBackupSnapshot(Map<String, dynamic> snapshot) async {
+    final token = await _token();
+    final id = _optionalInt(snapshot['id']);
+    if (token == null || id == null) return;
+
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restaurar backup salvo'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Backup: ${snapshot['fileName'] ?? 'Snapshot $id'}'),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Antes da restauracao, o sistema cria outro backup de seguranca do estado atual.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text('Digite RESTAURAR para confirmar.'),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'Confirmacao'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim() == 'RESTAURAR'),
+            icon: const Icon(Icons.restore_rounded),
+            label: const Text('Restaurar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (confirmed != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Restauracao cancelada.')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final result = await ApiService.restoreSuperAdminOperationsBackupSnapshot(
+        token: token,
+        snapshotId: id,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? 'Backup restaurado.')),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message : 'Falha ao restaurar backup.')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -5926,6 +6133,7 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         return _SuperAdminOperationsView(
           health: _operationsHealth ?? const <String, dynamic>{},
           accounts: _accounts,
+          backupSnapshots: _backupSnapshots,
           saving: _saving,
           onRefresh: _load,
           onDownloadGlobalBackup:
@@ -5935,6 +6143,8 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
               : (accountId) => _downloadOperationsBackup(accountId: accountId),
           onRestoreGlobalBackup:
               _saving ? null : _showRestoreOperationsBackupDialog,
+          onDownloadSnapshot: _saving ? null : _downloadOperationsBackupSnapshot,
+          onRestoreSnapshot: _saving ? null : _restoreOperationsBackupSnapshot,
         );
       case _SuperAdminSection.empresas:
         return _SuperAdminCompaniesSection(
@@ -6393,20 +6603,26 @@ class _SuperHeroStat extends StatelessWidget {
 class _SuperAdminOperationsView extends StatelessWidget {
   final Map<String, dynamic> health;
   final List<Map<String, dynamic>> accounts;
+  final List<Map<String, dynamic>> backupSnapshots;
   final bool saving;
   final VoidCallback onRefresh;
   final VoidCallback? onDownloadGlobalBackup;
   final Future<void> Function(int accountId)? onDownloadAccountBackup;
   final VoidCallback? onRestoreGlobalBackup;
+  final Future<void> Function(Map<String, dynamic> snapshot)? onDownloadSnapshot;
+  final Future<void> Function(Map<String, dynamic> snapshot)? onRestoreSnapshot;
 
   const _SuperAdminOperationsView({
     required this.health,
     required this.accounts,
+    required this.backupSnapshots,
     required this.saving,
     required this.onRefresh,
     required this.onDownloadGlobalBackup,
     required this.onDownloadAccountBackup,
     required this.onRestoreGlobalBackup,
+    required this.onDownloadSnapshot,
+    required this.onRestoreSnapshot,
   });
 
   int _intValue(dynamic value) {
@@ -6562,6 +6778,11 @@ class _SuperAdminOperationsView extends StatelessWidget {
                   label: 'Pix gerados',
                   value: '${_intValue(counts['paymentIntents'])}',
                 ),
+                _OperationKpi(
+                  icon: Icons.history_rounded,
+                  label: 'Backups salvos',
+                  value: '${_intValue(counts['backupSnapshots'])}',
+                ),
               ],
             );
           },
@@ -6588,7 +6809,87 @@ class _SuperAdminOperationsView extends StatelessWidget {
             _EnvironmentLine(label: 'BACKEND_PUBLIC_URL', active: _boolValue(environment['hasBackendPublicUrl'])),
             _EnvironmentLine(label: 'MERCADO_PAGO_ACCESS_TOKEN', active: _boolValue(environment['hasMercadoPagoAccessToken'])),
             _EnvironmentLine(label: 'MERCADO_PAGO_WEBHOOK_SECRET', active: _boolValue(environment['hasMercadoPagoWebhookSecret'])),
+            _EnvironmentLine(label: 'BACKUP AUTOMATICO DIARIO', active: environment['autoBackupEnabled'] != false),
           ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _OperationsPanel(
+          title: 'Historico de backups',
+          icon: Icons.restore_page_rounded,
+          children: backupSnapshots.isEmpty
+              ? const [
+                  Text(
+                    'Nenhum backup salvo no historico ainda. Baixe um backup global para criar o primeiro registro.',
+                    style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w700),
+                  ),
+                ]
+              : backupSnapshots.take(10).map((snapshot) {
+                  final createdAt = DateTime.tryParse(snapshot['createdAt']?.toString() ?? '');
+                  final counts = snapshot['counts'] is Map<String, dynamic>
+                      ? snapshot['counts'] as Map<String, dynamic>
+                      : const <String, dynamic>{};
+                  final kind = snapshot['kind']?.toString() ?? 'MANUAL';
+                  final clients = _intValue(counts['clients']);
+                  final debts = _intValue(counts['debts']);
+                  final payments = _intValue(counts['payments']);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF100B18),
+                        borderRadius: BorderRadius.circular(AppRadii.lg),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.backup_rounded, color: AppColors.secondary),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  snapshot['fileName']?.toString() ?? 'Backup',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${createdAt == null ? 'Data indisponivel' : DateFormat('dd/MM/yyyy HH:mm').format(createdAt)} | $kind | $clients clientes | $debts dividas | $payments pagamentos',
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: saving || onDownloadSnapshot == null
+                                ? null
+                                : () => onDownloadSnapshot!(snapshot),
+                            icon: const Icon(Icons.download_rounded),
+                            label: const Text('Baixar'),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          FilledButton.icon(
+                            onPressed: saving || onRestoreSnapshot == null
+                                ? null
+                                : () => onRestoreSnapshot!(snapshot),
+                            icon: const Icon(Icons.restore_rounded),
+                            label: const Text('Restaurar'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
         ),
         const SizedBox(height: AppSpacing.lg),
         _OperationsPanel(
@@ -12814,6 +13115,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         (tabs['excluded'] == true);
     final selectedDebtStatus =
         primaryDebt['status']?.toString().toUpperCase() ?? '';
+    final selectedDebtDeletedAt = selectedDebt?['deletedAt'];
+    final isExcludedDebtBackend =
+        selectedDebtStatus == 'EXCLUDED' ||
+            (selectedDebtDeletedAt != null && selectedDebtDeletedAt.toString().isNotEmpty);
     final isRenegotiatedSourceDebt =
         selectedDebtStatus == 'RENEGOTIATED' && !isPrimaryNegotiated;
     final isQuitadoBackend =
@@ -12826,7 +13131,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
     final status = isExcludedBackend
         ? 'excluído'
-        : (isRenegotiatedSourceDebt ? 'renegociado' : (isQuitadoBackend ? 'quitado' : (isDevendoBackend ? 'devendo' : (details.isEmpty ? (previous?.status ?? 'devendo') : 'ativo'))));
+        : (isExcludedDebtBackend ? 'debito_excluido' : (isRenegotiatedSourceDebt ? 'renegociado' : (isQuitadoBackend ? 'quitado' : (isDevendoBackend ? 'devendo' : (details.isEmpty ? (previous?.status ?? 'devendo') : 'ativo')))));
 
     final backendUserId =
         _optionalInt(details['userId'] ?? clientItem['userId']) ?? previous?.backendUserId;
@@ -12932,9 +13237,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               kind != 'RENEGOTIATED' &&
               (deletedAt == null || deletedAt.toString().isEmpty);
         }).toList();
+        final excludedDebts = debts.where((debt) {
+          final status = debt['status']?.toString().toUpperCase();
+          final deletedAt = debt['deletedAt'];
+          return status == 'EXCLUDED' ||
+              (deletedAt != null && deletedAt.toString().isNotEmpty);
+        }).toList();
         final displayDebts = [
           ...rawActiveDebts,
           ...renegotiatedSourceDebts,
+          ...excludedDebts,
         ];
 
         if (displayDebts.length > 1) {
@@ -15132,7 +15444,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   bool _isExcludedClient(Client client) =>
-      client.status == 'excluído' || client.status == 'excluido';
+      client.status == 'excluído' ||
+      client.status == 'excluido' ||
+      client.status == 'debito_excluido';
 
   bool _isQuitadoClient(Client client) =>
       !_isExcludedClient(client) &&
@@ -15318,6 +15632,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     });
   }
 
+  Client? _selectedClientRecord(String id, {bool preferExcludedDebt = false}) {
+    if (preferExcludedDebt) {
+      for (final client in _clients) {
+        if (client.id == id && client.status == 'debito_excluido') return client;
+      }
+    }
+    for (final client in _clients) {
+      if (client.id == id) return client;
+    }
+    return null;
+  }
+
   Future<void> _permanentlyDeleteSelectedClients() async {
     final confirmed = await _confirmDestructiveAction(
       title: 'Eliminar selecionados',
@@ -15331,6 +15657,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (token == null || token.isEmpty) return;
 
     for (final id in _selectedClientIds.toList()) {
+      final selected = _selectedClientRecord(id, preferExcludedDebt: true);
+      if (selected?.status == 'debito_excluido') continue;
       final clientId = int.tryParse(id);
       if (clientId == null) continue;
       try {
@@ -15340,7 +15668,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       }
     }
 
-    _clients.removeWhere((client) => _selectedClientIds.contains(client.id));
+    _clients.removeWhere(
+      (client) => _selectedClientIds.contains(client.id) && client.status != 'debito_excluido',
+    );
     await _refreshClientsFromBackend();
     await fetchDashboard();
     _clearBulkSelection();
@@ -16146,6 +16476,47 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         e is ApiException ? e.message : 'Nao foi possivel remover este debito.',
         tone: _FeedbackTone.error,
         title: 'Falha ao remover',
+      );
+    }
+  }
+
+  Future<void> _restoreExcludedDebt(Client client) async {
+    final debtId = client.backendPrimaryDebtId;
+    if (debtId == null) {
+      _showSnack(
+        'Nao foi possivel identificar este debito para restaurar.',
+        tone: _FeedbackTone.error,
+        title: 'Debito invalido',
+      );
+      return;
+    }
+
+    try {
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        throw const ApiException(
+          statusCode: 0,
+          message: 'Sessao expirada. Entre novamente para restaurar o debito.',
+        );
+      }
+
+      await ApiService.restoreDebt(token: token, debtId: debtId);
+      await _refreshClientsFromBackend(updateLoading: true);
+      await fetchDashboard();
+      if (!mounted) return;
+      setState(() {});
+      _showSnack(
+        'O debito voltou para a carteira e os valores foram recalculados.',
+        tone: _FeedbackTone.success,
+        title: 'Debito restaurado',
+      );
+    } catch (e) {
+      debugPrint('Falha ao restaurar debito no backend: $e');
+      if (!mounted) return;
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel restaurar este debito.',
+        tone: _FeedbackTone.error,
+        title: 'Falha ao restaurar',
       );
     }
   }
@@ -17314,13 +17685,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (!confirmed) return;
 
     for (final id in _selectedClientIds.toList()) {
-      await _restoreExcludedClient(id, showFeedback: false);
+      final selected = _selectedClientRecord(id, preferExcludedDebt: true);
+      if (selected?.status == 'debito_excluido') {
+        await _restoreExcludedDebt(selected!);
+      } else {
+        await _restoreExcludedClient(id, showFeedback: false);
+      }
     }
     _clearBulkSelection();
     _showSnack(
       'Os registros selecionados foram removidos da área de excluídos e voltaram para a carteira.',
       tone: _FeedbackTone.success,
-      title: 'Clientes removidos dos excluídos',
+      title: 'Registros restaurados',
     );
   }
 
@@ -21900,6 +22276,41 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   Widget _buildActions(Client client, DebtSummary debt) {
+  if (client.status == 'debito_excluido') {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Acoes rapidas',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _ActionChip(
+              icon: Icons.restore_from_trash_rounded,
+              label: 'Restaurar debito',
+              color: const Color(0xFF2563EB),
+              onTap: () async {
+                final confirmed = await _confirmDestructiveAction(
+                  title: 'Restaurar debito',
+                  message:
+                      'Este debito voltara para a carteira e os valores serao recalculados.',
+                  confirmLabel: 'Restaurar',
+                );
+                if (!confirmed) return;
+                await _restoreExcludedDebt(client);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -26881,7 +27292,7 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-enum _ClientProfileFilter { todas, ativas, emAtraso, renegociadas, quitadas }
+enum _ClientProfileFilter { todas, ativas, emAtraso, renegociadas, quitadas, excluidas }
 
 class _ClientGroupCard extends StatelessWidget {
   final String name;
@@ -27114,7 +27525,7 @@ class _AdminClientGroupProfilePageState
   List<Client> _filteredClients() {
     switch (_filter) {
       case _ClientProfileFilter.todas:
-        return _clients;
+        return _clients.where((client) => client.status != 'debito_excluido').toList();
       case _ClientProfileFilter.ativas:
         return _clients.where((client) => client.status == 'devendo').toList();
       case _ClientProfileFilter.emAtraso:
@@ -27137,6 +27548,8 @@ class _AdminClientGroupProfilePageState
             .toList();
       case _ClientProfileFilter.quitadas:
         return _clients.where((client) => client.status == 'quitado').toList();
+      case _ClientProfileFilter.excluidas:
+        return _clients.where((client) => client.status == 'debito_excluido').toList();
     }
   }
 
@@ -27185,7 +27598,10 @@ class _AdminClientGroupProfilePageState
     final allNegotiableTotal = _sumDebts(negotiableDebts);
 
     final summaries = _clients
-        .where((client) => client.status != 'excluido' && client.status != 'excluído')
+        .where((client) =>
+            client.status != 'excluido' &&
+            client.status != 'excluído' &&
+            client.status != 'debito_excluido')
         .map((client) => FinanceService.calculateDebt(client))
         .toList();
 
@@ -27311,6 +27727,11 @@ class _AdminClientGroupProfilePageState
                   label: 'Quitadas',
                   selected: _filter == _ClientProfileFilter.quitadas,
                   onTap: () => setState(() => _filter = _ClientProfileFilter.quitadas),
+                ),
+                _ProfileFilterChip(
+                  label: 'Excluidas',
+                  selected: _filter == _ClientProfileFilter.excluidas,
+                  onTap: () => setState(() => _filter = _ClientProfileFilter.excluidas),
                 ),
               ],
             ),
@@ -27601,7 +28022,10 @@ class _ClientCard extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final compact = screenWidth < 520;
     final isRenegotiatedSource = client.status == 'renegociado';
-    final highlightColor = isRenegotiatedSource
+    final isExcludedDebt = client.status == 'debito_excluido';
+    final highlightColor = isExcludedDebt
+        ? const Color(0xFF9CA3AF)
+        : isRenegotiatedSource
         ? const Color(0xFF9CA3AF)
         : client.status == 'quitado'
             ? const Color(0xFF16A34A)
@@ -27620,6 +28044,8 @@ class _ClientCard extends StatelessWidget {
 
     final valueText = tabType == 'juros'
         ? 'Apenas juros: ${_currency(debt.totalInterestDue)}'
+        : isExcludedDebt
+            ? 'Excluida: fora dos totais'
         : isRenegotiatedSource
             ? 'Congelada: fora dos totais'
             : client.status == 'quitado'
