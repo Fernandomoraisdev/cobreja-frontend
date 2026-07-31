@@ -15248,8 +15248,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case _ClientQuickFilter.venceHoje:
           return !_isExcludedClient(client) &&
               !_isQuitadoClient(client) &&
-              !client.isNegotiated &&
-              !client.pagouJuros &&
+              (client.isNegotiated || !client.pagouJuros) &&
               debt.isDueToday;
         case _ClientQuickFilter.renegociados:
           return _isRenegotiatedVisibleClient(client);
