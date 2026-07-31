@@ -1383,7 +1383,7 @@ class ApiService {
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (monthlyInterestMode != null && monthlyInterestMode.trim().isNotEmpty)
           'monthlyInterestMode': monthlyInterestMode.trim(),
-        if (monthlyInterestValue != null && monthlyInterestValue > 0)
+        if (monthlyInterestValue != null && monthlyInterestValue >= 0)
           'monthlyInterestValue': monthlyInterestValue,
         if (dailyInterestMode != null && dailyInterestMode.trim().isNotEmpty)
           'dailyInterestMode': dailyInterestMode.trim(),
@@ -1422,7 +1422,7 @@ class ApiService {
         if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
         if (monthlyInterestMode != null && monthlyInterestMode.trim().isNotEmpty)
           'monthlyInterestMode': monthlyInterestMode.trim(),
-        if (monthlyInterestValue != null && monthlyInterestValue > 0)
+        if (monthlyInterestValue != null && monthlyInterestValue >= 0)
           'monthlyInterestValue': monthlyInterestValue,
         if (dailyInterestMode != null && dailyInterestMode.trim().isNotEmpty)
           'dailyInterestMode': dailyInterestMode.trim(),
@@ -1437,6 +1437,22 @@ class ApiService {
       );
     }
     return _extractPayloadMap(response.body);
+  }
+
+  static Future<void> deleteDebt({
+    required String token,
+    required int debtId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/debt/$debtId'),
+      headers: _jsonHeaders(token: token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
   }
 
   static Future<Map<String, dynamic>> createPayment({
@@ -12908,11 +12924,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           return status == 'ACTIVE' &&
               (deletedAt == null || deletedAt.toString().isEmpty);
         }).toList();
-        final activeRenegotiatedDebts = rawActiveDebts
-            .where((debt) => debt['kind']?.toString().toUpperCase() == 'RENEGOTIATED')
-            .toList();
-        final activeDebts =
-            activeRenegotiatedDebts.isNotEmpty ? activeRenegotiatedDebts : rawActiveDebts;
         final renegotiatedSourceDebts = debts.where((debt) {
           final status = debt['status']?.toString().toUpperCase();
           final kind = debt['kind']?.toString().toUpperCase();
@@ -12921,9 +12932,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               kind != 'RENEGOTIATED' &&
               (deletedAt == null || deletedAt.toString().isEmpty);
         }).toList();
-        final displayDebts = activeRenegotiatedDebts.isNotEmpty
-            ? [...activeRenegotiatedDebts, ...renegotiatedSourceDebts]
-            : activeDebts;
+        final displayDebts = [
+          ...rawActiveDebts,
+          ...renegotiatedSourceDebts,
+        ];
 
         if (displayDebts.length > 1) {
           expandedClients.addAll(
@@ -15130,6 +15142,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       client.pagouJuros ||
       client.paymentHistory.any((payment) => payment.type == 'Pagamento de juros');
 
+  bool _isRenegotiatedVisibleClient(Client client) {
+    if (_isExcludedClient(client) || _isQuitadoClient(client)) {
+      return false;
+    }
+    if (client.isNegotiated || client.status == 'renegociado') {
+      return true;
+    }
+    return client.backendDebts.any((debt) {
+      final status = debt['status']?.toString().toUpperCase();
+      final kind = debt['kind']?.toString().toUpperCase();
+      final deletedAt = debt['deletedAt'];
+      final isVisible = deletedAt == null || deletedAt.toString().isEmpty;
+      return isVisible &&
+          (kind == 'RENEGOTIATED' || status == 'RENEGOTIATED');
+    });
+  }
+
   bool _isOverdueClient(Client client) {
     if (_isExcludedClient(client) || _isQuitadoClient(client) || client.isNegotiated) {
       return false;
@@ -15199,14 +15228,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           filteredClients = _clients.where(_isExcludedClient).toList();
           break;
         case 'renegociados':
-          filteredClients = _clients
-              .where(
-                (item) =>
-                    !_isExcludedClient(item) &&
-                    !_isQuitadoClient(item) &&
-                    (item.isNegotiated || item.status == 'renegociado'),
-              )
-              .toList();
+          filteredClients = _clients.where(_isRenegotiatedVisibleClient).toList();
           break;
         default:
           filteredClients = _clients.where((item) => item.status == tabType).toList();
@@ -15230,9 +15252,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               !client.pagouJuros &&
               debt.isDueToday;
         case _ClientQuickFilter.renegociados:
-          return !_isExcludedClient(client) &&
-              !_isQuitadoClient(client) &&
-              (client.isNegotiated || client.status == 'renegociado');
+          return _isRenegotiatedVisibleClient(client);
       }
     }).toList();
 
@@ -15843,27 +15863,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     double? dailyValue;
     if (syncDebt) {
       if (client.monthlyInterestType == InterestValueType.fixedAmount) {
-        if (client.monthlyInterestAmount > 0) {
-          monthlyMode = 'FIXED';
-          monthlyValue = client.monthlyInterestAmount;
-        }
+        monthlyMode = 'FIXED';
+        monthlyValue = math.max(0, client.monthlyInterestAmount);
       } else {
-        if (client.monthlyInterestRate > 0) {
-          monthlyMode = 'PERCENTAGE';
-          monthlyValue = client.monthlyInterestRate;
-        }
+        monthlyMode = 'PERCENTAGE';
+        monthlyValue = math.max(0, client.monthlyInterestRate);
       }
 
       if (client.dailyInterestType == InterestValueType.fixedAmount) {
-        if (client.dailyInterestAmount > 0) {
-          dailyMode = 'FIXED';
-          dailyValue = client.dailyInterestAmount;
-        }
+        dailyMode = 'FIXED';
+        dailyValue = math.max(0, client.dailyInterestAmount);
       } else {
-        if (client.dailyInterestRate > 0) {
-          dailyMode = 'PERCENTAGE';
-          dailyValue = client.dailyInterestRate;
-        }
+        dailyMode = 'PERCENTAGE';
+        dailyValue = math.max(0, client.dailyInterestRate);
       }
     }
 
@@ -16009,25 +16021,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     String? monthlyMode;
     double? monthlyValue;
     if (client.monthlyInterestType == InterestValueType.fixedAmount) {
-      if (client.monthlyInterestAmount > 0) {
-        monthlyMode = 'FIXED';
-        monthlyValue = client.monthlyInterestAmount;
-      }
-    } else if (client.monthlyInterestRate > 0) {
+      monthlyMode = 'FIXED';
+      monthlyValue = math.max(0, client.monthlyInterestAmount);
+    } else {
       monthlyMode = 'PERCENTAGE';
-      monthlyValue = client.monthlyInterestRate;
+      monthlyValue = math.max(0, client.monthlyInterestRate);
     }
 
     String? dailyMode;
     double? dailyValue;
     if (client.dailyInterestType == InterestValueType.fixedAmount) {
-      if (client.dailyInterestAmount > 0) {
-        dailyMode = 'FIXED';
-        dailyValue = client.dailyInterestAmount;
-      }
-    } else if (client.dailyInterestRate > 0) {
+      dailyMode = 'FIXED';
+      dailyValue = math.max(0, client.dailyInterestAmount);
+    } else {
       dailyMode = 'PERCENTAGE';
-      dailyValue = client.dailyInterestRate;
+      dailyValue = math.max(0, client.dailyInterestRate);
     }
 
     try {
@@ -16096,6 +16104,47 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       debugPrint('Falha ao remover cliente no backend: $e');
       _showSnack(
         'Não foi possível remover o cliente no backend.',
+        tone: _FeedbackTone.error,
+        title: 'Falha ao remover',
+      );
+    }
+  }
+
+  Future<void> _deleteDebt(Client client) async {
+    final debtId = client.backendPrimaryDebtId;
+    if (debtId == null) {
+      _showSnack(
+        'Nao foi possivel identificar este debito para excluir.',
+        tone: _FeedbackTone.error,
+        title: 'Debito invalido',
+      );
+      return;
+    }
+
+    try {
+      final token = await _readAuthToken();
+      if (token == null || token.isEmpty) {
+        throw const ApiException(
+          statusCode: 0,
+          message: 'Sessao expirada. Entre novamente para excluir o debito.',
+        );
+      }
+
+      await ApiService.deleteDebt(token: token, debtId: debtId);
+      await _refreshClientsFromBackend(updateLoading: true);
+      await fetchDashboard();
+      if (!mounted) return;
+      setState(() {});
+      _showSnack(
+        'Somente este debito foi excluido.',
+        tone: _FeedbackTone.success,
+        title: 'Debito excluido',
+      );
+    } catch (e) {
+      debugPrint('Falha ao remover debito no backend: $e');
+      if (!mounted) return;
+      _showSnack(
+        e is ApiException ? e.message : 'Nao foi possivel remover este debito.',
         tone: _FeedbackTone.error,
         title: 'Falha ao remover',
       );
@@ -21990,15 +22039,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             color: const Color(0xFFDC2626),
             onTap: () async {
               final confirmed = await _confirmDestructiveAction(
-                title: 'Excluir cliente',
-                message:
-                    'Esse cliente vai para a lista de excluídos.',
+                title: 'Excluir debito',
+                message: 'Somente este debito sera removido da carteira desta pessoa.',
                 confirmLabel: 'Excluir',
               );
               if (!confirmed) return;
-              _deleteClient(client.id);
-
-              setState(() {}); //  força atualizar lista
+              await _deleteDebt(client);
 
               Navigator.pop(context);
             },
@@ -25095,6 +25141,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   return;
                 }
 
+                if (debtIds.isEmpty) {
+                  _showSnack(
+                    'Nao foi possivel identificar as dividas selecionadas. Atualize a tela e tente novamente.',
+                    tone: _FeedbackTone.error,
+                    title: 'Selecao invalida',
+                  );
+                  return;
+                }
+
                 _renegotiateClient(
                   client: client,
                   multiplier: multiplier,
@@ -27070,7 +27125,17 @@ class _AdminClientGroupProfilePageState
             .toList();
       case _ClientProfileFilter.renegociadas:
         return _clients
-            .where((client) => client.status == 'renegociado' || client.isNegotiated)
+            .where((client) =>
+                client.status == 'renegociado' ||
+                client.isNegotiated ||
+                client.backendDebts.any((debt) {
+                  final status = debt['status']?.toString().toUpperCase();
+                  final kind = debt['kind']?.toString().toUpperCase();
+                  final deletedAt = debt['deletedAt'];
+                  final isVisible = deletedAt == null || deletedAt.toString().isEmpty;
+                  return isVisible &&
+                      (kind == 'RENEGOTIATED' || status == 'RENEGOTIATED');
+                }))
             .toList();
       case _ClientProfileFilter.quitadas:
         return _clients.where((client) => client.status == 'quitado').toList();
