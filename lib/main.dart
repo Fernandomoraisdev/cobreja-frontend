@@ -25240,6 +25240,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     );
     InterestValueType dailyLateType = client.dailyInterestType;
     bool splitInstallments = false;
+    bool savingRenegotiation = false;
     DateTime renegotiationDate = DateTime.now();
     DateTime firstInstallmentDate = DateTime.now().add(const Duration(days: 30));
 
@@ -25569,11 +25570,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: savingRenegotiation ? null : () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: savingRenegotiation ? null : () async {
                 final multiplier = _readDouble(multiplierController.text);
                 final installments =
                     int.tryParse(installmentsController.text.trim()) ?? 0;
@@ -25616,6 +25617,58 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   return;
                 }
 
+                final clientId = int.tryParse(client.id);
+                final token = await _readAuthToken();
+                if (clientId != null && token != null && token.isNotEmpty) {
+                  setDialog(() => savingRenegotiation = true);
+                  try {
+                    await ApiService.createRenegotiation(
+                      token: token,
+                      clientId: clientId,
+                      newTotal: negotiatedTotal,
+                      newDueDate: firstInstallmentDate,
+                      debtIds: debtIds,
+                      multiplier: customTotal > 0
+                          ? null
+                          : (multiplier <= 0 ? 1.0 : multiplier),
+                      installmentCount: installments,
+                      splitPayments: splitInstallments
+                          ? [
+                              {'dayOfMonth': firstSplitDay},
+                              {'dayOfMonth': secondSplitDay},
+                            ]
+                          : const [],
+                      startedAt: renegotiationDate,
+                      dailyInterestMode:
+                          dailyLateType == InterestValueType.fixedAmount
+                              ? 'FIXED'
+                              : 'PERCENTAGE',
+                      dailyInterestValue: _readDouble(dailyLateController.text),
+                      note:
+                          'Renegociacao ${debtIds.length > 1 ? 'de ${debtIds.length} dividas' : 'de divida'} em ${installments}x. Total selecionado: ${_currency(baseDebtTotal)}. Total novo: ${_currency(negotiatedTotal)}.',
+                    );
+                    await _refreshClientsFromBackend(updateLoading: true);
+                    await fetchDashboard();
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    _showSnack(
+                      'A renegociacao foi aplicada e confirmada no backend.',
+                      tone: _FeedbackTone.success,
+                      title: 'Divida renegociada',
+                    );
+                    return;
+                  } catch (e) {
+                    if (!mounted) return;
+                    _showSnack(
+                      e is ApiException ? e.message : 'Nao foi possivel renegociar.',
+                      tone: _FeedbackTone.error,
+                      title: 'Falha ao renegociar',
+                    );
+                    setDialog(() => savingRenegotiation = false);
+                    return;
+                  }
+                }
+
                 _renegotiateClient(
                   client: client,
                   multiplier: multiplier,
@@ -25638,7 +25691,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 );
                 Navigator.pop(context);
               },
-              child: const Text('Renegociar'),
+              child: savingRenegotiation
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Renegociar'),
             ),
           ],
         ),
