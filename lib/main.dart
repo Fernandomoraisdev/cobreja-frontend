@@ -3072,11 +3072,14 @@ class _PegueiPagueiAppState extends State<PegueiPagueiApp> {
         final me = await ApiService.fetchMe(token: token!);
         final user = me['user'] as Map<String, dynamic>?;
         final role = user?['role']?.toString();
+        final effectiveRole =
+            (me['effectiveRole'] ?? user?['effectiveRole'])?.toString();
         if (role != null && role.isNotEmpty) {
           sessionRole = role;
           await prefs.setString('session_role', role);
         }
-        final isSuperAdmin = me['isSuperAdmin'] == true;
+        final isSuperAdmin =
+            effectiveRole == 'SUPER_ADMIN' || me['isSuperAdmin'] == true;
         sessionIsSuperAdmin = isSuperAdmin;
         await prefs.setBool('session_is_super_admin', isSuperAdmin);
       } catch (e) {
@@ -4121,12 +4124,17 @@ Future<bool> login(String identifier, String password) async {
         final me = await ApiService.fetchMe(token: token);
         final user = me['user'] as Map<String, dynamic>?;
         final role = user?['role']?.toString();
+        final effectiveRole =
+            (me['effectiveRole'] ?? user?['effectiveRole'])?.toString();
         if (role != null && role.isNotEmpty) {
           await prefs.setString('session_role', role);
         } else {
           await prefs.remove('session_role');
         }
-        await prefs.setBool('session_is_super_admin', me['isSuperAdmin'] == true);
+        await prefs.setBool(
+          'session_is_super_admin',
+          effectiveRole == 'SUPER_ADMIN' || me['isSuperAdmin'] == true,
+        );
       } catch (_) {
         // Se falhar, mantém a sessão e usa a role salva anteriormente (se houver).
       }
