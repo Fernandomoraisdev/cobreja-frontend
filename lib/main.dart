@@ -15474,7 +15474,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   }
 
   bool _isOverdueClient(Client client) {
-    if (_isExcludedClient(client) || _isQuitadoClient(client) || client.isNegotiated) {
+    if (_isExcludedClient(client) || _isQuitadoClient(client)) {
       return false;
     }
     return FinanceService.calculateDebt(client).isOverdue;
@@ -15507,6 +15507,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     final maxDay = DateUtils.getDaysInMonth(nextMonth.year, nextMonth.month);
     final anchorDay = math.min(borrowedDate.day, maxDay);
     return DateTime(nextMonth.year, nextMonth.month, anchorDay);
+  }
+
+  DateTime _installmentDueDate(DateTime firstDueDate, int installmentOffset) {
+    final targetMonth = DateTime(
+      firstDueDate.year,
+      firstDueDate.month + installmentOffset,
+      1,
+    );
+    final maxDay = DateUtils.getDaysInMonth(targetMonth.year, targetMonth.month);
+    final anchorDay = math.min(firstDueDate.day, maxDay);
+    return DateTime(targetMonth.year, targetMonth.month, anchorDay);
   }
 
   List<Client> _clientsForSection(
@@ -15557,7 +15568,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         case _ClientQuickFilter.atrasados:
           return !_isExcludedClient(client) &&
               !_isQuitadoClient(client) &&
-              !client.isNegotiated &&
               debt.isOverdue;
         case _ClientQuickFilter.venceHoje:
           return !_isExcludedClient(client) &&
@@ -16660,8 +16670,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             paidInstallments,
           );
           if (client.installmentsPaid < client.installmentCount) {
-            client.dueDate = client.installmentStartDate!.add(
-              Duration(days: 30 * client.installmentsPaid),
+            client.dueDate = _installmentDueDate(
+              client.installmentStartDate!,
+              client.installmentsPaid,
             );
           }
         }
@@ -25999,8 +26010,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           (client.activePrincipalCollected / client.installmentAmount).floor();
       client.installmentsPaid = math.min(client.installmentCount, paidInstallments);
       if (client.installmentsPaid < client.installmentCount) {
-        client.dueDate = client.installmentStartDate!.add(
-          Duration(days: 30 * client.installmentsPaid),
+        client.dueDate = _installmentDueDate(
+          client.installmentStartDate!,
+          client.installmentsPaid,
         );
       }
     }
