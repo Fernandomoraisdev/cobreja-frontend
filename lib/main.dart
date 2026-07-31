@@ -2325,6 +2325,7 @@ class Client {
   // Snapshot do backend (nao persiste em toMap/fromMap) para telas que precisam
   // listar todas as dividas do cliente, inclusive quando houver mais de uma.
   List<Map<String, dynamic>> backendDebts;
+  List<Map<String, dynamic>> backendRenegotiations;
 
   Client({
     required this.id,
@@ -2367,6 +2368,7 @@ class Client {
     this.totalPrincipalCollected = 0,
     this.paymentHistory = const [],
     this.backendDebts = const [],
+    this.backendRenegotiations = const [],
   });
 
   double get remainingPrincipal =>
@@ -2514,6 +2516,10 @@ class Client {
       paymentHistory: (map['paymentHistory'] as List<dynamic>? ?? [])
           .map((item) => PaymentRecord.fromMap(item as Map<String, dynamic>))
           .toList(),
+      backendRenegotiations:
+          (map['backendRenegotiations'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .toList(),
     );
   }
 }
@@ -13211,6 +13217,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       totalPrincipalCollected: totalPrincipalCollected,
       paymentHistory: paymentHistory,
       backendDebts: debts,
+      backendRenegotiations: renegotiations,
     );
   }
 
@@ -22156,6 +22163,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           ),
                         const SizedBox(height: 20),
                         _buildSummaryGrid(client, debt),
+                        if (client.isNegotiated) ...[
+                          const SizedBox(height: 20),
+                          _buildRenegotiationAgreementPanel(client, debt),
+                        ],
                         const SizedBox(height: 20),
                         _buildActions(client, debt),
                         const SizedBox(height: 22),
@@ -22291,6 +22302,192 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               .toList(),
         );
       },
+    );
+  }
+
+  Widget _buildRenegotiationAgreementPanel(Client client, DebtSummary debt) {
+    final renegotiation = _activeRenegotiationFor(client);
+    final installments =
+        (renegotiation?['installments'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList()
+          ..sort((a, b) {
+            final numberA = _optionalBackendInt(a['installmentNumber']) ?? 0;
+            final numberB = _optionalBackendInt(b['installmentNumber']) ?? 0;
+            return numberA.compareTo(numberB);
+          });
+    final frozenDebts = client.backendDebts.where(_isFrozenSourceDebt).toList();
+    final outsideDebts = client.backendDebts.where(_isOpenStandardDebt).toList();
+    final agreementDebts = client.backendDebts.where(_isAgreementDebt).toList();
+    final originalTotal = _readDouble(renegotiation?['originalTotal']);
+    final negotiatedTotal = _readDouble(renegotiation?['negotiatedTotal']);
+    final status = renegotiation?['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    final firstDueDate = _optionalBackendDate(renegotiation?['firstDueDate']);
+    final startedAt = _optionalBackendDate(renegotiation?['startedAt']);
+
+    Widget debtLine(Map<String, dynamic> item, String fallbackTitle) {
+      final title = item['title']?.toString().trim();
+      final borrowedAt = _optionalBackendDate(item['borrowedAt']);
+      final dueDate = _optionalBackendDate(item['dueDate']);
+      final principal = _readDouble(
+        item['principalOutstanding'] ?? item['principalAmount'],
+      );
+      return _AgreementLine(
+        icon: Icons.receipt_long_rounded,
+        title: title == null || title.isEmpty ? fallbackTitle : title,
+        subtitle: [
+          if (borrowedAt != null) 'Inicio ${DateFormat('dd/MM/yyyy').format(borrowedAt)}',
+          if (dueDate != null) 'Venc. ${DateFormat('dd/MM/yyyy').format(dueDate)}',
+        ].join(' • '),
+        trailing: _currency(principal),
+      );
+    }
+
+    Widget installmentLine(Map<String, dynamic> item) {
+      final number = _optionalBackendInt(item['installmentNumber']) ?? 0;
+      final amount = _readDouble(item['amount']);
+      final paidAmount = _readDouble(item['paidAmount']);
+      final dueDate = _optionalBackendDate(item['dueDate']);
+      final rawStatus = item['status']?.toString().toUpperCase() ?? 'PENDING';
+      final label = switch (rawStatus) {
+        'PAID' => 'Paga',
+        'PARTIAL' => 'Parcial',
+        'OVERDUE' => 'Atrasada',
+        _ => 'Pendente',
+      };
+      final color = switch (rawStatus) {
+        'PAID' => const Color(0xFF16A34A),
+        'PARTIAL' => const Color(0xFF7C3AED),
+        'OVERDUE' => const Color(0xFFDC2626),
+        _ => const Color(0xFF6B7280),
+      };
+      return _AgreementLine(
+        icon: Icons.calendar_month_rounded,
+        title: number > 0 ? 'Parcela $number' : 'Parcela',
+        subtitle: [
+          if (dueDate != null) 'Venc. ${DateFormat('dd/MM/yyyy').format(dueDate)}',
+          if (paidAmount > 0) 'Pago ${_currency(paidAmount)}',
+        ].join(' • '),
+        trailing: _currency(amount),
+        pill: _StatusPill(text: label, color: color),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C3AED).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.currency_exchange_rounded,
+                  color: Color(0xFF7C3AED),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Acordo renegociado',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        if (startedAt != null)
+                          'Inicio ${DateFormat('dd/MM/yyyy').format(startedAt)}',
+                        if (firstDueDate != null)
+                          '1o venc. ${DateFormat('dd/MM/yyyy').format(firstDueDate)}',
+                        'Status $status',
+                      ].join(' • '),
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusPill(
+                text: '${debt.installmentsPaid}/${debt.installmentCount}',
+                color: const Color(0xFF7C3AED),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatusPill(
+                text: 'Original ${_currency(originalTotal > 0 ? originalTotal : client.borrowedAmount)}',
+                color: const Color(0xFF6B7280),
+              ),
+              _StatusPill(
+                text: 'Novo total ${_currency(negotiatedTotal > 0 ? negotiatedTotal : debt.remainingPrincipal)}',
+                color: const Color(0xFF16A34A),
+              ),
+              _StatusPill(
+                text: 'Proxima ${DateFormat('dd/MM/yyyy').format(client.dueDate)}',
+                color: debt.isOverdue ? const Color(0xFFDC2626) : const Color(0xFF2563EB),
+              ),
+              _StatusPill(
+                text: 'Diaria ${_currency(debt.lateInterest)}',
+                color: debt.lateInterest > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _AgreementSection(
+            title: 'Debitos dentro do acordo, congelados',
+            emptyText: 'Nenhum debito original congelado encontrado.',
+            children: frozenDebts
+                .map((item) => debtLine(item, 'Debito congelado'))
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          _AgreementSection(
+            title: 'Debitos fora deste acordo',
+            emptyText: 'Nenhum debito ativo ficou fora deste acordo.',
+            children:
+                outsideDebts.map((item) => debtLine(item, 'Debito ativo')).toList(),
+          ),
+          const SizedBox(height: 12),
+          _AgreementSection(
+            title: 'Registro do acordo ativo',
+            emptyText: 'O registro financeiro do acordo nao foi localizado.',
+            children: agreementDebts
+                .map((item) => debtLine(item, 'Acordo parcelado'))
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          _AgreementSection(
+            title: 'Parcelas do acordo',
+            emptyText: 'Nenhuma parcela encontrada para este acordo.',
+            children: installments.map(installmentLine).toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -27430,6 +27627,66 @@ class _MetricCard extends StatelessWidget {
 
 enum _ClientProfileFilter { todas, ativas, emAtraso, renegociadas, quitadas, excluidas }
 
+int? _optionalBackendInt(dynamic value) {
+  if (value is num) return value.toInt();
+  if (value == null) return null;
+  return int.tryParse(value.toString());
+}
+
+DateTime? _optionalBackendDate(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return null;
+  return DateTime.tryParse(text);
+}
+
+bool _isVisibleBackendDebt(Map<String, dynamic> debt) {
+  final deletedAt = debt['deletedAt'];
+  return deletedAt == null || deletedAt.toString().isEmpty;
+}
+
+bool _isFrozenSourceDebt(Map<String, dynamic> debt) {
+  final status = debt['status']?.toString().toUpperCase();
+  final kind = debt['kind']?.toString().toUpperCase();
+  return _isVisibleBackendDebt(debt) &&
+      status == 'RENEGOTIATED' &&
+      kind != 'RENEGOTIATED';
+}
+
+bool _isAgreementDebt(Map<String, dynamic> debt) {
+  final status = debt['status']?.toString().toUpperCase();
+  final kind = debt['kind']?.toString().toUpperCase();
+  return _isVisibleBackendDebt(debt) &&
+      status == 'ACTIVE' &&
+      kind == 'RENEGOTIATED';
+}
+
+bool _isOpenStandardDebt(Map<String, dynamic> debt) {
+  final status = debt['status']?.toString().toUpperCase();
+  final kind = debt['kind']?.toString().toUpperCase();
+  return _isVisibleBackendDebt(debt) &&
+      status == 'ACTIVE' &&
+      kind != 'RENEGOTIATED';
+}
+
+bool _isExcludedBackendDebt(Map<String, dynamic> debt) {
+  final status = debt['status']?.toString().toUpperCase();
+  return status == 'EXCLUDED' || !_isVisibleBackendDebt(debt);
+}
+
+Map<String, dynamic>? _activeRenegotiationFor(Client client) {
+  if (client.backendRenegotiations.isEmpty) return null;
+  final currentId = client.backendRenegotiationId;
+  if (currentId != null) {
+    for (final item in client.backendRenegotiations) {
+      if (_optionalBackendInt(item['id']) == currentId) return item;
+    }
+  }
+  for (final item in client.backendRenegotiations) {
+    if (item['status']?.toString().toUpperCase() == 'ACTIVE') return item;
+  }
+  return client.backendRenegotiations.first;
+}
+
 class _ClientGroupCard extends StatelessWidget {
   final String name;
   final int recordCount;
@@ -27711,6 +27968,62 @@ class _AdminClientGroupProfilePageState
         (sum, client) => sum + FinanceService.calculateDebt(client).totalDebt,
       );
 
+  Widget _buildDebtSeparationOverview({
+    required int openCount,
+    required int agreementCount,
+    required int frozenCount,
+    required int excludedCount,
+    required int selectedCount,
+    required double selectedTotal,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Separacao da carteira',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Veja o que ainda esta em aberto, o que virou acordo e o que ficou congelado fora dos totais.',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatusPill(text: '$openCount abertas fora do acordo', color: const Color(0xFF38BDF8)),
+              _StatusPill(text: '$agreementCount acordo(s) ativo(s)', color: const Color(0xFF8B5CF6)),
+              _StatusPill(text: '$frozenCount congelada(s)', color: const Color(0xFF9CA3AF)),
+              _StatusPill(text: '$excludedCount excluida(s)', color: const Color(0xFFDC2626)),
+              if (selectedCount > 0)
+                _StatusPill(
+                  text: '$selectedCount selecionada(s) - ${_currency(selectedTotal)}',
+                  color: const Color(0xFF10B981),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _startRenegotiation(List<Client> debts) async {
     if (debts.isEmpty) return;
     await widget.renegotiateDebts(debts.first, debts);
@@ -27732,6 +28045,12 @@ class _AdminClientGroupProfilePageState
     final selectedDebts = _selectedDebts();
     final selectedTotal = _sumDebts(selectedDebts);
     final allNegotiableTotal = _sumDebts(negotiableDebts);
+    final openDebtCount =
+        _clients.where((client) => client.status == 'devendo' && !client.isNegotiated).length;
+    final agreementCount = _clients.where((client) => client.isNegotiated).length;
+    final frozenCount = _clients.where((client) => client.status == 'renegociado').length;
+    final excludedDebtCount =
+        _clients.where((client) => client.status == 'debito_excluido').length;
 
     final summaries = _clients
         .where((client) =>
@@ -27835,6 +28154,15 @@ class _AdminClientGroupProfilePageState
               ],
             ),
             const SizedBox(height: 18),
+            _buildDebtSeparationOverview(
+              openCount: openDebtCount,
+              agreementCount: agreementCount,
+              frozenCount: frozenCount,
+              excludedCount: excludedDebtCount,
+              selectedCount: selectedDebts.length,
+              selectedTotal: selectedTotal,
+            ),
+            const SizedBox(height: 18),
             Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -27855,7 +28183,7 @@ class _AdminClientGroupProfilePageState
                   onTap: () => setState(() => _filter = _ClientProfileFilter.emAtraso),
                 ),
                 _ProfileFilterChip(
-                  label: 'Pausadas',
+                  label: 'Renegociadas',
                   selected: _filter == _ClientProfileFilter.renegociadas,
                   onTap: () => setState(() => _filter = _ClientProfileFilter.renegociadas),
                 ),
@@ -28457,6 +28785,134 @@ class _ClientCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AgreementSection extends StatelessWidget {
+  final String title;
+  final String emptyText;
+  final List<Widget> children;
+
+  const _AgreementSection({
+    required this.title,
+    required this.emptyText,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (children.isEmpty)
+            Text(
+              emptyText,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else
+            ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _AgreementLine extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String trailing;
+  final Widget? pill;
+
+  const _AgreementLine({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    this.pill,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C3AED).withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF7C3AED), size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                trailing,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (pill != null) ...[
+                const SizedBox(height: 4),
+                pill!,
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
