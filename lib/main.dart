@@ -17353,8 +17353,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         );
       case _MainSection.renegociados:
         return _buildClientList(
-          'todos',
-          includeAllActive: true,
+          'renegociados',
           overrideFilter: _ClientQuickFilter.renegociados,
           emptyKey: 'renegociados',
         );
