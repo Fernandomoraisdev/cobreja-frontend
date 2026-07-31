@@ -25024,6 +25024,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             : 0.0;
     final amountToCloseCurrentInstallment =
         currentInstallmentRemaining + debt.totalInterestDue;
+    bool savingPayment = false;
 
     showDialog(
       context: context,
@@ -25112,15 +25113,65 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: savingPayment ? null : () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
+              onPressed: savingPayment ? null : () async {
                 final amount = _readDouble(amountController.text);
                 if (amount <= 0) {
                   _showSnack('Digite um valor maior que zero para registrar o pagamento.', tone: _FeedbackTone.warning, title: 'Valor inválido');
                   return;
+                }
+
+                final clientId = int.tryParse(client.id);
+                final token = await _readAuthToken();
+                if (clientId != null && token != null && token.isNotEmpty) {
+                  setDialog(() => savingPayment = true);
+                  try {
+                    final paymentData = await ApiService.createPayment(
+                      token: token,
+                      clientId: clientId,
+                      debtId: client.backendPrimaryDebtId,
+                      installmentId: currentInstallmentId,
+                      amount: amount,
+                      type: _backendPaymentType(mode),
+                      date: DateTime.now(),
+                      note: noteController.text.trim(),
+                    );
+
+                    final paidAt = DateTime.tryParse(paymentData['paidAt']?.toString() ?? '') ??
+                        DateTime.tryParse(paymentData['createdAt']?.toString() ?? '') ??
+                        DateTime.now();
+                    final receipt = PaymentRecord(
+                      id: paymentData['id']?.toString() ?? '',
+                      date: paidAt,
+                      amount: _readDouble(paymentData['amount']),
+                      interestPaid: _readDouble(paymentData['interestAmount']) +
+                          _readDouble(paymentData['dailyAmount']),
+                      dailyPaid: _readDouble(paymentData['dailyAmount']),
+                      principalPaid: _readDouble(paymentData['principalAmount']),
+                      type: _paymentModeLabel(mode),
+                      note: paymentData['note']?.toString() ?? noteController.text.trim(),
+                    );
+
+                    await _refreshClientsFromBackend(updateLoading: true);
+                    await fetchDashboard();
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    _showSnack('O pagamento foi registrado com sucesso no historico do cliente.', tone: _FeedbackTone.success, title: 'Pagamento salvo');
+                    _showPaymentReceiptDialog(client, receipt);
+                    return;
+                  } catch (e) {
+                    if (!mounted) return;
+                    _showSnack(
+                      e is ApiException ? e.message : 'Nao foi possivel registrar o pagamento.',
+                      tone: _FeedbackTone.error,
+                      title: 'Falha ao salvar',
+                    );
+                    setDialog(() => savingPayment = false);
+                    return;
+                  }
                 }
 
                 final receipt = _applyPayment(
@@ -25136,7 +25187,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   _showPaymentReceiptDialog(client, receipt);
                 }
               },
-              child: const Text('Salvar'),
+              child: savingPayment
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Salvar'),
             ),
           ],
         ),
