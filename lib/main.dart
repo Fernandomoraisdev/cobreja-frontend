@@ -63,7 +63,7 @@ class ApiException implements Exception {
 class ApiService {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://cobreja-backend-production.up.railway.app',
+    defaultValue: 'https://cobreja-backend-production-0eda.up.railway.app',
   );
 
   static String _errorMessageFromBody(String body) {
