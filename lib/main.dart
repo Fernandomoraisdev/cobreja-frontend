@@ -1565,6 +1565,39 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> previewPayment({
+    required String token,
+    required int clientId,
+    required double amount,
+    required String type,
+    required DateTime date,
+    int? debtId,
+    int? installmentId,
+    String? note,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/payment/preview'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        'clientId': clientId,
+        if (debtId != null) 'debtId': debtId,
+        if (installmentId != null) 'installmentId': installmentId,
+        'amount': amount,
+        'type': type,
+        'paidAt': date.toIso8601String(),
+        'date': date.toIso8601String(),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<void> deletePayment({
     required String token,
     required int paymentId,
@@ -25147,13 +25180,30 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           }
 
           final totalCycleCharge = interestOutstanding + dailyAccrued;
+          final paymentRequestDate = DateTime.now();
+          final preview = await ApiService.previewPayment(
+            token: token,
+            clientId: clientId,
+            debtId: debtId,
+            amount: totalCycleCharge,
+            type: 'juros',
+            date: paymentRequestDate,
+            note: 'Juros pagos e ciclo reiniciado.',
+          );
+          if (!mounted) return;
+          final confirmed = await _showPaymentPreviewDialog(
+            client: client,
+            preview: preview,
+          );
+          if (!confirmed) return;
+
           final paymentData = await ApiService.createPayment(
             token: token,
             clientId: clientId,
             debtId: debtId,
             amount: totalCycleCharge,
             type: 'juros',
-            date: DateTime.now(),
+            date: paymentRequestDate,
             note: 'Juros pagos e ciclo reiniciado.',
           );
 
@@ -25162,7 +25212,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   DateTime.tryParse(
                         paymentData['createdAt']?.toString() ?? '',
                       ) ??
-                  DateTime.now();
+                  paymentRequestDate;
 
           final receipt = PaymentRecord(
             id: paymentData['id']?.toString() ?? '',
@@ -25315,6 +25365,127 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     }
   }
 
+  Future<bool> _showPaymentPreviewDialog({
+    required Client client,
+    required Map<String, dynamic> preview,
+  }) async {
+    final before = (preview['before'] as Map<String, dynamic>?) ?? const {};
+    final applied = (preview['applied'] as Map<String, dynamic>?) ?? const {};
+    final after = (preview['after'] as Map<String, dynamic>?) ?? const {};
+    final requested = (preview['requested'] as Map<String, dynamic>?) ?? const {};
+    final installment = preview['installment'] as Map<String, dynamic>?;
+    final paidAt = DateTime.tryParse(requested['paidAt']?.toString() ?? '');
+    final nextDueDate = DateTime.tryParse(after['dueDate']?.toString() ?? '');
+    final beforeTotal = _readDouble(before['totalDue']);
+    final afterTotal = _readDouble(after['totalDue']);
+    final appliedTotal = _readDouble(applied['amount']);
+    final principal = _readDouble(applied['principalAmount']);
+    final interest = _readDouble(applied['interestAmount']);
+    final daily = _readDouble(applied['dailyAmount']);
+    final isSettled = after['isSettled'] == true || afterTotal <= 0.009;
+    final statusText = isSettled
+        ? 'Quitado'
+        : (after['isOverdue'] == true
+            ? 'Em atraso'
+            : (after['dueToday'] == true ? 'Vence hoje' : 'Em dia'));
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Conferir pagamento'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    client.name,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  if (paidAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Data: ${DateFormat('dd/MM/yyyy').format(paidAt)}',
+                      style: const TextStyle(color: Color(0xFF6B7280)),
+                    ),
+                  ],
+                  if (installment != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Parcela: ${installment['installmentNumber'] ?? '-'} - ${_currency(_readDouble(installment['amount']))}',
+                      style: const TextStyle(color: Color(0xFF6B7280)),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _PaymentPreviewRow(
+                    label: 'Total antes',
+                    value: _currency(beforeTotal),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Valor informado',
+                    value: _currency(_readDouble(requested['amount'])),
+                  ),
+                  const Divider(height: 24),
+                  _PaymentPreviewRow(
+                    label: 'Diaria',
+                    value: _currency(daily),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Juros',
+                    value: _currency(interest),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Principal',
+                    value: _currency(principal),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Total aplicado',
+                    value: _currency(appliedTotal),
+                    strong: true,
+                  ),
+                  const Divider(height: 24),
+                  _PaymentPreviewRow(
+                    label: 'Saldo depois',
+                    value: _currency(afterTotal),
+                    strong: true,
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Status depois',
+                    value: statusText,
+                  ),
+                  if (nextDueDate != null && !isSettled)
+                    _PaymentPreviewRow(
+                      label: 'Proximo vencimento',
+                      value: DateFormat('dd/MM/yyyy').format(nextDueDate),
+                    ),
+                  if (appliedTotal + 0.009 < _readDouble(requested['amount'])) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Parte do valor informado nao sera aplicada porque excede o saldo calculado.',
+                      style: TextStyle(
+                        color: Color(0xFFDC2626),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Voltar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirmar e salvar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void _showPaymentDialog(Client client) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
@@ -25444,7 +25615,28 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                 final token = await _readAuthToken();
                 if (clientId != null && token != null && token.isNotEmpty) {
                   setDialog(() => savingPayment = true);
+                  final paymentRequestDate = DateTime.now();
                   try {
+                    final preview = await ApiService.previewPayment(
+                      token: token,
+                      clientId: clientId,
+                      debtId: client.backendPrimaryDebtId,
+                      installmentId: currentInstallmentId,
+                      amount: amount,
+                      type: _backendPaymentType(mode),
+                      date: paymentRequestDate,
+                      note: noteController.text.trim(),
+                    );
+                    if (!mounted) return;
+                    setDialog(() => savingPayment = false);
+                    final confirmed = await _showPaymentPreviewDialog(
+                      client: client,
+                      preview: preview,
+                    );
+                    if (!confirmed) {
+                      return;
+                    }
+                    setDialog(() => savingPayment = true);
                     final paymentData = await ApiService.createPayment(
                       token: token,
                       clientId: clientId,
@@ -25452,13 +25644,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                       installmentId: currentInstallmentId,
                       amount: amount,
                       type: _backendPaymentType(mode),
-                      date: DateTime.now(),
+                      date: paymentRequestDate,
                       note: noteController.text.trim(),
                     );
 
                     final paidAt = DateTime.tryParse(paymentData['paidAt']?.toString() ?? '') ??
                         DateTime.tryParse(paymentData['createdAt']?.toString() ?? '') ??
-                        DateTime.now();
+                        paymentRequestDate;
                     final receipt = PaymentRecord(
                       id: paymentData['id']?.toString() ?? '',
                       date: paidAt,
@@ -28551,6 +28743,47 @@ class _ProfileFilterChip extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PaymentPreviewRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool strong;
+
+  const _PaymentPreviewRow({
+    required this.label,
+    required this.value,
+    this.strong = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      color: strong ? const Color(0xFF111827) : const Color(0xFF374151),
+      fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: style,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            value,
+            style: style,
+            textAlign: TextAlign.right,
+          ),
+        ],
       ),
     );
   }
