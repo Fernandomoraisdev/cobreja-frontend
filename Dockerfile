@@ -13,10 +13,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
-
 COPY --from=build /app/build/web ./build/web
+COPY server.js ./server.js
 
 EXPOSE 8080
 
-CMD sh -c "APP_PORT=${PORT:-8080}; serve -s build/web -l tcp://0.0.0.0:${APP_PORT}"
+CMD ["node", "server.js"]
