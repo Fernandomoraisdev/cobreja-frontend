@@ -1499,6 +1499,48 @@ class ApiService {
     return _extractPayloadMap(response.body);
   }
 
+  static Future<Map<String, dynamic>> previewDebtUpdate({
+    required String token,
+    required int debtId,
+    required double principalAmount,
+    required DateTime borrowedAt,
+    required DateTime dueDate,
+    String? debtType,
+    String? title,
+    String? monthlyInterestMode,
+    double? monthlyInterestValue,
+    String? dailyInterestMode,
+    double? dailyInterestValue,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/debt/$debtId/preview'),
+      headers: _jsonHeaders(token: token),
+      body: jsonEncode({
+        'principalAmount': principalAmount,
+        'borrowedAt': borrowedAt.toIso8601String(),
+        'dueDate': dueDate.toIso8601String(),
+        if (debtType != null && debtType.trim().isNotEmpty)
+          'debtType': debtType.trim(),
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        if (monthlyInterestMode != null && monthlyInterestMode.trim().isNotEmpty)
+          'monthlyInterestMode': monthlyInterestMode.trim(),
+        if (monthlyInterestValue != null && monthlyInterestValue >= 0)
+          'monthlyInterestValue': monthlyInterestValue,
+        if (dailyInterestMode != null && dailyInterestMode.trim().isNotEmpty)
+          'dailyInterestMode': dailyInterestMode.trim(),
+        if (dailyInterestValue != null && dailyInterestValue > 0)
+          'dailyInterestValue': dailyInterestValue,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: _errorMessageFromBody(response.body),
+      );
+    }
+    return _extractPayloadMap(response.body);
+  }
+
   static Future<void> deleteDebt({
     required String token,
     required int debtId,
@@ -21743,6 +21785,75 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                   return;
                 }
 
+                if (isEditing && client.backendPrimaryDebtId != null) {
+                  final token = await _readAuthToken();
+                  if (token != null && token.isNotEmpty) {
+                    setDialog(() {
+                      isSaving = true;
+                    });
+                    try {
+                      String? monthlyMode;
+                      double? monthlyValue;
+                      if (client.monthlyInterestType ==
+                          InterestValueType.fixedAmount) {
+                        monthlyMode = 'FIXED';
+                        monthlyValue =
+                            math.max(0, client.monthlyInterestAmount);
+                      } else {
+                        monthlyMode = 'PERCENTAGE';
+                        monthlyValue =
+                            math.max(0, client.monthlyInterestRate);
+                      }
+
+                      String? dailyMode;
+                      double? dailyValue;
+                      if (client.dailyInterestType ==
+                          InterestValueType.fixedAmount) {
+                        dailyMode = 'FIXED';
+                        dailyValue = math.max(0, client.dailyInterestAmount);
+                      } else {
+                        dailyMode = 'PERCENTAGE';
+                        dailyValue = math.max(0, client.dailyInterestRate);
+                      }
+
+                      final preview = await ApiService.previewDebtUpdate(
+                        token: token,
+                        debtId: client.backendPrimaryDebtId!,
+                        principalAmount: client.borrowedAmount,
+                        borrowedAt: client.borrowedDate,
+                        dueDate: client.dueDate,
+                        debtType: client.debtType.backendValue,
+                        monthlyInterestMode: monthlyMode,
+                        monthlyInterestValue: monthlyValue,
+                        dailyInterestMode: dailyMode,
+                        dailyInterestValue: dailyValue,
+                      );
+                      if (!mounted) return;
+                      setDialog(() {
+                        isSaving = false;
+                      });
+                      final confirmed = await _showDebtEditPreviewDialog(
+                        client: client,
+                        preview: preview,
+                      );
+                      if (!confirmed) return;
+                    } catch (e) {
+                      if (!mounted) return;
+                      setDialog(() {
+                        isSaving = false;
+                      });
+                      _showSnack(
+                        e is ApiException
+                            ? e.message
+                            : 'Nao foi possivel calcular a previa da divida.',
+                        tone: _FeedbackTone.error,
+                        title: 'Falha na previa',
+                      );
+                      return;
+                    }
+                  }
+                }
+
                 setDialog(() {
                   isSaving = true;
                 });
@@ -25479,6 +25590,145 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Confirmar e salvar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  String _debtTypeLabelFromBackend(String? value) {
+    return _debtBusinessTypeFromString(value).label;
+  }
+
+  Future<bool> _showDebtEditPreviewDialog({
+    required Client client,
+    required Map<String, dynamic> preview,
+  }) async {
+    final before = (preview['before'] as Map<String, dynamic>?) ?? const {};
+    final after = (preview['after'] as Map<String, dynamic>?) ?? const {};
+    final beforeSnapshot =
+        (before['snapshot'] as Map<String, dynamic>?) ?? const {};
+    final afterSnapshot =
+        (after['snapshot'] as Map<String, dynamic>?) ?? const {};
+    final beforeDueDate =
+        DateTime.tryParse(before['dueDate']?.toString() ?? '');
+    final afterDueDate =
+        DateTime.tryParse(after['dueDate']?.toString() ?? '');
+    final rawPaymentCount = preview['paymentCount'];
+    final paymentCount = rawPaymentCount is num
+        ? rawPaymentCount.toInt()
+        : int.tryParse(rawPaymentCount?.toString() ?? '') ?? 0;
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Conferir edicao da divida'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    client.name,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  if (paymentCount > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '$paymentCount pagamento(s) serao reprocessados com as novas regras.',
+                      style: const TextStyle(
+                        color: Color(0xFF92400E),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _PaymentPreviewRow(
+                    label: 'Tipo antes',
+                    value: _debtTypeLabelFromBackend(
+                      before['debtType']?.toString(),
+                    ),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Tipo depois',
+                    value: _debtTypeLabelFromBackend(
+                      after['debtType']?.toString(),
+                    ),
+                    strong: true,
+                  ),
+                  if (beforeDueDate != null)
+                    _PaymentPreviewRow(
+                      label: 'Vencimento antes',
+                      value: DateFormat('dd/MM/yyyy').format(beforeDueDate),
+                    ),
+                  if (afterDueDate != null)
+                    _PaymentPreviewRow(
+                      label: 'Vencimento depois',
+                      value: DateFormat('dd/MM/yyyy').format(afterDueDate),
+                      strong: true,
+                    ),
+                  const Divider(height: 24),
+                  _PaymentPreviewRow(
+                    label: 'Principal antes',
+                    value: _currency(
+                      _readDouble(beforeSnapshot['principalOutstanding']),
+                    ),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Principal depois',
+                    value: _currency(
+                      _readDouble(afterSnapshot['principalOutstanding']),
+                    ),
+                    strong: true,
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Juros antes',
+                    value: _currency(
+                      _readDouble(beforeSnapshot['interestOutstanding']),
+                    ),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Juros depois',
+                    value: _currency(
+                      _readDouble(afterSnapshot['interestOutstanding']),
+                    ),
+                    strong: true,
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Diaria antes',
+                    value: _currency(
+                      _readDouble(beforeSnapshot['dailyAccruedAmount']),
+                    ),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Diaria depois',
+                    value: _currency(
+                      _readDouble(afterSnapshot['dailyAccruedAmount']),
+                    ),
+                    strong: true,
+                  ),
+                  const Divider(height: 24),
+                  _PaymentPreviewRow(
+                    label: 'Total antes',
+                    value: _currency(_readDouble(beforeSnapshot['totalDue'])),
+                  ),
+                  _PaymentPreviewRow(
+                    label: 'Total depois',
+                    value: _currency(_readDouble(afterSnapshot['totalDue'])),
+                    strong: true,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Voltar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirmar alteracao'),
               ),
             ],
           ),
