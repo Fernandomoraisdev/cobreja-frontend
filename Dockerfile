@@ -19,4 +19,4 @@ COPY --from=build /app/build/web ./build/web
 
 EXPOSE 8080
 
-CMD sh -c "serve -s build/web -l tcp://0.0.0.0:${PORT:-8080}"
+CMD sh -c "serve -s build/web -l 0.0.0.0:${PORT:-8080}"
