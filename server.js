@@ -21,6 +21,30 @@ const mimeTypes = {
   '.otf': 'font/otf',
 };
 
+function cacheControlFor(filePath) {
+  const fileName = path.basename(filePath).toLowerCase();
+  const ext = path.extname(filePath).toLowerCase();
+  const mustRevalidate = new Set([
+    'index.html',
+    'flutter_bootstrap.js',
+    'flutter.js',
+    'flutter_service_worker.js',
+    'main.dart.js',
+    'version.json',
+    'manifest.json',
+  ]);
+
+  if (mustRevalidate.has(fileName) || ext === '.html') {
+    return 'no-store, no-cache, must-revalidate, proxy-revalidate';
+  }
+
+  if (ext === '.js' || ext === '.json') {
+    return 'no-cache, must-revalidate';
+  }
+
+  return 'public, max-age=86400';
+}
+
 function safeFilePath(requestUrl) {
   const urlPath = decodeURIComponent((requestUrl || '/').split('?')[0]);
   const normalizedPath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
@@ -45,9 +69,7 @@ const server = http.createServer((req, res) => {
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, {
       'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-      'Cache-Control': filePath.endsWith('index.html')
-        ? 'no-cache'
-        : 'public, max-age=31536000, immutable',
+      'Cache-Control': cacheControlFor(filePath),
     });
     res.end(data);
   });
