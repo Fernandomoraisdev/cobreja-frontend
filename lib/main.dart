@@ -2776,6 +2776,7 @@ enum _PaymentHistoryQuickFilter {
   hoje,
   ultimos7Dias,
   ultimos30Dias,
+  parciais,
   juros,
   principal,
   quitacao,
@@ -18683,6 +18684,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           !_dateOnly(payment.date).isBefore(
             _dateOnly(DateTime.now().subtract(const Duration(days: 29))),
           ),
+        _PaymentHistoryQuickFilter.parciais =>
+          payment.type.toLowerCase().contains('parcial'),
         _PaymentHistoryQuickFilter.juros =>
           payment.interestPaid > 0.009 && payment.principalPaid <= 0.009,
         _PaymentHistoryQuickFilter.principal =>
@@ -22989,6 +22992,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           !_dateOnly(payment.date).isBefore(
             _dateOnly(DateTime.now().subtract(const Duration(days: 29))),
           ),
+        _PaymentHistoryQuickFilter.parciais =>
+          payment.type.toLowerCase().contains('parcial'),
         _PaymentHistoryQuickFilter.juros =>
           payment.interestPaid > 0.009 && payment.principalPaid <= 0.009,
         _PaymentHistoryQuickFilter.principal =>
@@ -23048,6 +23053,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               _buildPaymentHistoryChip(
                 label: '30 dias',
                 filter: _PaymentHistoryQuickFilter.ultimos30Dias,
+              ),
+              _buildPaymentHistoryChip(
+                label: 'Parciais',
+                filter: _PaymentHistoryQuickFilter.parciais,
               ),
               _buildPaymentHistoryChip(
                 label: 'Juros',
@@ -23122,6 +23131,28 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                             fontSize: 12,
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (payment.dailyPaid > 0.009)
+                              _StatusPill(
+                                text: 'Diaria ${_currency(payment.dailyPaid)}',
+                                color: const Color(0xFFDC2626),
+                              ),
+                            if (payment.interestPaid - payment.dailyPaid > 0.009)
+                              _StatusPill(
+                                text: 'Juros ${_currency(math.max(0.0, payment.interestPaid - payment.dailyPaid))}',
+                                color: const Color(0xFF7C3AED),
+                              ),
+                            if (payment.principalPaid > 0.009)
+                              _StatusPill(
+                                text: 'Principal ${_currency(payment.principalPaid)}',
+                                color: const Color(0xFF2563EB),
+                              ),
+                          ],
+                        ),
                         if (payment.note.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -23159,6 +23190,27 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         ),
                         visualDensity: VisualDensity.compact,
                       ),
+                      if (payment.amount > 0.009)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFDC2626),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          onPressed: () async {
+                            final confirmed = await _confirmDestructiveAction(
+                              title: 'Desfazer pagamento',
+                              message:
+                                  'Esse pagamento sera removido do historico e o saldo deste debito sera recalculado.',
+                              confirmLabel: 'Desfazer',
+                            );
+                            if (!confirmed) return;
+                            await _deletePaymentRecord(client, payment);
+                            onRefresh?.call();
+                          },
+                          icon: const Icon(Icons.undo_rounded, size: 16),
+                          label: const Text('Desfazer'),
+                        ),
                       if (payment.amount > 0.009)
                         PopupMenuButton<String>(
                           tooltip: 'Ações do pagamento',
