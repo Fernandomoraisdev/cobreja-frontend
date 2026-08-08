@@ -13052,6 +13052,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   TextEditingController? _paymentHistorySearchController;
   String? _paymentHistoryQuery;
   _PaymentHistoryQuickFilter? _paymentHistoryFilter;
+  StateSetter? _paymentHistoryStateOverride;
   bool _bulkSelectionMode = false;
   final Set<String> _selectedClientIds = <String>{};
   Uint8List? _profilePhotoBytes;
@@ -18966,7 +18967,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                     tooltip: 'Limpar busca do histórico',
                     onPressed: () {
                       _safePaymentHistorySearchController.clear();
-                      setState(() {
+                      final updateState = _paymentHistoryStateOverride ?? setState;
+                      updateState(() {
                         _paymentHistoryQuery = '';
                         _paymentHistoryFilter = _PaymentHistoryQuickFilter.todos;
                       });
@@ -22529,6 +22531,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                         _buildTimeline(
                           client,
                           onRefresh: () => setDialog(() {}),
+                          setTimelineState: setDialog,
                         ),
                       ],
                     ),
@@ -22544,6 +22547,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (currentPrefs.getString(_openClientIdKey) == client.id) {
       await currentPrefs.remove(_openClientIdKey);
     }
+    _paymentHistoryStateOverride = null;
     _pendingRestoredClientId = null;
     _restoredClientSheetOpened = false;
   }
@@ -22856,7 +22860,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       children: [
         const Text(
           'Acoes rapidas',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: Color(0xFF111827),
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
@@ -23079,7 +23087,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
   );
 }
 
-  Widget _buildTimeline(Client client, {VoidCallback? onRefresh}) {
+  Widget _buildTimeline(
+    Client client, {
+    VoidCallback? onRefresh,
+    StateSetter? setTimelineState,
+  }) {
+    _paymentHistoryStateOverride = setTimelineState;
     final history = [...client.paymentHistory]
       ..sort((a, b) => b.date.compareTo(a.date));
     final query = _safePaymentHistoryQuery.toLowerCase();
@@ -23121,7 +23134,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       children: [
         const Text(
           'Histórico de pagamentos',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: Color(0xFF111827),
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -23197,6 +23214,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
               history.isEmpty
                   ? 'Nenhum pagamento registrado ainda.'
                   : 'Nenhum pagamento encontrado com os filtros atuais.',
+              style: const TextStyle(
+                color: Color(0xFF374151),
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
         else
@@ -23374,7 +23395,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         label: Text(label),
         selected: selected,
         onSelected: (_) {
-          setState(() {
+          final updateState = _paymentHistoryStateOverride ?? setState;
+          updateState(() {
             _paymentHistoryFilter = filter;
           });
         },
