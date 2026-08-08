@@ -13322,17 +13322,31 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
         .whereType<Map<String, dynamic>>()
         .toList();
     final selectedDebtId = primaryDebtId;
-    final paymentHistory = payments
+    final selectedDebtPayments = payments
         .where((payment) {
           if (selectedDebtId == null) return true;
           final paymentDebtId = _optionalInt(payment['debtId']);
           return paymentDebtId == null || paymentDebtId == selectedDebtId;
         })
+        .toList();
+    final visiblePayments = selectedDebtId == null || selectedDebtPayments.isNotEmpty
+        ? selectedDebtPayments
+        : payments;
+    final showingClientPaymentsFallback =
+        selectedDebtId != null && selectedDebtPayments.isEmpty && payments.isNotEmpty;
+    final paymentHistory = visiblePayments
         .map((payment) {
           final rawType = payment['type']?.toString().toUpperCase() ?? '';
           final paidAt = DateTime.tryParse(payment['paidAt']?.toString() ?? '') ??
               DateTime.tryParse(payment['createdAt']?.toString() ?? '') ??
               DateTime.now();
+          final paymentDebtId = _optionalInt(payment['debtId']);
+          final rawNote = payment['note']?.toString().trim() ?? '';
+          final fallbackNote = showingClientPaymentsFallback &&
+                  paymentDebtId != null &&
+                  paymentDebtId != selectedDebtId
+              ? 'Registrado em outro debito (#$paymentDebtId)'
+              : '';
           return PaymentRecord(
             id: payment['id']?.toString() ?? '',
             date: paidAt,
@@ -13342,7 +13356,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             dailyPaid: _readDouble(payment['dailyAmount']),
             principalPaid: _readDouble(payment['principalAmount']),
             type: paymentLabel(rawType),
-            note: payment['note']?.toString() ?? '',
+            note: [
+              if (rawNote.isNotEmpty) rawNote,
+              if (fallbackNote.isNotEmpty) fallbackNote,
+            ].join(' - '),
           );
         })
         .toList()
