@@ -29284,6 +29284,11 @@ class _ClientCard extends StatelessWidget {
     final dailyBreakdownText = debt.lateInterest > 0.009
         ? 'Diária acumulada: ${_currency(debt.lateInterest)}'
         : null;
+    final totalPaidOnDebt = client.paymentHistory.fold<double>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
+    final hasPaymentHistory = totalPaidOnDebt > 0.009;
     final hasMultipleCycles =
         !client.isNegotiated &&
         client.status == 'devendo' &&
@@ -29488,6 +29493,38 @@ class _ClientCard extends StatelessWidget {
                           fontWeight: FontWeight.w900,
                           fontSize: compact ? 15 : 16,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (hasPaymentHistory)
+                            _StatusPill(
+                              text: 'Pago ${_currency(totalPaidOnDebt)}',
+                              color: const Color(0xFF16A34A),
+                            ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFE9D5FF),
+                              side: const BorderSide(
+                                color: Color(0xFF6D28D9),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            onPressed: onOpen,
+                            icon: const Icon(
+                              Icons.history_rounded,
+                              size: 16,
+                            ),
+                            label: const Text('Historico / desfazer'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
