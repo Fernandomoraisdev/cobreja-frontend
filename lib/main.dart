@@ -5339,9 +5339,120 @@ class _SuperAdminPageState extends State<SuperAdminPage> {
         .format(_readDouble(value));
   }
 
+  bool _hasPositiveValue(Map<String, dynamic> totals, String key) {
+    final value = totals[key];
+    if (value is num) return value > 0;
+    return _readDouble(value) > 0;
+  }
+
+  DateTime? _parseDateValue(dynamic value) {
+    final raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  bool _isTodayValue(dynamic value) {
+    final date = _parseDateValue(value);
+    if (date == null) return false;
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  double _sumAmounts(
+    List<Map<String, dynamic>> items, {
+    bool Function(Map<String, dynamic> item)? where,
+  }) {
+    return items.fold<double>(0, (sum, item) {
+      if (where != null && !where(item)) return sum;
+      return sum + _readDouble(item['amount']);
+    });
+  }
+
+  double _recurringMonthlyRevenueFromSubscriptions() {
+    return _subscriptions.fold<double>(0, (sum, subscription) {
+      final status = subscription['status']?.toString().toUpperCase() ?? '';
+      if (!['TRIAL', 'ACTIVE', 'PAST_DUE'].contains(status)) return sum;
+      final plan = subscription['plan'];
+      if (plan is! Map<String, dynamic>) return sum;
+      final billingPeriod = plan['billingPeriod']?.toString().toUpperCase() ?? '';
+      if (billingPeriod == 'FREE' || billingPeriod == 'LIFETIME') return sum;
+      final price = _readDouble(plan['priceCents']) / 100;
+      if (price <= 0) return sum;
+      final periodMonths = math.max(1, _intValue(plan['periodMonths']));
+      return sum + (price / periodMonths);
+    });
+  }
+
   Map<String, dynamic> get _totals {
     final totals = _overview?['totals'];
-    return totals is Map<String, dynamic> ? totals : <String, dynamic>{};
+    final merged = totals is Map<String, dynamic>
+        ? Map<String, dynamic>.from(totals)
+        : <String, dynamic>{};
+    final healthCounts = _operationsHealth?['counts'] is Map<String, dynamic>
+        ? _operationsHealth!['counts'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
+    void fillCount(String key, int value) {
+      if (!_hasPositiveValue(merged, key) && value > 0) merged[key] = value;
+    }
+
+    void fillMoney(String key, double value) {
+      if (!_hasPositiveValue(merged, key) && value > 0.009) merged[key] = value;
+    }
+
+    final activeAccounts = _accounts.where((account) {
+      final status = account['status']?.toString().toUpperCase() ?? 'ACTIVE';
+      return status != 'SUSPENDED';
+    }).length;
+    final suspendedAccounts = _accounts.where((account) {
+      return account['status']?.toString().toUpperCase() == 'SUSPENDED';
+    }).length;
+    final pastDueSubscriptions = _subscriptions.where((subscription) {
+      final status = subscription['status']?.toString().toUpperCase() ?? '';
+      final billing = subscription['billing'];
+      return status == 'PAST_DUE' ||
+          (billing is Map<String, dynamic> && billing['isPastDue'] == true);
+    }).length;
+    final approvedSaasPayments = _saasPayments.where((payment) {
+      return payment['status']?.toString().toUpperCase() == 'APPROVED';
+    }).toList();
+    final pendingSaasPayments = _saasPayments.where((payment) {
+      return ['CREATED', 'PENDING', 'IN_PROCESS']
+          .contains(payment['status']?.toString().toUpperCase());
+    }).length;
+    final supportOpen = _supportTickets.where((ticket) {
+      return ['OPEN', 'PENDING'].contains(ticket['status']?.toString().toUpperCase());
+    }).length;
+    final mrr = _recurringMonthlyRevenueFromSubscriptions();
+
+    fillCount('accounts', _accounts.isNotEmpty ? _accounts.length : _intValue(healthCounts['accounts']));
+    fillCount('clients', _intValue(healthCounts['clients']));
+    fillCount('activeSubscriptions', _subscriptions.length);
+    fillCount('suspendedAccounts', suspendedAccounts);
+    fillCount('pastDueSubscriptions', pastDueSubscriptions);
+    fillCount('paymentsCount', _payments.isNotEmpty ? _payments.length : _intValue(healthCounts['payments']));
+    fillCount(
+      'paymentsToday',
+      _payments.where((payment) => _isTodayValue(payment['paidAt'] ?? payment['createdAt'])).length,
+    );
+    fillCount('saasPaymentsCount', approvedSaasPayments.length);
+    fillCount('saasPaymentsPending', pendingSaasPayments);
+    fillCount('pixProcessed', _intValue(healthCounts['paymentIntents']));
+    fillCount('supportOpen', supportOpen);
+    fillMoney('paymentsAmount', _sumAmounts(_payments));
+    fillMoney(
+      'paymentsTodayAmount',
+      _sumAmounts(_payments, where: (payment) => _isTodayValue(payment['paidAt'] ?? payment['createdAt'])),
+    );
+    fillMoney('saasPaymentsAmount', _sumAmounts(approvedSaasPayments));
+    fillMoney('mrr', mrr);
+    fillMoney('arr', mrr * 12);
+
+    if (!_hasPositiveValue(merged, 'accounts') && activeAccounts > 0) {
+      merged['accounts'] = activeAccounts + suspendedAccounts;
+    }
+
+    return merged;
   }
 
   _SuperAdminSection _sectionFromPath(String path) {
