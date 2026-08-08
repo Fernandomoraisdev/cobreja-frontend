@@ -53,6 +53,37 @@ function safeFilePath(requestUrl) {
 }
 
 const server = http.createServer((req, res) => {
+  const requestedPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (requestedPath === '/flutter_service_worker.js') {
+    res.writeHead(200, {
+      'Content-Type': 'application/javascript; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Service-Worker-Allowed': '/',
+    });
+    res.end(`
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys()
+      .then(function(keys) {
+        return Promise.all(keys.map(function(key) { return caches.delete(key); }));
+      })
+      .then(function() { return self.registration.unregister(); })
+      .then(function() {
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      })
+      .then(function(clients) {
+        clients.forEach(function(client) { client.navigate(client.url); });
+      })
+  );
+});
+`);
+    return;
+  }
+
   let filePath = safeFilePath(req.url);
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
