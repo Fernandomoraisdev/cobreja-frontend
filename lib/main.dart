@@ -13154,12 +13154,24 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
 
   void _startAutoRefresh() {
     _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 60), (_) async {
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       if (!mounted || _isLoading) return;
-      await _refreshClientsFromBackend(updateLoading: false);
-      await fetchDashboard();
-      await _refreshNotificationSummary();
+      await _refreshWorkspaceSilently();
     });
+  }
+
+  Future<void> _refreshWorkspaceSilently() async {
+    if (!mounted) return;
+    await _refreshClientsFromBackend(updateLoading: false);
+    await fetchDashboard();
+    await _refreshNotificationSummary();
+  }
+
+  Future<void> _refreshWorkspaceAfterMutation({bool updateLoading = false}) async {
+    if (!mounted) return;
+    await _refreshClientsFromBackend(updateLoading: updateLoading);
+    await fetchDashboard();
+    await _refreshNotificationSummary();
   }
 
   Future<String?> _readAuthToken() async {
@@ -16036,6 +16048,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (mounted) {
       setState(() {});
       fetchDashboard();
+      unawaited(_refreshWorkspaceSilently());
     }
   }
 
