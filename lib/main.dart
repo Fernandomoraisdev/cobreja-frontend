@@ -15768,6 +15768,129 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     return client.status == 'devendo';
   }
 
+  bool _isOpenInstallment(Map<String, dynamic> installment) {
+    final status = installment['status']?.toString().toUpperCase();
+    final amount = _readDouble(installment['amount']);
+    final paidAmount = _readDouble(installment['paidAmount']);
+    return status != 'PAID' && (amount <= 0 || paidAmount < amount - 0.01);
+  }
+
+  Client _clientForDueTodayInstallment(
+    Client client,
+    Map<String, dynamic> renegotiation,
+    Map<String, dynamic> installment,
+  ) {
+    final dueDate = _optionalBackendDate(installment['dueDate']) ?? client.dueDate;
+    final installmentNumber =
+        _optionalBackendInt(installment['installmentNumber']) ??
+            math.min(client.installmentsPaid + 1, client.installmentCount);
+    final renegotiationInstallmentCount =
+        _optionalBackendInt(renegotiation['installmentCount']) ??
+            client.installmentCount;
+    final amount = _readDouble(installment['amount']);
+    final paidAmount = _readDouble(installment['paidAmount']);
+    final explicitRemaining = _readDouble(installment['remainingAmount']);
+    final remainingAmount = math.max(
+      0.0,
+      explicitRemaining > 0 ? explicitRemaining : amount - paidAmount,
+    );
+
+    final installmentClient = Client.fromMap({
+      ...client.toMap(),
+      'backendPrimaryDebtId':
+          _optionalBackendInt(installment['debtId']) ?? client.backendPrimaryDebtId,
+      'backendRenegotiationId':
+          _optionalBackendInt(renegotiation['id']) ?? client.backendRenegotiationId,
+      'backendCurrentInstallmentId':
+          _optionalBackendInt(installment['id']) ?? client.backendCurrentInstallmentId,
+      'borrowedAmount': remainingAmount,
+      'activePrincipalCollected': 0,
+      'borrowedDate':
+          (_optionalBackendDate(renegotiation['startedAt']) ?? client.borrowedDate)
+              .toIso8601String(),
+      'dueDate': dueDate.toIso8601String(),
+      'originalTermDays': math.max(1, dueDate.difference(client.borrowedDate).inDays),
+      'isNegotiated': true,
+      'installmentCount': renegotiationInstallmentCount,
+      'installmentsPaid': math.max(0, installmentNumber - 1),
+      'installmentAmount': remainingAmount,
+      'renegotiatedAt':
+          (_optionalBackendDate(renegotiation['startedAt']) ?? client.renegotiatedAt)
+              ?.toIso8601String(),
+      'installmentStartDate':
+          (_optionalBackendDate(renegotiation['firstDueDate']) ??
+                  client.installmentStartDate)
+              ?.toIso8601String(),
+      'interestPaidCurrentCycle': 0,
+    });
+    installmentClient.backendDebts = client.backendDebts;
+    installmentClient.backendRenegotiations = client.backendRenegotiations;
+    return installmentClient;
+  }
+
+  List<Client> _dueTodayClients() {
+    final today = _dateOnly(DateTime.now());
+    final entries = <Client>[];
+    final seen = <String>{};
+
+    void addEntry(String key, Client client) {
+      if (!seen.add(key)) return;
+      if (_safeSearchQuery.isNotEmpty && !_matchesClientSearch(client)) return;
+      entries.add(client);
+    }
+
+    for (final client in _clients) {
+      if (_isExcludedClient(client) || _isQuitadoClient(client)) continue;
+      if (client.status == 'renegociado' || client.status == 'debito_excluido') {
+        continue;
+      }
+
+      final debtId = client.backendPrimaryDebtId ?? int.tryParse(client.id);
+      final debt = FinanceService.calculateDebt(client);
+      if (!client.isNegotiated && debt.isDueToday && debt.totalDebt > 0.009) {
+        addEntry('debt:${debtId ?? client.hashCode}', client);
+      }
+
+      for (final renegotiation in client.backendRenegotiations) {
+        if (renegotiation['status']?.toString().toUpperCase() != 'ACTIVE') {
+          continue;
+        }
+        final installments =
+            (renegotiation['installments'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>();
+        for (final installment in installments) {
+          final dueDate = _optionalBackendDate(installment['dueDate']);
+          if (dueDate == null || _dateOnly(dueDate) != today) continue;
+          if (!_isOpenInstallment(installment)) continue;
+
+          final installmentId = _optionalBackendInt(installment['id']);
+          final renegotiationId = _optionalBackendInt(renegotiation['id']);
+          addEntry(
+            'installment:${renegotiationId ?? client.id}:${installmentId ?? installment['installmentNumber']}',
+            _clientForDueTodayInstallment(client, renegotiation, installment),
+          );
+        }
+      }
+
+      if (client.isNegotiated &&
+          client.backendRenegotiations.isEmpty &&
+          debt.isDueToday &&
+          debt.totalDebt > 0.009) {
+        addEntry('agreement:${debtId ?? client.hashCode}', client);
+      }
+    }
+
+    entries.sort((a, b) {
+      final dueCompare = a.dueDate.compareTo(b.dueDate);
+      if (dueCompare != 0) return dueCompare;
+      final nameCompare = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      if (nameCompare != 0) return nameCompare;
+      return (a.backendCurrentInstallmentId ?? a.backendPrimaryDebtId ?? 0)
+          .compareTo(b.backendCurrentInstallmentId ?? b.backendPrimaryDebtId ?? 0);
+    });
+    return entries;
+  }
+
   DateTime _nextMonthlyDueDate(Client client, {DateTime? fromDate}) {
     final base = fromDate ?? client.dueDate;
     final nextMonth = DateTime(base.year, base.month + 1, 1);
@@ -20569,11 +20692,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     _ClientQuickFilter overrideFilter = _ClientQuickFilter.todos,
     String? emptyKey,
   }) {
-    final filteredClients = _clientsForSection(
-      tabType,
-      includeAllActive: includeAllActive,
-      overrideFilter: overrideFilter,
-    );
+    final filteredClients = overrideFilter == _ClientQuickFilter.venceHoje
+        ? _dueTodayClients()
+        : _clientsForSection(
+            tabType,
+            includeAllActive: includeAllActive,
+            overrideFilter: overrideFilter,
+          );
 
     if (filteredClients.isEmpty) {
       return _buildEmptyState(
@@ -20593,7 +20718,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
       ..sort((a, b) => a.key.compareTo(b.key));
 
     final showGroupedOnly =
-        tabType == 'devendo' && !_bulkSelectionMode;
+        tabType == 'devendo' &&
+        overrideFilter != _ClientQuickFilter.venceHoje &&
+        !_bulkSelectionMode;
 
     return ListView(
       controller: _clientListScrollController,
